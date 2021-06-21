@@ -35,12 +35,12 @@
                 throw new InvalidOperationException($"Cannot create an image from an XObject with type: {xObject.Type}.");
             }
 
-            var dictionary = xObject.Stream.StreamDictionary;
+            var dictionary = xObject.Stream.StreamDictionary.Resolve(pdfScanner);
 
             var bounds = xObject.AppliedTransformation.Transform(new PdfRectangle(new PdfPoint(0, 0), new PdfPoint(1, 1)));
 
-            var width = dictionary.Get<NumericToken>(NameToken.Width, pdfScanner).Int;
-            var height = dictionary.Get<NumericToken>(NameToken.Height, pdfScanner).Int;
+            var width = dictionary.Get<NumericToken>(NameToken.Width).Int;
+            var height = dictionary.Get<NumericToken>(NameToken.Height).Int;
 
             var isImageMask = dictionary.TryGet(NameToken.ImageMask, pdfScanner, out BooleanToken? isMaskToken)
                          && isMaskToken.Data;
@@ -91,24 +91,14 @@
                 }
             }
 
-            var supportsFilters = filterDictionary != null;
-            if (filterDictionary != null)
+            var filters = filterProvider.GetFilters(dictionary, pdfScanner);
+            foreach (var filter in filters)
             {
-                var filters = filterProvider.GetFilters(filterDictionary, pdfScanner);
-                foreach (var filter in filters)
+                if (!filter.IsSupported)
                 {
-                    if (!filter.IsSupported)
-                    {
-                        supportsFilters = false;
-                        break;
-                    }
+                    supportsFilters = false;
+                    break;
                 }
-            }
-
-            var decodeParams = dictionary.GetObjectOrDefault(NameToken.DecodeParms, NameToken.Dp);
-            if (decodeParams is IndirectReferenceToken refToken)
-            {
-                dictionary = dictionary.With(NameToken.DecodeParms, pdfScanner.Get(refToken.Data).Data);
             }
 
             var streamToken = new StreamToken(dictionary, xObject.Stream.Data);
