@@ -35,12 +35,12 @@
                 throw new InvalidOperationException($"Cannot create an image from an XObject with type: {xObject.Type}.");
             }
 
-            var dictionary = xObject.Stream.StreamDictionary;
+            var dictionary = xObject.Stream.StreamDictionary.Resolve(pdfScanner);
 
             var bounds = xObject.AppliedTransformation.Transform(new PdfRectangle(new PdfPoint(0, 0), new PdfPoint(1, 1)));
 
-            var width = dictionary.Get<NumericToken>(NameToken.Width, pdfScanner).Int;
-            var height = dictionary.Get<NumericToken>(NameToken.Height, pdfScanner).Int;
+            var width = dictionary.Get<NumericToken>(NameToken.Width).Int;
+            var height = dictionary.Get<NumericToken>(NameToken.Height).Int;
 
             bool isImageMask = false;
             if (dictionary.TryGet(NameToken.ImageMask, pdfScanner, out BooleanToken? isMaskToken))
