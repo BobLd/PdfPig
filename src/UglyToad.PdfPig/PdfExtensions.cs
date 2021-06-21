@@ -53,6 +53,49 @@
         }
 
         /// <summary>
+        /// Returns an equivalent token where any indirect references of child objects are
+        /// recursively traversed and resolved.
+        /// </summary>
+        internal static T Resolve<T>(this T token, IPdfTokenScanner scanner) where T : IToken
+        {
+            return (T) ResolveInternal(token, scanner);
+        }
+
+        private static IToken ResolveInternal(this IToken token, IPdfTokenScanner scanner)
+        {
+            if (token is StreamToken stream)
+            {
+                return new StreamToken(Resolve(stream.StreamDictionary, scanner), stream.Data);
+            }
+
+            if (token is DictionaryToken dict)
+            {
+                var resolvedItems = new Dictionary<NameToken, IToken>();
+                foreach (var kvp in dict.Data)
+                {
+                    var value = kvp.Value is IndirectReferenceToken reference ? scanner.Get(reference.Data).Data : kvp.Value;
+                    resolvedItems[NameToken.Create(kvp.Key)] = ResolveInternal(value, scanner);
+                }
+
+                return new DictionaryToken(resolvedItems);
+            }
+
+            if (token is ArrayToken arr)
+            {
+                var resolvedItems = new List<IToken>();
+                for (int i = 0; i < arr.Length; i++)
+                {
+                    var value = arr.Data[i] is IndirectReferenceToken reference ? scanner.Get(reference.Data).Data : arr.Data[i];
+                    resolvedItems.Add(ResolveInternal(value, scanner));
+                }
+                return new ArrayToken(resolvedItems);
+            }
+
+            var val = token is IndirectReferenceToken tokenReference ? scanner.Get(tokenReference.Data).Data : token;
+            return val;
+        }
+
+        /// <summary>
         /// Get the decoded data from this stream.
         /// </summary>
         public static ReadOnlyMemory<byte> Decode(this StreamToken stream, IFilterProvider filterProvider)
