@@ -5,18 +5,24 @@
     /// <summary>
     /// A color space definition from a resource dictionary.
     /// </summary>
-    internal struct ResourceColorSpace
+    public readonly struct ResourceColorSpace
     {
+        /// <summary>
+        /// TODO
+        /// </summary>
         public NameToken Name { get; }
 
+        /// <summary>
+        /// TODO
+        /// </summary>
         public IToken Data { get; }
 
-        public ResourceColorSpace(NameToken name, IToken data)
+        internal ResourceColorSpace(NameToken name, IToken data)
         {
             Name = name;
             Data = data;
         }
 
-        public ResourceColorSpace(NameToken name) : this(name, null) { }
+        internal ResourceColorSpace(NameToken name) : this(name, null) { }
     }
 }

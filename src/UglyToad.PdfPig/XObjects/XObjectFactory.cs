@@ -13,8 +13,14 @@
     using Tokens;
     using Util;
 
-    internal static class XObjectFactory
+    /// <summary>
+    /// TODO
+    /// </summary>
+    public static class XObjectFactory
     {
+        /// <summary>
+        /// TODO
+        /// </summary>
         public static XObjectImage ReadImage(XObjectContentRecord xObject, IPdfTokenScanner pdfScanner,
             ILookupFilterProvider filterProvider,
             IResourceStore resourceStore)

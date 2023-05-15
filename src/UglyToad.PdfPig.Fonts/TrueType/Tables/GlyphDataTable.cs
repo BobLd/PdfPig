@@ -16,7 +16,7 @@
     {
         private readonly IReadOnlyList<uint> glyphOffsets;
         private readonly PdfRectangle maxGlyphBounds;
-        private TrueTypeDataBytes tableBytes;
+        private readonly TrueTypeDataBytes tableBytes;
 
         /// <inheritdoc />
         public string Tag => TrueTypeHeaderTable.Glyf;
@@ -155,7 +155,8 @@
                 result[compositeLocation.Key] = ReadCompositeGlyph(data, compositeLocation.Value, compositeLocations, result, emptyGlyph);
             }
 
-            tableBytes = null;
+            // removed for image rendering
+            //tableBytes = null;
 
             return result;
         }

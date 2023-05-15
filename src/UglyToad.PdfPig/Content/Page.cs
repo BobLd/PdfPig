@@ -18,8 +18,15 @@
     /// </summary>
     public class Page
     {
-        internal readonly AnnotationProvider annotationProvider;
-        internal readonly IPdfTokenScanner pdfScanner;
+        /// <summary>
+        /// TODO
+        /// </summary>
+        public readonly AnnotationProvider annotationProvider;
+
+        /// <summary>
+        /// TODO
+        /// </summary>
+        public readonly IPdfTokenScanner pdfScanner;
         private readonly Lazy<string> textLazy;
 
         /// <summary>
@@ -42,7 +49,10 @@
         /// </summary>
         public MediaBox MediaBox { get; }
 
-        internal PageContent Content { get; }
+        /// <summary>
+        /// TODO
+        /// </summary>
+        public PageContent Content { get; }
 
         /// <summary>
         /// The rotation of the page in degrees (clockwise). Valid values are 0, 90, 180 and 270.
@@ -91,8 +101,7 @@
         public Experimental ExperimentalAccess { get; }
 
         internal Page(int number, DictionaryToken dictionary, MediaBox mediaBox, CropBox cropBox, PageRotationDegrees rotation, PageContent content,
-            AnnotationProvider annotationProvider,
-            IPdfTokenScanner pdfScanner)
+            AnnotationProvider annotationProvider, IPdfTokenScanner pdfScanner)
         {
             if (number <= 0)
             {

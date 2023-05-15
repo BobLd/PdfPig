@@ -176,7 +176,7 @@
         }
 
         /// <summary>
-        /// Add a <see cref="BezierCurve"/> to the path.
+        /// Add a cubic <see cref="BezierCurve"/> to the path.
         /// </summary>
         public void BezierCurveTo(double x1, double y1, double x2, double y2, double x3, double y3)
         {
@@ -188,6 +188,27 @@
 
                 var to = new PdfPoint(x3, y3);
                 commands.Add(new BezierCurve(currentPosition.Value, new PdfPoint(x1, y1), new PdfPoint(x2, y2), to));
+                currentPosition = to;
+            }
+            else
+            {
+                // PDF Reference 1.7 p226
+                throw new ArgumentNullException("BezierCurveTo(): currentPosition is null.");
+            }
+        }
+
+        /// <summary>
+        /// Add a quadratic <see cref="BezierCurve"/> to the path.
+        /// </summary>
+        public void BezierCurveTo(double x1, double y1, double x2, double y2)
+        {
+            if (currentPosition.HasValue)
+            {
+                shoeLaceSum += (x1 - currentPosition.Value.X) * (y1 + currentPosition.Value.Y);
+                shoeLaceSum += (x2 - x1) * (y2 + y1);
+
+                var to = new PdfPoint(x2, y2);
+                commands.Add(new BezierCurve(currentPosition.Value, currentPosition.Value, new PdfPoint(x1, y1), to));
                 currentPosition = to;
             }
             else

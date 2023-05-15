@@ -2,8 +2,14 @@
 {
     using PdfPig.Core;
 
-    internal static class PerformantRectangleTransformer
+    /// <summary>
+    /// TODO
+    /// </summary>
+    public static class PerformantRectangleTransformer
     {
+        /// <summary>
+        /// TODO
+        /// </summary>
         public static PdfRectangle Transform(TransformationMatrix first, TransformationMatrix second, TransformationMatrix third, PdfRectangle rectangle)
         {
             var tl = rectangle.TopLeft;

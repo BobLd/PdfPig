@@ -224,10 +224,20 @@
         [Pure]
         public PdfPoint Transform(PdfPoint original)
         {
-            var x = A * original.X + C * original.Y + E;
-            var y = B * original.X + D * original.Y + F;
+            (double x, double y) xy = Transform(original.X, original.Y);
+            return new PdfPoint(xy.x, xy.y);
+        }
 
-            return new PdfPoint(x, y);
+        /// <summary>
+        /// Transform a point using this transformation matrix.
+        /// </summary>
+        /// <param name="x">The original point X coordinate.</param>
+        /// <param name="y">The original point Y coordinate.</param>
+        /// <returns>A new point which is the result of applying this transformation matrix.</returns>
+        [Pure]
+        public (double x, double y) Transform(double x, double y)
+        {
+            return new (A * x + C * y + E, B * x + D * y + F);
         }
 
         /// <summary>

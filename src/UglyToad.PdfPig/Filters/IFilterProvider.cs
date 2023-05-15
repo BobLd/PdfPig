@@ -25,8 +25,12 @@
         IReadOnlyList<IFilter> GetAllFilters();
     }
 
-    internal interface ILookupFilterProvider : IFilterProvider
+    /// <inheritdoc/>
+    public interface ILookupFilterProvider : IFilterProvider
     {
+        /// <summary>
+        /// Get the filters specified in this dictionary.
+        /// </summary>
         IReadOnlyList<IFilter> GetFilters(DictionaryToken dictionary, IPdfTokenScanner scanner);
     }
 }

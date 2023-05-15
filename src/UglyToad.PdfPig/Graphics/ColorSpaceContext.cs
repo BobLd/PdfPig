@@ -14,7 +14,7 @@
 
         public ColorSpaceDetails CurrentStrokingColorSpace { get; private set; } = DeviceGrayColorSpaceDetails.Instance;
 
-        public ColorSpaceDetails CurrentNonStrokingColorSpace { get; private set; } = DeviceGrayColorSpaceDetails.Instance;
+        public ColorSpaceDetails CurrentNonStrokingColorSpace { get; set; } = DeviceGrayColorSpaceDetails.Instance;
 
         public ColorSpaceContext(Func<CurrentGraphicsState> currentStateFunc, IResourceStore resourceStore)
         {

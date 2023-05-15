@@ -13,7 +13,10 @@
     using Tokens;
     using Util;
 
-    internal class AnnotationProvider
+    /// <summary>
+    /// TODO
+    /// </summary>
+    public class AnnotationProvider
     {
         private readonly IPdfTokenScanner tokenScanner;
         private readonly DictionaryToken pageDictionary;
@@ -21,7 +24,7 @@
         private readonly ILog log;
         private readonly TransformationMatrix matrix;
 
-        public AnnotationProvider(IPdfTokenScanner tokenScanner, DictionaryToken pageDictionary,
+        internal AnnotationProvider(IPdfTokenScanner tokenScanner, DictionaryToken pageDictionary,
             TransformationMatrix matrix, NamedDestinations namedDestinations, ILog log)
         {
             this.matrix = matrix;
@@ -31,6 +34,9 @@
             this.log = log;
         }
 
+        /// <summary>
+        /// TODO
+        /// </summary>
         public IEnumerable<Annotation> GetAnnotations()
         {
             var lookupAnnotations = new Dictionary<IndirectReference, Annotation>();

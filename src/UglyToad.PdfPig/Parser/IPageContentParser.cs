@@ -5,8 +5,14 @@
     using Graphics.Operations;
     using Logging;
 
-    internal interface IPageContentParser
+    /// <summary>
+    /// TODO
+    /// </summary>
+    public interface IPageContentParser
     {
+        /// <summary>
+        /// TODO
+        /// </summary>
         IReadOnlyList<IGraphicsStateOperation> Parse(int pageNumber, IInputBytes inputBytes,
             ILog log);
     }

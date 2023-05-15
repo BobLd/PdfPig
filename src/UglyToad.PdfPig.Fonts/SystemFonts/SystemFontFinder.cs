@@ -1,21 +1,24 @@
-﻿using System.Collections.Concurrent;
-
-namespace UglyToad.PdfPig.Fonts.SystemFonts
+﻿namespace UglyToad.PdfPig.Fonts.SystemFonts
 {
+    using Core;
+    using Standard14Fonts;
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Runtime.InteropServices;
-    using Core;
-    using Standard14Fonts;
     using TrueType;
     using TrueType.Parser;
 
     /// <inheritdoc />
     public class SystemFontFinder : ISystemFontFinder
     {
-        private static readonly IReadOnlyDictionary<string, string[]> NameSubstitutes;
+        /// <summary>
+        /// Name Substitutes
+        /// </summary>
+        public static readonly IReadOnlyDictionary<string, string[]> NameSubstitutes;
+
         private static readonly Lazy<IReadOnlyList<SystemFontRecord>> AvailableFonts;
 
         private static readonly object CacheLock = new object();

@@ -5,8 +5,14 @@
     using Tokens;
     using Util.JetBrains.Annotations;
 
-    internal interface IGraphicsStateOperationFactory
+    /// <summary>
+    /// TODO
+    /// </summary>
+    public interface IGraphicsStateOperationFactory
     {
+        /// <summary>
+        /// TODO
+        /// </summary>
         [CanBeNull]
         IGraphicsStateOperation Create(OperatorToken op, IReadOnlyList<IToken> operands);
     }

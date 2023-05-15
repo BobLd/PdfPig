@@ -205,7 +205,7 @@
 
             ProcessOperations(operations);
 
-            return new PageContent(operations, letters, paths, images, markedContents, pdfScanner, filterProvider, resourceStore);
+            return new PageContent(operations, letters, paths, images, markedContents, pdfScanner, pageContentParser, filterProvider, resourceStore, userSpaceUnit, parsingOptions);
         }
 
         private void ProcessOperations(IReadOnlyList<IGraphicsStateOperation> operations)
@@ -725,10 +725,10 @@
                 return;
             }
 
-            var controlPoint2 = CurrentTransformationMatrix.Transform(new PdfPoint(x2, y2));
+            var controlPoint = CurrentTransformationMatrix.Transform(new PdfPoint(x2, y2));
             var end = CurrentTransformationMatrix.Transform(new PdfPoint(x3, y3));
 
-            CurrentSubpath.BezierCurveTo(CurrentPosition.X, CurrentPosition.Y, controlPoint2.X, controlPoint2.Y, end.X, end.Y);
+            CurrentSubpath.BezierCurveTo(controlPoint.X, controlPoint.Y, end.X, end.Y);
             CurrentPosition = end;
         }
 

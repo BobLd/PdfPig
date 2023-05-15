@@ -18,7 +18,7 @@
         /// <summary>
         /// The <see cref="ColorSpaceDetails"/> used for non-stroking operations.
         /// </summary>
-        ColorSpaceDetails CurrentNonStrokingColorSpace { get; }
+        ColorSpaceDetails CurrentNonStrokingColorSpace { get; set; }
 
         /// <summary>
         /// Set the current color space to use for stroking operations and initialize the stroking color.

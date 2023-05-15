@@ -12,10 +12,16 @@
     using Tokenization.Scanner;
     using Tokens;
 
-    internal class PageContentParser : IPageContentParser
+    /// <summary>
+    /// TODO
+    /// </summary>
+    public class PageContentParser : IPageContentParser
     {
         private readonly IGraphicsStateOperationFactory operationFactory;
 
+        /// <summary>
+        /// TODO
+        /// </summary>
         public PageContentParser(IGraphicsStateOperationFactory operationFactory)
         {
             this.operationFactory = operationFactory;

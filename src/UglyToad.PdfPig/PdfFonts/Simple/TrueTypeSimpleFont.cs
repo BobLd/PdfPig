@@ -328,7 +328,7 @@
         {
             if (font == null)
             {
-                path = EmptyArray<PdfSubpath>.Instance;
+                path = null;
                 return false;
             }
 

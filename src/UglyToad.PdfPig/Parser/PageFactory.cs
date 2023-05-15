@@ -90,8 +90,11 @@
                     EmptyArray<Union<XObjectContentRecord, InlineImage>>.Instance,
                     EmptyArray<MarkedContentElement>.Instance,
                     pdfScanner,
+                    pageContentParser,
                     filterProvider,
-                    resourceStore);
+                    resourceStore,
+                    userSpaceUnit,
+                    parsingOptions);
                 // ignored for now, is it possible? check the spec...
             }
             else if (DirectObjectFinder.TryGet<ArrayToken>(contents, pdfScanner, out var array))
@@ -142,10 +145,11 @@
             var annotationProvider = new AnnotationProvider(pdfScanner, dictionary, initialMatrix, namedDestinations, log);
             var page = new Page(number, dictionary, mediaBox, cropBox, rotation, content, annotationProvider, pdfScanner);
 
-            for (var i = 0; i < stackDepth; i++)
-            {
-                resourceStore.UnloadResourceDictionary();
-            }
+            // deactivated for image rendering
+            //for (var i = 0; i < stackDepth; i++)
+            //{
+            //  resourceStore.UnloadResourceDictionary();
+            //}
 
             return page;
         }

@@ -6,21 +6,39 @@
     /// <summary>
     /// <see cref="ParsingOptions"/> but without being a public API/
     /// </summary>
-    internal class InternalParsingOptions
+    public class InternalParsingOptions
     {
+        /// <summary>
+        /// TODO
+        /// </summary>
         public IReadOnlyList<string> Passwords { get; }
 
+        /// <summary>
+        /// TODO
+        /// </summary>
         public bool UseLenientParsing { get; }
 
+        /// <summary>
+        /// TODO
+        /// </summary>
         public bool ClipPaths { get; }
 
+        /// <summary>
+        /// TODO
+        /// </summary>
         public bool SkipMissingFonts { get; }
 
+        /// <summary>
+        /// TODO
+        /// </summary>
         public bool SkipMissingXObjects { get; }
 
+        /// <summary>
+        /// TODO
+        /// </summary>
         public ILog Logger { get; }
 
-        public InternalParsingOptions(
+        internal InternalParsingOptions(
             IReadOnlyList<string> passwords,
             bool useLenientParsing,
             bool clipPaths,
