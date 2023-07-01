@@ -1,31 +1,69 @@
-﻿namespace UglyToad.PdfPig.Parser
+﻿namespace UglyToad.PdfPig.Content
 {
-    using Annotations;
-    using Content;
-    using Filters;
-    using Geometry;
-    using Graphics;
-    using Graphics.Operations;
-    using Logging;
-    using Outline;
+    using Core;
+    using System;
     using System.Collections.Generic;
-    using Tokenization.Scanner;
-    using Tokens;
-    using UglyToad.PdfPig.Core;
+    using UglyToad.PdfPig.Filters;
+    using UglyToad.PdfPig.Geometry;
+    using UglyToad.PdfPig.Logging;
+    using UglyToad.PdfPig.Outline;
+    using UglyToad.PdfPig.Parser;
+    using UglyToad.PdfPig.Parser.Parts;
+    using UglyToad.PdfPig.Tokenization.Scanner;
+    using UglyToad.PdfPig.Tokens;
+    using UglyToad.PdfPig.Util;
 
-    internal class PageFactory : PageFactoryBase<Page>
+    /// <summary>
+    /// Page factory abstract class.
+    /// </summary>
+    /// <typeparam name="TPage">The type of page the page factory creates.</typeparam>
+    public abstract class PageFactoryBase<TPage> : IPageFactory<TPage>
     {
-        public PageFactory(
+        /// <summary>
+        /// The Pdf token scanner.
+        /// </summary>
+        public readonly IPdfTokenScanner pdfScanner;
+
+        /// <summary>
+        /// The resource store.
+        /// </summary>
+        public readonly IResourceStore resourceStore;
+
+        /// <summary>
+        /// The filter provider.
+        /// </summary>
+        public readonly ILookupFilterProvider filterProvider;
+
+        /// <summary>
+        /// The page content parser.
+        /// </summary>
+        public readonly IPageContentParser pageContentParser;
+
+        /// <summary>
+        /// The <see cref="ILog"/> used to record messages raised by the parsing process.
+        /// </summary>
+        public readonly ILog log;
+
+        /// <summary>
+        /// Create a <see cref="PageFactoryBase{TPage}"/>.
+        /// </summary>
+        protected PageFactoryBase(
             IPdfTokenScanner pdfScanner,
             IResourceStore resourceStore,
             ILookupFilterProvider filterProvider,
             IPageContentParser pageContentParser,
             ILog log)
-            : base(pdfScanner, resourceStore, filterProvider, pageContentParser, log)
-        { }
+        {
+            this.resourceStore = resourceStore;
+            this.filterProvider = filterProvider;
+            this.pageContentParser = pageContentParser;
+            this.pdfScanner = pdfScanner;
+            this.log = log;
+        }
 
-        public Page Create(int number, DictionaryToken dictionary, PageTreeMembers pageTreeMembers,
-            NamedDestinations namedDestinations, InternalParsingOptions parsingOptions)
+        /// <inheritdoc/>
+        public TPage Create(int number, DictionaryToken dictionary, PageTreeMembers pageTreeMembers,
+            NamedDestinations namedDestinations, IParsingOptions parsingOptions)
         {
             if (dictionary == null)
             {
@@ -39,7 +77,11 @@
                 parsingOptions.Logger.Error($"Page {number} had its type specified as {type} rather than 'Page'.");
             }
 
+            MediaBox mediaBox = GetMediaBox(number, dictionary, pageTreeMembers);
+            CropBox cropBox = GetCropBox(dictionary, pageTreeMembers, mediaBox);
+
             var rotation = new PageRotationDegrees(pageTreeMembers.Rotation);
+            // TODO - check if NameToken.Rotate is already looked for in Pages.cs, we don't need to look again
             if (dictionary.TryGet(NameToken.Rotate, pdfScanner, out NumericToken rotateToken))
             {
                 rotation = new PageRotationDegrees(rotateToken.Int);
@@ -63,26 +105,11 @@
 
             UserSpaceUnit userSpaceUnit = GetUserSpaceUnits(dictionary);
 
-            MediaBox mediaBox = GetMediaBox(number, dictionary, pageTreeMembers);
-            CropBox cropBox = GetCropBox(dictionary, pageTreeMembers, mediaBox);
-
-            var initialMatrix = OperationContextHelper.GetInitialMatrix(userSpaceUnit, mediaBox, cropBox, rotation, log);
-
-            ApplyTransformNormalise(initialMatrix, ref mediaBox, ref cropBox);
-
-            PageContent content;
+            TPage page;
 
             if (!dictionary.TryGet(NameToken.Contents, out var contents))
             {
-                content = new PageContent(EmptyArray<IGraphicsStateOperation>.Instance,
-                    EmptyArray<Letter>.Instance,
-                    EmptyArray<PdfPath>.Instance,
-                    EmptyArray<Union<XObjectContentRecord, InlineImage>>.Instance,
-                    EmptyArray<MarkedContentElement>.Instance,
-                    pdfScanner,
-                    filterProvider,
-                    resourceStore);
-                // ignored for now, is it possible? check the spec...
+                page = ProcessPage(number, dictionary, namedDestinations, cropBox, userSpaceUnit, rotation, mediaBox, parsingOptions);
             }
             else if (DirectObjectFinder.TryGet<ArrayToken>(contents, pdfScanner, out var array))
             {
@@ -112,7 +139,7 @@
                     }
                 }
 
-                content = GetContent(number, bytes, cropBox, userSpaceUnit, rotation, initialMatrix, parsingOptions);
+                page = ProcessPage(number, dictionary, namedDestinations, bytes, cropBox, userSpaceUnit, rotation, mediaBox, parsingOptions);
             }
             else
             {
@@ -125,11 +152,8 @@
 
                 var bytes = contentStream.Decode(filterProvider, pdfScanner);
 
-                content = GetContent(number, bytes, cropBox, userSpaceUnit, rotation, initialMatrix, parsingOptions);
+                page = ProcessPage(number, dictionary, namedDestinations, bytes, cropBox, userSpaceUnit, rotation, mediaBox, parsingOptions);
             }
-
-            var annotationProvider = new AnnotationProvider(pdfScanner, dictionary, initialMatrix, namedDestinations, log);
-            var page = new Page(number, dictionary, mediaBox, cropBox, rotation, content, annotationProvider, pdfScanner);
 
             for (var i = 0; i < stackDepth; i++)
             {
@@ -139,31 +163,37 @@
             return page;
         }
 
-        private PageContent GetContent(
+        /// <summary>
+        /// Process a page with no content.
+        /// </summary>
+        protected abstract TPage ProcessPage(
             int pageNumber,
+            DictionaryToken dictionary,
+            NamedDestinations namedDestinations,
             IReadOnlyList<byte> contentBytes,
             CropBox cropBox,
             UserSpaceUnit userSpaceUnit,
             PageRotationDegrees rotation,
-            TransformationMatrix initialMatrix,
-            InternalParsingOptions parsingOptions)
-        {
-            var context = new ContentStreamProcessor(
-                pageNumber,
-                resourceStore,
-                userSpaceUnit,
-                cropBox,
-                initialMatrix,
-                rotation,
-                pdfScanner,
-                pageContentParser,
-                filterProvider,
-                parsingOptions);
+            MediaBox mediaBox,
+            IParsingOptions parsingOptions);
 
-            return context.Process(pageNumber, operations);
-        }
+        /// <summary>
+        /// Process a page with no content.
+        /// </summary>
+        protected abstract TPage ProcessPage(
+            int pageNumber,
+            DictionaryToken dictionary,
+            NamedDestinations namedDestinations,
+            CropBox cropBox,
+            UserSpaceUnit userSpaceUnit,
+            PageRotationDegrees rotation,
+            MediaBox mediaBox,
+            IParsingOptions parsingOptions);
 
-        private static UserSpaceUnit GetUserSpaceUnits(DictionaryToken dictionary)
+        /// <summary>
+        /// Get the user space units.
+        /// </summary>
+        public static UserSpaceUnit GetUserSpaceUnits(DictionaryToken dictionary)
         {
             var spaceUnits = UserSpaceUnit.Default;
             if (dictionary.TryGet(NameToken.UserUnit, out var userUnitBase) && userUnitBase is NumericToken userUnitNumber)
@@ -174,12 +204,11 @@
             return spaceUnits;
         }
 
-        private CropBox GetCropBox(
-            DictionaryToken dictionary,
-            PageTreeMembers pageTreeMembers,
-            MediaBox mediaBox)
+        /// <summary>
+        /// Get the crop box.
+        /// </summary>
+        public CropBox GetCropBox(DictionaryToken dictionary, PageTreeMembers pageTreeMembers, MediaBox mediaBox)
         {
-            CropBox cropBox;
             if (dictionary.TryGet(NameToken.CropBox, out var cropBoxObject) &&
                 DirectObjectFinder.TryGet(cropBoxObject, pdfScanner, out ArrayToken cropBoxArray))
             {
@@ -187,27 +216,21 @@
                 {
                     log.Error($"The CropBox was the wrong length in the dictionary: {dictionary}. Array was: {cropBoxArray}. Using MediaBox.");
 
-                    cropBox = new CropBox(mediaBox.Bounds);
-
-                    return cropBox;
+                    return new CropBox(mediaBox.Bounds);
                 }
 
-                cropBox = new CropBox(cropBoxArray.ToRectangle(pdfScanner));
+                return new CropBox(cropBoxArray.ToRectangle(pdfScanner));
             }
             else
             {
-                cropBox = pageTreeMembers.GetCropBox() ?? new CropBox(mediaBox.Bounds);
+                return pageTreeMembers.GetCropBox() ?? new CropBox(mediaBox.Bounds);
             }
-
-            var initialMatrix = ContentStreamProcessor.GetInitialMatrix(userSpaceUnit, mediaBox, cropBox, rotation, log);
-            var annotationProvider = new AnnotationProvider(pdfScanner, dictionary, initialMatrix, namedDestinations, log);
-            return new Page(pageNumber, dictionary, mediaBox, cropBox, rotation, content, annotationProvider, pdfScanner);
         }
 
-        protected override Page ProcessPage(
-            int pageNumber,
-            DictionaryToken dictionary,
-            PageTreeMembers pageTreeMembers)
+        /// <summary>
+        /// Get the media box.
+        /// </summary>
+        public MediaBox GetMediaBox(int number, DictionaryToken dictionary, PageTreeMembers pageTreeMembers)
         {
             MediaBox mediaBox;
             if (dictionary.TryGet(NameToken.MediaBox, out var mediaBoxObject)
@@ -217,9 +240,7 @@
                 {
                     log.Error($"The MediaBox was the wrong length in the dictionary: {dictionary}. Array was: {mediaBoxArray}. Defaulting to US Letter.");
 
-                    mediaBox = MediaBox.Letter;
-
-                    return mediaBox;
+                    return MediaBox.Letter;
                 }
 
                 mediaBox = new MediaBox(mediaBoxArray.ToRectangle(pdfScanner));
@@ -232,34 +253,12 @@
                 {
                     log.Error($"The MediaBox was the wrong missing for page {number}. Using US Letter.");
 
-            var content = new PageContent(EmptyArray<IGraphicsStateOperation>.Instance,
-                EmptyArray<Letter>.Instance,
-                EmptyArray<PdfPath>.Instance,
-                EmptyArray<Union<XObjectContentRecord, InlineImage>>.Instance,
-                EmptyArray<MarkedContentElement>.Instance,
-                pdfScanner,
-                filterProvider,
-                resourceStore);
-            // ignored for now, is it possible? check the spec...
-
-            return new Page(pageNumber, dictionary, mediaBox, cropBox, rotation, content, annotationProvider, pdfScanner);
-        }
-
-        /// <summary>
-        /// Apply the matrix transform to the media box and crop box.
-        /// Then Normalise() in order to obtain rectangles with rotation=0
-        /// and width and height as viewed on screen.
-        /// </summary>
-        /// <param name="transformationMatrix"></param>
-        /// <param name="mediaBox"></param>
-        /// <param name="cropBox"></param>
-        private static void ApplyTransformNormalise(TransformationMatrix transformationMatrix, ref MediaBox mediaBox, ref CropBox cropBox)
-        {
-            if (transformationMatrix != TransformationMatrix.Identity)
-            {
-                mediaBox = new MediaBox(transformationMatrix.Transform(mediaBox.Bounds).Normalise());
-                cropBox = new CropBox(transformationMatrix.Transform(cropBox.Bounds).Normalise());
+                    // PDFBox defaults to US Letter.
+                    mediaBox = MediaBox.Letter;
+                }
             }
+
+            return mediaBox;
         }
     }
 }
