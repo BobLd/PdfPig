@@ -199,7 +199,7 @@
                 cropBox = pageTreeMembers.GetCropBox() ?? new CropBox(mediaBox.Bounds);
             }
 
-            var initialMatrix = ContentStreamProcessor.GetInitialMatrix(userSpaceUnit, mediaBox, cropBox, rotation, log);
+            var initialMatrix = StreamProcessorHelper.GetInitialMatrix(userSpaceUnit, mediaBox, cropBox, rotation, log);
             var annotationProvider = new AnnotationProvider(pdfScanner, dictionary, initialMatrix, namedDestinations, log);
             return new Page(pageNumber, dictionary, mediaBox, cropBox, rotation, content, annotationProvider, pdfScanner);
         }
