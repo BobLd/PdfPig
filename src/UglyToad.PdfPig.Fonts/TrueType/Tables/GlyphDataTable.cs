@@ -2,7 +2,6 @@
 {
     using System;
     using System.Collections.Generic;
-    using System.Linq;
     using Core;
     using Glyphs;
     using Parser;
@@ -71,18 +70,7 @@
                 return true;
             }
 
-            tableBytes.Seek(offset);
-
-            // ReSharper disable once UnusedVariable
-            var contourCount = tableBytes.ReadSignedShort();
-
-            var minX = tableBytes.ReadSignedShort();
-            var minY = tableBytes.ReadSignedShort();
-            var maxX = tableBytes.ReadSignedShort();
-            var maxY = tableBytes.ReadSignedShort();
-
-            bounds = new PdfRectangle(minX, minY, maxX, maxY);
-
+            bounds = Glyphs[glyphIndex].Bounds;
             return true;
         }
 
@@ -389,7 +377,7 @@
         /// Stores the composite glyph information we read when initially scanning the glyph table.
         /// Once we have all composite glyphs we can start building them from simple glyphs.
         /// </summary>
-        private struct TemporaryCompositeLocation
+        private readonly struct TemporaryCompositeLocation
         {
             /// <summary>
             /// Stores the position after reading the contour count and bounds.
@@ -410,7 +398,7 @@
             }
         }
 
-        private class CompositeComponent
+        private sealed class CompositeComponent
         {
             public int Index { get; }
 
