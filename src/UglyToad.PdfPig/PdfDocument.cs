@@ -14,7 +14,7 @@
     using Tokenization.Scanner;
     using Tokens;
     using Outline;
-    using Util.JetBrains.Annotations;
+    using System.Diagnostics.CodeAnalysis;
 
     /// <inheritdoc />
     /// <summary>
@@ -24,36 +24,36 @@
     {
         private bool isDisposed;
         private readonly Lazy<AcroForm> documentForm;
-        
-        [NotNull]
+
+        [UglyToad.PdfPig.Util.JetBrains.Annotations.NotNull]
         private readonly HeaderVersion version;
 
         private readonly IInputBytes inputBytes;
 
-        [CanBeNull]
+        [UglyToad.PdfPig.Util.JetBrains.Annotations.CanBeNull]
         private readonly EncryptionDictionary encryptionDictionary;
 
-        [NotNull]
+        [UglyToad.PdfPig.Util.JetBrains.Annotations.NotNull]
         private readonly IPdfTokenScanner pdfScanner;
 
         private readonly ILookupFilterProvider filterProvider;
         private readonly BookmarksProvider bookmarksProvider;
         private readonly InternalParsingOptions parsingOptions;
 
-        [NotNull]
+        [UglyToad.PdfPig.Util.JetBrains.Annotations.NotNull]
         private readonly Pages pages;
         private readonly NamedDestinations namedDestinations;
 
         /// <summary>
         /// The metadata associated with this document.
         /// </summary>
-        [NotNull]
+        [UglyToad.PdfPig.Util.JetBrains.Annotations.NotNull]
         public DocumentInformation Information { get; }
 
         /// <summary>
         /// Access to the underlying raw structure of the document. 
         /// </summary>
-        [NotNull]
+        [UglyToad.PdfPig.Util.JetBrains.Annotations.NotNull]
         public Structure Structure { get; }
 
         /// <summary>
@@ -111,7 +111,7 @@
         /// <param name="options">Optional parameters controlling parsing.</param>
         /// <returns>A <see cref="PdfDocument"/> providing access to the file contents.</returns>
         public static PdfDocument Open(byte[] fileBytes, ParsingOptions options = null) => PdfDocumentFactory.Open(fileBytes, options);
- 
+
         /// <summary>
         /// Opens a file and creates a <see cref="PdfDocument"/> for reading from the provided file path.
         /// </summary>
@@ -195,8 +195,6 @@
         /// <summary>
         /// TODO
         /// </summary>
-        /// <typeparam name="TPage"></typeparam>
-        /// <param name="pageFactory"></param>
         public void AddPageFactory<TPage>(IPageFactory<TPage> pageFactory)
         {
             pages.AddPageFactory(pageFactory);
@@ -207,7 +205,11 @@
         /// </summary>
         /// <typeparam name="TPage"></typeparam>
         /// <typeparam name="TPageFactory"></typeparam>
+#if NET8_0_OR_GREATER
+        public void AddPageFactory<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] TPage, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] TPageFactory>() where TPageFactory : IPageFactory<TPage>
+#else
         public void AddPageFactory<TPage, TPageFactory>() where TPageFactory : IPageFactory<TPage>
+#endif
         {
             pages.AddPageFactory<TPage, TPageFactory>();
         }

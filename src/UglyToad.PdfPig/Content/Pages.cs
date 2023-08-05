@@ -5,14 +5,11 @@
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
-    using System.Data;
-    using System.Linq;
-    using System.Runtime.Serialization;
-    using System.Runtime.Versioning;
     using Tokenization.Scanner;
     using Tokens;
     using UglyToad.PdfPig.Parser;
     using Util;
+    using System.Diagnostics.CodeAnalysis;
 
     internal class Pages
     {
@@ -106,11 +103,14 @@
             pageFactoryCache.TryAdd(typeof(TPage), pageFactory);
         }
 
+#if NET8_0_OR_GREATER
+        internal void AddPageFactory<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] TPage, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] TPageFactory>() where TPageFactory : IPageFactory<TPage>
+#else
         internal void AddPageFactory<TPage, TPageFactory>() where TPageFactory : IPageFactory<TPage>
+#endif
         {
             var defaultPageFactory = (PageFactory)pageFactoryCache[typeof(Page)];
 
-            // TODO - careful here - resourceStore is not thread safe
             var pageFactory = (IPageFactory<TPage>)Activator.CreateInstance(typeof(TPageFactory),
                     defaultPageFactory.PdfScanner, defaultPageFactory.ResourceStore,
                     defaultPageFactory.FilterProvider, defaultPageFactory.PageContentParser,
