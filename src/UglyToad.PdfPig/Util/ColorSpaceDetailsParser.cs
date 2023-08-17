@@ -381,16 +381,37 @@
                             }
 
                             // Uncoloured Tiling Patterns
-                            if (colorSpaceArray.Length > 1 && DirectObjectFinder.TryGet(colorSpaceArray[1], scanner, out NameToken underlyingCsNameToken)
-                                && ColorSpaceMapper.TryMap(underlyingCsNameToken, resourceStore, out var underlyingColorSpaceName))
+                            if (colorSpaceArray.Length > 1)
                             {
-                                underlyingColourSpace = GetColorSpaceDetails(
-                                    underlyingColorSpaceName,
-                                    imageDictionary,
-                                    scanner,
-                                    resourceStore,
-                                    filterProvider,
-                                    true);
+                                if (DirectObjectFinder.TryGet(colorSpaceArray[1], scanner, out NameToken underlyingCsNameToken)
+                                    && ColorSpaceMapper.TryMap(underlyingCsNameToken, resourceStore, out var underlyingColorSpaceName))
+                                {
+                                    underlyingColourSpace = GetColorSpaceDetails(
+                                        underlyingColorSpaceName,
+                                        imageDictionary,
+                                        scanner,
+                                        resourceStore,
+                                        filterProvider,
+                                        true);
+                                }
+                                else if (DirectObjectFinder.TryGet(colorSpaceArray[1], scanner, out ArrayToken underlyingCsArrayToken)
+                                    && underlyingCsArrayToken.Length > 0 && underlyingCsArrayToken[0] is NameToken underlyingCsNameToken2
+                                    && ColorSpaceMapper.TryMap(underlyingCsNameToken2, resourceStore, out var underlyingCsName))
+                                {
+                                    var pseudoImageDictionary = new DictionaryToken(
+                                        new Dictionary<NameToken, IToken>
+                                        {
+                                           { NameToken.ColorSpace, underlyingCsArrayToken }
+                                        });
+
+                                    underlyingColourSpace = GetColorSpaceDetails(
+                                        underlyingCsName,
+                                        pseudoImageDictionary,
+                                        scanner,
+                                        resourceStore,
+                                        filterProvider,
+                                        true);
+                                }
                             }
                         }
                         return new PatternColorSpaceDetails(resourceStore.GetPatterns(), underlyingColourSpace);

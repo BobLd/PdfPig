@@ -3,9 +3,17 @@ namespace UglyToad.PdfPig.Util
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
 
     internal class StackDictionary<K, V>
     {
+        public StackDictionary() { }
+
+        private StackDictionary(StackDictionary<K, V> other)
+        {
+            values = other.values.Select(d => d.ToDictionary(kvp => kvp.Key, kvp => kvp.Value)).ToList();
+        }
+
         private readonly List<Dictionary<K, V>> values = new List<Dictionary<K, V>>();
 
         public V this[K key]
@@ -63,6 +71,11 @@ namespace UglyToad.PdfPig.Util
             }
 
             values.RemoveAt(values.Count - 1);
+        }
+
+        internal StackDictionary<K, V> Clone()
+        {
+            return new StackDictionary<K, V>(this);
         }
     }
 }

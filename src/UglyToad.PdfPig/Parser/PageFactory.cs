@@ -12,19 +12,21 @@
     using Tokenization.Scanner;
     using Tokens;
     using UglyToad.PdfPig.Core;
+    using UglyToad.PdfPig.PdfFonts;
 
     internal sealed class PageFactory : PageFactoryBase<Page>
     {
         public PageFactory(
+            IFontFactory fontFactory,
             IPdfTokenScanner pdfScanner,
-            IResourceStore resourceStore,
             ILookupFilterProvider filterProvider,
             IPageContentParser pageContentParser,
             ILog log)
-            : base(pdfScanner, resourceStore, filterProvider, pageContentParser, log)
+            : base(fontFactory, pdfScanner, filterProvider, pageContentParser, log)
         { }
 
         protected override Page ProcessPage(int pageNumber,
+            IResourceStore pageResourceStore,
             DictionaryToken dictionary,
             NamedDestinations namedDestinations,
             IReadOnlyList<byte> contentBytes,
@@ -36,7 +38,7 @@
         {
             var context = new ContentStreamProcessor(
                 pageNumber,
-                ResourceStore,
+                pageResourceStore,
                 userSpaceUnit,
                 mediaBox,
                 cropBox,
@@ -56,6 +58,7 @@
 
         protected override Page ProcessPage(
             int pageNumber,
+            IResourceStore pageResourceStore,
             DictionaryToken dictionary,
             NamedDestinations namedDestinations,
             CropBox cropBox,
@@ -74,7 +77,7 @@
                 EmptyArray<MarkedContentElement>.Instance,
                 PdfScanner,
                 FilterProvider,
-                ResourceStore);
+                pageResourceStore);
             // ignored for now, is it possible? check the spec...
 
             return new Page(pageNumber, dictionary, mediaBox, cropBox, rotation, content, annotationProvider, PdfScanner);

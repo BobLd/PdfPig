@@ -9,6 +9,7 @@
     using UglyToad.PdfPig.Outline;
     using UglyToad.PdfPig.Parser;
     using UglyToad.PdfPig.Parser.Parts;
+    using UglyToad.PdfPig.PdfFonts;
     using UglyToad.PdfPig.Tokenization.Scanner;
     using UglyToad.PdfPig.Tokens;
     using UglyToad.PdfPig.Util;
@@ -20,14 +21,14 @@
     public abstract class PageFactoryBase<TPage> : IPageFactory<TPage>
     {
         /// <summary>
+        /// The Pdf font factory.
+        /// </summary>
+        public readonly IFontFactory FontFactory;
+
+        /// <summary>
         /// The Pdf token scanner.
         /// </summary>
         public readonly IPdfTokenScanner PdfScanner;
-
-        /// <summary>
-        /// The resource store.
-        /// </summary>
-        public readonly IResourceStore ResourceStore;
 
         /// <summary>
         /// The filter provider.
@@ -44,17 +45,19 @@
         /// </summary>
         public readonly ILog Log;
 
+        //private readonly ConcurrentDictionary<int, IResourceStore> resourceStoreCache = new ConcurrentDictionary<int, IResourceStore>();
+
         /// <summary>
         /// Create a <see cref="PageFactoryBase{TPage}"/>.
         /// </summary>
         protected PageFactoryBase(
+            IFontFactory fontFactory,
             IPdfTokenScanner pdfScanner,
-            IResourceStore resourceStore,
             ILookupFilterProvider filterProvider,
             IPageContentParser pageContentParser,
             ILog log)
         {
-            ResourceStore = resourceStore;
+            FontFactory = fontFactory;
             FilterProvider = filterProvider;
             PageContentParser = pageContentParser;
             PdfScanner = pdfScanner;
@@ -86,20 +89,21 @@
             {
                 rotation = new PageRotationDegrees(rotateToken.Int);
             }
-
             var stackDepth = 0;
+
+            IResourceStore resourceStorePage = new ResourceStore(PdfScanner, FontFactory, FilterProvider);
 
             while (pageTreeMembers.ParentResources.Count > 0)
             {
                 var resource = pageTreeMembers.ParentResources.Dequeue();
 
-                ResourceStore.LoadResourceDictionary(resource, parsingOptions);
+                resourceStorePage.LoadResourceDictionary(resource, parsingOptions);
                 stackDepth++;
             }
 
             if (dictionary.TryGet(NameToken.Resources, PdfScanner, out DictionaryToken resources))
             {
-                ResourceStore.LoadResourceDictionary(resources, parsingOptions);
+                resourceStorePage.LoadResourceDictionary(resources, parsingOptions);
                 stackDepth++;
             }
 
@@ -109,7 +113,7 @@
 
             if (!dictionary.TryGet(NameToken.Contents, out var contents))
             {
-                page = ProcessPage(number, dictionary, namedDestinations, cropBox, userSpaceUnit, rotation, mediaBox, parsingOptions);
+                page = ProcessPage(number, resourceStorePage, dictionary, namedDestinations, cropBox, userSpaceUnit, rotation, mediaBox, parsingOptions);
             }
             else if (DirectObjectFinder.TryGet<ArrayToken>(contents, PdfScanner, out var array))
             {
@@ -139,7 +143,7 @@
                     }
                 }
 
-                page = ProcessPage(number, dictionary, namedDestinations, bytes, cropBox, userSpaceUnit, rotation, mediaBox, parsingOptions);
+                page = ProcessPage(number, resourceStorePage, dictionary, namedDestinations, bytes, cropBox, userSpaceUnit, rotation, mediaBox, parsingOptions);
             }
             else
             {
@@ -152,13 +156,14 @@
 
                 var bytes = contentStream.Decode(FilterProvider, PdfScanner);
 
-                page = ProcessPage(number, dictionary, namedDestinations, bytes, cropBox, userSpaceUnit, rotation, mediaBox, parsingOptions);
+                page = ProcessPage(number, resourceStorePage, dictionary, namedDestinations, bytes, cropBox, userSpaceUnit, rotation, mediaBox, parsingOptions);
             }
 
-            for (var i = 0; i < stackDepth; i++)
-            {
-                ResourceStore.UnloadResourceDictionary();
-            }
+            // TODO - is it needed now?
+            //for (var i = 0; i < stackDepth; i++)
+            //{
+            //    resourceStorePage.UnloadResourceDictionary();
+            //}
 
             return page;
         }
@@ -168,6 +173,7 @@
         /// </summary>
         protected abstract TPage ProcessPage(
             int pageNumber,
+            IResourceStore pageResourceStore,
             DictionaryToken dictionary,
             NamedDestinations namedDestinations,
             IReadOnlyList<byte> contentBytes,
@@ -182,6 +188,7 @@
         /// </summary>
         protected abstract TPage ProcessPage(
             int pageNumber,
+            IResourceStore pageResourceStore,
             DictionaryToken dictionary,
             NamedDestinations namedDestinations,
             CropBox cropBox,

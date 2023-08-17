@@ -10,6 +10,7 @@
     using UglyToad.PdfPig.Tokenization.Scanner;
     using UglyToad.PdfPig.Tokens;
     using Xunit;
+    using UglyToad.PdfPig.PdfFonts;
 
     public class PageFactoryTests
     {
@@ -98,8 +99,8 @@
             }
 
             public SimplePageFactory(
+                IFontFactory fontFactory,
                 IPdfTokenScanner pdfScanner,
-                IResourceStore resourceStore,
                 ILookupFilterProvider filterProvider,
                 IPageContentParser pageContentParser,
                 ILog log)
@@ -129,17 +130,18 @@
         public class PageInformationFactory : PageFactoryBase<PageInformation>
         {
             public PageInformationFactory(
+                IFontFactory fontFactory,
                 IPdfTokenScanner pdfScanner,
-                IResourceStore resourceStore,
                 ILookupFilterProvider filterProvider,
                 IPageContentParser pageContentParser,
                 ILog log)
-                : base(pdfScanner, resourceStore, filterProvider, pageContentParser, log)
+                : base(fontFactory, pdfScanner, filterProvider, pageContentParser, log)
             {
             }
 
             protected override PageInformation ProcessPage(
                 int pageNumber,
+                IResourceStore resourceStore,
                 DictionaryToken dictionary,
                 NamedDestinations namedDestinations,
                 IReadOnlyList<byte> contentBytes,
@@ -149,10 +151,12 @@
                 MediaBox mediaBox,
                 IParsingOptions parsingOptions)
             {
-                return ProcessPage(pageNumber, dictionary, namedDestinations, cropBox, userSpaceUnit, rotation, mediaBox, parsingOptions);
+                return ProcessPage(pageNumber, resourceStore, dictionary, namedDestinations, cropBox, userSpaceUnit, rotation, mediaBox, parsingOptions);
             }
 
-            protected override PageInformation ProcessPage(int pageNumber,
+            protected override PageInformation ProcessPage(
+                int pageNumber,
+                IResourceStore resourceStore,
                 DictionaryToken dictionary,
                 NamedDestinations namedDestinations,
                 CropBox cropBox,

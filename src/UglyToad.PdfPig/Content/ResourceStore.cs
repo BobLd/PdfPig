@@ -10,6 +10,7 @@
     using Tokens;
     using Filters;
     using Util;
+    using System.Linq;
 
     internal class ResourceStore : IResourceStore
     {
@@ -39,6 +40,27 @@
             this.scanner = scanner;
             this.fontFactory = fontFactory;
             this.filterProvider = filterProvider;
+        }
+
+        private ResourceStore(ResourceStore resourceStore)
+        {
+            scanner = resourceStore.scanner;
+            fontFactory = resourceStore.fontFactory;
+            filterProvider = resourceStore.filterProvider;
+
+            loadedFonts = resourceStore.loadedFonts.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            loadedDirectFonts = resourceStore.loadedDirectFonts.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            currentResourceState = resourceStore.currentResourceState.Clone();
+
+            extendedGraphicsStates = resourceStore.extendedGraphicsStates.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+            namedColorSpaces = resourceStore.namedColorSpaces.Clone();
+            loadedNamedColorSpaceDetails = resourceStore.loadedNamedColorSpaceDetails.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+            markedContentProperties = resourceStore.markedContentProperties.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+            shadingsProperties = resourceStore.shadingsProperties.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            patternsProperties = resourceStore.patternsProperties.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
         }
 
         public void LoadResourceDictionary(DictionaryToken resourceDictionary, IParsingOptions parsingOptions)
@@ -351,6 +373,11 @@
         public IReadOnlyDictionary<NameToken, PatternColor> GetPatterns()
         {
             return patternsProperties;
+        }
+
+        public IResourceStore Clone()
+        {
+            return new ResourceStore(this);
         }
     }
 }

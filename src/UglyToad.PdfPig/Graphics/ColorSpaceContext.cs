@@ -33,6 +33,17 @@
             currentStateFunc().CurrentStrokingColor = CurrentStrokingColorSpace.GetInitializeColor();
         }
 
+        public void SetStrokingColorspace(ColorSpaceDetails colorSpaceDetails)
+        {
+            CurrentStrokingColorSpace = colorSpaceDetails;
+            if (CurrentStrokingColorSpace is UnsupportedColorSpaceDetails)
+            {
+                return;
+            }
+
+            currentStateFunc().CurrentStrokingColor = CurrentStrokingColorSpace.GetInitializeColor();
+        }
+
         public void SetStrokingColor(IReadOnlyList<decimal> operands, NameToken patternName)
         {
             if (CurrentStrokingColorSpace is UnsupportedColorSpaceDetails)
@@ -42,7 +53,7 @@
 
             if (patternName != null && CurrentStrokingColorSpace.Type == ColorSpace.Pattern)
             {
-                currentStateFunc().CurrentStrokingColor = ((PatternColorSpaceDetails)CurrentStrokingColorSpace).GetColor(patternName);
+                currentStateFunc().CurrentStrokingColor = ((PatternColorSpaceDetails)CurrentStrokingColorSpace).GetColor(patternName, operands.Select(v => (double)v).ToArray());
                 // TODO - use operands values for Uncoloured Tiling Patterns
             }
             else
@@ -80,6 +91,17 @@
             currentStateFunc().CurrentNonStrokingColor = CurrentNonStrokingColorSpace.GetInitializeColor();
         }
 
+        public void SetNonStrokingColorspace(ColorSpaceDetails colorSpaceDetails)
+        {
+            CurrentNonStrokingColorSpace = colorSpaceDetails;
+            if (CurrentNonStrokingColorSpace is UnsupportedColorSpaceDetails)
+            {
+                return;
+            }
+
+            currentStateFunc().CurrentNonStrokingColor = CurrentNonStrokingColorSpace.GetInitializeColor();
+        }
+
         public void SetNonStrokingColor(IReadOnlyList<decimal> operands, NameToken patternName)
         {
             if (CurrentNonStrokingColorSpace is UnsupportedColorSpaceDetails)
@@ -89,7 +111,7 @@
 
             if (patternName != null && CurrentNonStrokingColorSpace.Type == ColorSpace.Pattern)
             {
-                currentStateFunc().CurrentNonStrokingColor = ((PatternColorSpaceDetails)CurrentNonStrokingColorSpace).GetColor(patternName);
+                currentStateFunc().CurrentNonStrokingColor = ((PatternColorSpaceDetails)CurrentNonStrokingColorSpace).GetColor(patternName, operands.Select(v => (double)v).ToArray());
                 // TODO - use operands values for Uncoloured Tiling Patterns
             }
             else

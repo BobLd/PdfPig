@@ -1311,9 +1311,15 @@
         /// Get the corresponding <see cref="PatternColor"/>.
         /// </summary>
         /// <param name="name"></param>
-        public PatternColor GetColor(NameToken name)
+        /// <param name="values"></param>
+        public PatternColor GetColor(NameToken name, params double[] values)
         {
-            return Patterns[name];
+            var pattern = Patterns[name];
+            if (pattern is TilingPatternColor tilingColor && tilingColor.PaintType == PatternPaintType.Uncoloured)
+            {
+                tilingColor.SetColor(UnderlyingColourSpace.GetColor(values));
+            }
+            return pattern;
         }
 
         /// <summary>
@@ -1331,7 +1337,7 @@
         /// <inheritdoc/>
         /// <para>
         /// Cannot be called for <see cref="PatternColorSpaceDetails"/>, will throw a <see cref="InvalidOperationException"/>.
-        /// Use <see cref="GetColor(NameToken)"/> instead.
+        /// Use <see cref="GetColor(NameToken, double[])"/> instead.
         /// </para>
         /// </summary>
         public override IColor GetColor(params double[] values)

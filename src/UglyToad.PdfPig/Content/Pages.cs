@@ -11,7 +11,7 @@
     using Util;
     using System.Diagnostics.CodeAnalysis;
 
-    internal class Pages
+    internal class Pages : IDisposable
     {
         private readonly ConcurrentDictionary<Type, object> pageFactoryCache = new ConcurrentDictionary<Type, object>();
 
@@ -112,9 +112,15 @@
             var defaultPageFactory = (PageFactory)pageFactoryCache[typeof(Page)];
 
             var pageFactory = (IPageFactory<TPage>)Activator.CreateInstance(typeof(TPageFactory),
-                    defaultPageFactory.PdfScanner, defaultPageFactory.ResourceStore,
+                    defaultPageFactory.FontFactory, defaultPageFactory.PdfScanner,
                     defaultPageFactory.FilterProvider, defaultPageFactory.PageContentParser,
                     defaultPageFactory.Log);
+
+            if (pageFactory is null)
+            {
+                throw new ArgumentNullException(nameof(pageFactory));
+            }
+
             AddPageFactory(pageFactory);
         }
 
@@ -139,6 +145,17 @@
             }
 
             return null;
+        }
+
+        public void Dispose()
+        {
+            foreach (var key in pageFactoryCache.Keys)
+            {
+                if (pageFactoryCache.TryRemove(key, out var factory) && factory is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
         }
     }
 }
