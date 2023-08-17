@@ -65,5 +65,10 @@
         /// Get the shading corresponding to the name.
         /// </summary>
         Shading GetShading(NameToken name);
+
+        /// <summary>
+        /// Deep copy.
+        /// </summary>
+        IResourceStore Clone();
     }
 }

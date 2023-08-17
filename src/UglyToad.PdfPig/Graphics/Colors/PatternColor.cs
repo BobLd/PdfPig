@@ -125,6 +125,11 @@
         public IReadOnlyList<byte> Data { get; }
 
         /// <summary>
+        /// TODO
+        /// </summary>
+        public IColor CurrentColor { get; private set; }
+
+        /// <summary>
         /// Create a new <see cref="TilingPatternColor"/>.
         /// </summary>
         public TilingPatternColor(TransformationMatrix matrix, DictionaryToken extGState, StreamToken patternStream,
@@ -140,6 +145,15 @@
             YStep = yStep;
             Resources = resources;
             Data = data;
+        }
+
+        /// <summary>
+        /// TODO
+        /// </summary>
+        /// <param name="color"></param>
+        public void SetColor(IColor color)
+        {
+            CurrentColor = color;
         }
 
         /// <inheritdoc />

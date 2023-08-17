@@ -299,6 +299,7 @@
                 Advanced.Dispose();
                 pdfScanner.Dispose();
                 inputBytes.Dispose();
+                pages.Dispose();
             }
             catch (Exception ex)
             {

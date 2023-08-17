@@ -187,14 +187,12 @@
                 type1Handler,
                 new Type3FontHandler(pdfScanner, filterProvider, encodingReader));
 
-            var resourceContainer = new ResourceStore(pdfScanner, fontFactory, filterProvider);
-
             var information = DocumentInformationFactory.Create(
                 pdfScanner,
                 crossReferenceTable.Trailer,
                 parsingOptions.UseLenientParsing);
 
-            var pageFactory = new PageFactory(pdfScanner, resourceContainer, filterProvider,
+            var pageFactory = new PageFactory(fontFactory, pdfScanner, filterProvider,
                 new PageContentParser(new ReflectionGraphicsStateOperationFactory(), parsingOptions.UseLenientParsing), parsingOptions.Logger);
 
             var catalog = CatalogFactory.Create(
