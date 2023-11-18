@@ -2,6 +2,7 @@
 {
     using Graphics.Colors;
     using PdfFonts;
+    using System;
     using System.Collections.Generic;
     using Tokens;
 
@@ -59,7 +60,7 @@
         /// <summary>
         /// Get all <see cref="PatternColor"/> as a dictionary. Keys are the <see cref="PatternColor"/> names.
         /// </summary>
-        IReadOnlyDictionary<NameToken, PatternColor> GetPatterns();
+        IReadOnlyDictionary<NameToken, Lazy<PatternColor>> GetPatterns();
 
         /// <summary>
         /// Get the shading corresponding to the name.

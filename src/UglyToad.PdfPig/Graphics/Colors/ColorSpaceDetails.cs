@@ -1271,7 +1271,7 @@
         /// <summary>
         /// The pattern dictionary.
         /// </summary>
-        public IReadOnlyDictionary<NameToken, PatternColor> Patterns { get; }
+        public IReadOnlyDictionary<NameToken, Lazy<PatternColor>> Patterns { get; }
 
         /// <summary>
         /// <inheritdoc/>
@@ -1300,7 +1300,7 @@
         /// </summary>
         /// <param name="patterns">The patterns.</param>
         /// <param name="underlyingColourSpace">The underlying colour space for Uncoloured Tiling Patterns.</param>
-        public PatternColorSpaceDetails(IReadOnlyDictionary<NameToken, PatternColor> patterns, ColorSpaceDetails underlyingColourSpace)
+        public PatternColorSpaceDetails(IReadOnlyDictionary<NameToken, Lazy<PatternColor>> patterns, ColorSpaceDetails underlyingColourSpace)
             : base(ColorSpace.Pattern)
         {
             Patterns = patterns ?? throw new ArgumentNullException(nameof(patterns));
@@ -1313,7 +1313,7 @@
         /// <param name="name"></param>
         public PatternColor GetColor(NameToken name)
         {
-            return Patterns[name];
+            return Patterns[name].Value;
         }
 
         /// <summary>

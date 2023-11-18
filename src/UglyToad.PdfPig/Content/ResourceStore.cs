@@ -29,9 +29,9 @@
 
         private readonly Dictionary<NameToken, DictionaryToken> markedContentProperties = new Dictionary<NameToken, DictionaryToken>();
 
-        private readonly Dictionary<NameToken, Shading> shadingsProperties = new Dictionary<NameToken, Shading>();
+        private readonly Dictionary<NameToken, Lazy<Shading>> shadingsProperties = new Dictionary<NameToken, Lazy<Shading>>();
 
-        private readonly Dictionary<NameToken, PatternColor> patternsProperties = new Dictionary<NameToken, PatternColor>();
+        private readonly Dictionary<NameToken, Lazy<PatternColor>> patternsProperties = new Dictionary<NameToken, Lazy<PatternColor>>();
 
         private (NameToken name, IFont font) lastLoadedFont;
 
@@ -131,7 +131,9 @@
                 foreach (var namePatternPair in patternDictionary.Data)
                 {
                     var name = NameToken.Create(namePatternPair.Key);
-                    patternsProperties[name] = PatternParser.Create(namePatternPair.Value, scanner, this, filterProvider);
+                    patternsProperties[name] =
+                        new Lazy<PatternColor>(() => PatternParser.Create(namePatternPair.Value, scanner, this,
+                            filterProvider));
                 }
             }
 
@@ -157,13 +159,15 @@
                     var key = NameToken.Create(pair.Key);
                     if (DirectObjectFinder.TryGet(pair.Value, scanner, out DictionaryToken namedPropertiesDictionary))
                     {
-                        shadingsProperties[key] = ShadingParser.Create(namedPropertiesDictionary, scanner, this, filterProvider);
+                        shadingsProperties[key] = new Lazy<Shading>(() =>
+                            ShadingParser.Create(namedPropertiesDictionary, scanner, this, filterProvider));
                     }
                     else if (DirectObjectFinder.TryGet(pair.Value, scanner, out StreamToken namedPropertiesStream))
                     {
                         // Shading types 4 to 7 shall be defined by a stream containing descriptive data characterizing
                         // the shading's gradient fill.
-                       shadingsProperties[key] = ShadingParser.Create(namedPropertiesStream, scanner, this, filterProvider);
+                        shadingsProperties[key] = new Lazy<Shading>(() =>
+                            ShadingParser.Create(namedPropertiesStream, scanner, this, filterProvider));
                     }
                     else
                     {
@@ -350,10 +354,10 @@
 
         public Shading GetShading(NameToken name)
         {
-            return shadingsProperties[name];
+            return shadingsProperties[name].Value;
         }
 
-        public IReadOnlyDictionary<NameToken, PatternColor> GetPatterns()
+        public IReadOnlyDictionary<NameToken, Lazy<PatternColor>> GetPatterns()
         {
             return patternsProperties;
         }
