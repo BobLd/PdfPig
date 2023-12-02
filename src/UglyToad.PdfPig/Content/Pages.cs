@@ -10,6 +10,10 @@
     using Tokens;
     using Util;
 
+#if NET8_0_OR_GREATER
+    using System.Diagnostics.CodeAnalysis;
+#endif
+
     internal sealed class Pages : IDisposable
     {
         private readonly Dictionary<Type, object> pageFactoryCache;
@@ -117,7 +121,11 @@
             pageFactoryCache.Add(type, pageFactory);
         }
 
+#if NET8_0_OR_GREATER
+        internal void AddPageFactory<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] TPage, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] TPageFactory>() where TPageFactory : IPageFactory<TPage>
+#else
         internal void AddPageFactory<TPage, TPageFactory>() where TPageFactory : IPageFactory<TPage>
+#endif
         {
             var constructor = typeof(TPageFactory).GetConstructor(new[]
             {
