@@ -83,7 +83,7 @@
         public bool TryGetFontMatrix(int characterCode, out TransformationMatrix? matrix)
         {
             var font = GetFont();
-            var name = font.GetCharacterName(characterCode);
+            var name = font.GetCharacterName(characterCode, true);
             if (name == null)
             {
                 matrix = null;
@@ -102,7 +102,7 @@
         {
             var font = GetFont();
 
-            var name = font.GetCharacterName(characterCode);
+            var name = font.GetCharacterName(characterCode, true);
 
             return name ?? NotDefined;
         }

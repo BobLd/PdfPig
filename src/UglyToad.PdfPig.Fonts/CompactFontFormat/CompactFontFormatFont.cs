@@ -53,14 +53,27 @@
         /// <summary>
         /// Get the character name. Returns <c>null</c> if cannot be processed.
         /// </summary>
-        public string GetCharacterName(int characterCode)
+        public string GetCharacterName(int characterCode, bool isCid)
         {
             if (Encoding != null)
             {
                 return Encoding.GetName(characterCode);
             }
 
-            return Charset?.GetNameByStringId(characterCode);
+            if (Charset.IsCidCharset || isCid)
+            {
+                return Charset?.GetNameByStringId(characterCode);
+            }
+
+            string characterName = GlyphList.AdobeGlyphList.UnicodeCodePointToName(characterCode);
+
+            if (characterName.Equals(GlyphList.NotDefined, StringComparison.OrdinalIgnoreCase))
+            {
+                // Not tested
+                return Charset?.GetNameByStringId(characterCode);
+            }
+
+            return characterName;
         }
 
         /// <summary>

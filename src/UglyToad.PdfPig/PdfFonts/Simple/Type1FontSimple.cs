@@ -197,7 +197,7 @@
                 }
                 else
                 {
-                    characterName = cffFont.GetCharacterName(characterCode);
+                    characterName = cffFont.GetCharacterName(characterCode, false);
                 }
 
                 rect = first.GetCharacterBoundingBox(characterName);
@@ -247,7 +247,14 @@
                 }
                 else
                 {
-                    characterName = cffFont.GetCharacterName(characterCode);
+                    // Test documents:
+                    // - Single Page Form Content - from itext 1_1.pdf
+                    // - GHOSTSCRIPT-700125-1.pdf
+                    // - GHOSTSCRIPT-700236-1.pdf
+                    // - GHOSTSCRIPT-696171-0.pdf
+                    // - GHOSTSCRIPT-699035-0.pdf
+                    // - GHOSTSCRIPT-697206-0.pdf
+                    characterName = cffFont.GetCharacterName(characterCode, false);
                 }
 
                 tempPath = first.GetCharacterPath(characterName);
