@@ -106,7 +106,7 @@
         {
             if (values == null || values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of imputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             double gray = values[0];
@@ -168,7 +168,7 @@
         {
             if (values == null || values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of imputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             double r = values[0];
@@ -230,7 +230,7 @@
         {
             if (values == null || values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of imputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             double c = values[0];
@@ -332,7 +332,7 @@
         {
             if (values == null || values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of imputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             return cache.GetOrAdd(values[0], v =>
@@ -520,7 +520,7 @@
         {
             if (values == null || values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of imputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             // TODO - use attributes
@@ -533,7 +533,7 @@
         /// <inheritdoc/>
         internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
         {
-            var cache = new Dictionary<int, double[]>();
+            var cache = new Dictionary<int, byte[]>();
             var transformed = new List<byte>();
             for (var i = 0; i < decoded.Count; i += NumberOfColorComponents)
             {
@@ -546,16 +546,13 @@
                     comps[n] = b / 255.0;
                 }
 
-                if (!cache.TryGetValue(key, out double[] colors))
+                if (!cache.TryGetValue(key, out byte[] colors))
                 {
-                    colors = Process(comps);
+                    colors = Process(comps).Select(ConvertToByte).ToArray();
                     cache[key] = colors;
                 }
 
-                for (int c = 0; c < colors.Length; c++)
-                {
-                    transformed.Add(ConvertToByte(colors[c]));
-                }
+                transformed.AddRange(colors);
             }
             return transformed.ToArray();
         }
@@ -690,7 +687,7 @@
         {
             if (values == null || values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of imputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             // TODO - we ignore the name for now
@@ -705,21 +702,18 @@
         /// <inheritdoc/>
         internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> values)
         {
-            var cache = new Dictionary<int, double[]>();
+            var cache = new Dictionary<int, byte[]>();
             var transformed = new List<byte>();
-            for (var i = 0; i < values.Count; i += 3)
+            for (var i = 0; i < values.Count; i++)
             {
-                byte b = values[i++];
-                if (!cache.TryGetValue(b, out double[] colors))
+                byte b = values[i];
+                if (!cache.TryGetValue(b, out byte[] colors))
                 {
-                    colors = Process(b / 255.0);
+                    colors = Process(b / 255.0).Select(ConvertToByte).ToArray();
                     cache[b] = colors;
                 }
 
-                for (int c = 0; c < colors.Length; c++)
-                {
-                    transformed.Add(ConvertToByte(colors[c]));
-                }
+                transformed.AddRange(colors);
             }
 
             return transformed;
@@ -803,7 +797,7 @@
         }
 
         /// <summary>
-        /// Transforms the supplied A color to grayscale RGB (sRGB) using the propties of this
+        /// Transforms the supplied A color to grayscale RGB (sRGB) using the properties of this
         /// <see cref="CalGrayColorSpaceDetails"/> in the transformation process.
         /// A represents the gray component of a calibrated gray space. The component must be in the range 0.0 to 1.0.
         /// </summary>
@@ -840,7 +834,7 @@
         {
             if (values == null || values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of imputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             return TransformToRGB(values[0]);
@@ -944,7 +938,7 @@
         }
 
         /// <summary>
-        /// Transforms the supplied ABC color to RGB (sRGB) using the propties of this <see cref="CalRGBColorSpaceDetails"/>
+        /// Transforms the supplied ABC color to RGB (sRGB) using the properties of this <see cref="CalRGBColorSpaceDetails"/>
         /// in the transformation process.
         /// A, B and C represent red, green and blue calibrated color values in the range 0.0 to 1.0.
         /// </summary>
@@ -981,7 +975,7 @@
         {
             if (values == null || values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of imputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             return TransformToRGB((values[0], values[1], values[2]));
@@ -1122,7 +1116,7 @@
         {
             if (values == null || values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of imputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             return TransformToRGB((values[0], values[1], values[2]));
@@ -1234,7 +1228,7 @@
         {
             if (values == null || values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of imputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             // TODO - use ICC profile
@@ -1284,7 +1278,7 @@
         /// <summary>
         /// <inheritdoc/>
         /// <para>
-        /// Valid for Uncoloured Tiling Patterns. Wwill throw a <see cref="InvalidOperationException"/> otherwise.
+        /// Valid for Uncoloured Tiling Patterns. Will throw a <see cref="InvalidOperationException"/> otherwise.
         /// </para>
         /// </summary>
         internal override int BaseNumberOfColorComponents => UnderlyingColourSpace.NumberOfColorComponents;

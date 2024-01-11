@@ -1,6 +1,6 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net451;net452;net46;net461;net462;net47;net6.0;net8.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net461;net462;net47;net6.0;net8.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <Version>0.1.9-alpha001</Version>
     <IsTestProject>False</IsTestProject>
@@ -33,6 +33,7 @@
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\BobLd\JpegLibrary\src\JpegLibrary\JpegLibrary.csproj" />
     <ProjectReference Include="..\UglyToad.PdfPig.Core\UglyToad.PdfPig.Core.csproj" />
     <ProjectReference Include="..\UglyToad.PdfPig.Fonts\UglyToad.PdfPig.Fonts.csproj" />
     <ProjectReference Include="..\UglyToad.PdfPig.Tokenization\UglyToad.PdfPig.Tokenization.csproj" />
