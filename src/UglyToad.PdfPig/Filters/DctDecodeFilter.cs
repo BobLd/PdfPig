@@ -76,6 +76,10 @@
             }
             else
             {
+                // GHOSTSCRIPT-699178-0.pdf
+                // GHOSTSCRIPT-700370-2.pdf
+                // GHOSTSCRIPT-700139-0.pdf
+
                 /*
                  * If the Adobe-defined marker code (APP14) in the encoded data indicating the ColorTransform value is not
                  * present and this dictionary entry is not present in the filter dictionary then the default value of

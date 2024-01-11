@@ -63,6 +63,10 @@
             {
                 bitsPerComponent = 1;
             }
+            else if (isJpxDecode)
+            {
+                bitsPerComponent = 8; // TODO - Check that
+            }
 
             var intent = xObject.DefaultRenderingIntent;
             if (dictionary.TryGet(NameToken.Intent, out NameToken renderingIntentToken))

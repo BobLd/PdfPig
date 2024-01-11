@@ -33,6 +33,7 @@
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\BobLd\csj2k\CSJ2K.NetCore\CSJ2K.NetCore.csproj" />
     <ProjectReference Include="..\..\..\..\..\BobLd\JpegLibrary\src\JpegLibrary\JpegLibrary.csproj" />
     <ProjectReference Include="..\UglyToad.PdfPig.Core\UglyToad.PdfPig.Core.csproj" />
     <ProjectReference Include="..\UglyToad.PdfPig.Fonts\UglyToad.PdfPig.Fonts.csproj" />
