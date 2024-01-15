@@ -8,7 +8,7 @@
     /// A Compact Font Format (CFF) font program as described in The Compact Font Format specification (Adobe Technical Note #5176).
     /// A CFF font may contain multiple fonts and achieves compression by sharing details between fonts in the set.
     /// </summary>
-    public class CompactFontFormatFontCollection
+    public sealed class CompactFontFormatFontCollection
     {
         /// <summary>
         /// The decoded header table for this font.
@@ -65,16 +65,11 @@
         /// <summary>
         /// Get the name for the character with the given character code from the font.
         /// </summary>
-        public string GetCharacterName(int characterCode)
+        public string GetCharacterName(int characterCode, bool isCid)
         {
-            var font = FirstFont;
+            var name = FirstFont.GetCharacterName(characterCode, isCid);
 
-            if (font.Encoding != null)
-            {
-                return font.Encoding.GetName(characterCode);
-            }
-
-            return ".notdef";
+            return name ?? GlyphList.NotDefined;
         }
     }
 }
