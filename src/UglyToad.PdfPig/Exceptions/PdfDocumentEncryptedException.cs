@@ -37,12 +37,5 @@
         {
             Dictionary = dictionary;
         }
-
-        /// <inheritdoc />
-        protected PdfDocumentEncryptedException(
-            SerializationInfo info,
-            StreamingContext context) : base(info, context)
-        {
-        }
     }
 }

@@ -23,12 +23,5 @@
         public CorruptCompressedDataException(string message, Exception inner) : base(message, inner)
         {
         }
-
-        /// <inheritdoc />
-        protected CorruptCompressedDataException(
-            SerializationInfo info,
-            StreamingContext context) : base(info, context)
-        {
-        }
     }
 }
