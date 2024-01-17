@@ -26,35 +26,35 @@
         private bool isDisposed;
         private readonly Lazy<AcroForm> documentForm;
 
-        [NotNull]
+        [UglyToad.PdfPig.Util.JetBrains.Annotations.NotNull]
         private readonly HeaderVersion version;
 
         private readonly IInputBytes inputBytes;
 
-        [CanBeNull]
+        [UglyToad.PdfPig.Util.JetBrains.Annotations.CanBeNull]
         private readonly EncryptionDictionary encryptionDictionary;
 
-        [NotNull]
+        [UglyToad.PdfPig.Util.JetBrains.Annotations.NotNull]
         private readonly IPdfTokenScanner pdfScanner;
 
         private readonly ILookupFilterProvider filterProvider;
         private readonly BookmarksProvider bookmarksProvider;
         private readonly ParsingOptions parsingOptions;
 
-        [NotNull]
+        [UglyToad.PdfPig.Util.JetBrains.Annotations.NotNull]
         private readonly Pages pages;
         private readonly NamedDestinations namedDestinations;
 
         /// <summary>
         /// The metadata associated with this document.
         /// </summary>
-        [NotNull]
+        [UglyToad.PdfPig.Util.JetBrains.Annotations.NotNull]
         public DocumentInformation Information { get; }
 
         /// <summary>
-        /// Access to the underlying raw structure of the document. 
+        /// Access to the underlying raw structure of the document.
         /// </summary>
-        [NotNull]
+        [UglyToad.PdfPig.Util.JetBrains.Annotations.NotNull]
         public Structure Structure { get; }
 
         /// <summary>
@@ -134,7 +134,7 @@
         public static PdfDocument Open(Stream stream, ParsingOptions options = null) => PdfDocumentFactory.Open(stream, options);
 
         /// <summary>
-        /// TODO
+        /// Add the page factory.
         /// </summary>
         /// <typeparam name="TPage"></typeparam>
         /// <param name="pageFactory"></param>
@@ -144,7 +144,7 @@
         }
 
         /// <summary>
-        /// TODO
+        /// Add the page factory.
         /// </summary>
         /// <typeparam name="TPage"></typeparam>
         /// <typeparam name="TPageFactory"></typeparam>

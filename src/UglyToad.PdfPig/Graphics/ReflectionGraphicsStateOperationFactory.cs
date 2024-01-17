@@ -26,32 +26,107 @@ namespace UglyToad.PdfPig.Graphics
     {
         private static readonly ListPool<decimal> DecimalListPool = new ListPool<decimal>(10);
 
-        private readonly IReadOnlyDictionary<string, Type> operations;
+        private readonly IReadOnlyDictionary<string, Type> operations = new Dictionary<string, Type>()
+        {
+            { SetFlatnessTolerance.Symbol, typeof(SetFlatnessTolerance) },
+            { ModifyClippingByEvenOddIntersect.Symbol, typeof(ModifyClippingByEvenOddIntersect) },
+            { ModifyClippingByNonZeroWindingIntersect.Symbol, typeof(ModifyClippingByNonZeroWindingIntersect) },
+            { BeginCompatibilitySection.Symbol, typeof(BeginCompatibilitySection) },
+            { EndCompatibilitySection.Symbol, typeof(EndCompatibilitySection) },
+            { SetColorRenderingIntent.Symbol, typeof(SetColorRenderingIntent) },
+            { SetLineCap.Symbol, typeof(SetLineCap) },
+            { SetLineDashPattern.Symbol, typeof(SetLineDashPattern) },
+            { SetLineJoin.Symbol, typeof(SetLineJoin) },
+            { SetLineWidth.Symbol, typeof(SetLineWidth) },
+            { SetMiterLimit.Symbol, typeof(SetMiterLimit) },
+            { BeginInlineImage.Symbol, typeof(BeginInlineImage) },
+            { BeginInlineImageData.Symbol, typeof(BeginInlineImageData) },
+            { EndInlineImage.Symbol, typeof(EndInlineImage) },
+            { InvokeNamedXObject.Symbol, typeof(InvokeNamedXObject) },
+            { BeginMarkedContent.Symbol, typeof(BeginMarkedContent) },
+            { BeginMarkedContentWithProperties.Symbol, typeof(BeginMarkedContentWithProperties) },
+            { DesignateMarkedContentPoint.Symbol, typeof(DesignateMarkedContentPoint) },
+            { DesignateMarkedContentPointWithProperties.Symbol, typeof(DesignateMarkedContentPointWithProperties) },
+            { EndMarkedContent.Symbol, typeof(EndMarkedContent) },
+            { PaintShading.Symbol, typeof(PaintShading) },
+            { AppendDualControlPointBezierCurve.Symbol, typeof(AppendDualControlPointBezierCurve) },
+            { AppendEndControlPointBezierCurve.Symbol, typeof(AppendEndControlPointBezierCurve) },
+            { AppendRectangle.Symbol, typeof(AppendRectangle) },
+            { AppendStartControlPointBezierCurve.Symbol, typeof(AppendStartControlPointBezierCurve) },
+            { AppendStraightLineSegment.Symbol, typeof(AppendStraightLineSegment) },
+            { BeginNewSubpath.Symbol, typeof(BeginNewSubpath) },
+            { CloseSubpath.Symbol, typeof(CloseSubpath) },
+            { CloseAndStrokePath.Symbol, typeof(CloseAndStrokePath) },
+            { CloseFillPathEvenOddRuleAndStroke.Symbol, typeof(CloseFillPathEvenOddRuleAndStroke) },
+            { CloseFillPathNonZeroWindingAndStroke.Symbol, typeof(CloseFillPathNonZeroWindingAndStroke) },
+            { EndPath.Symbol, typeof(EndPath) },
+            { FillPathEvenOddRule.Symbol, typeof(FillPathEvenOddRule) },
+            { FillPathEvenOddRuleAndStroke.Symbol, typeof(FillPathEvenOddRuleAndStroke) },
+            { FillPathNonZeroWinding.Symbol, typeof(FillPathNonZeroWinding) },
+            { FillPathNonZeroWindingAndStroke.Symbol, typeof(FillPathNonZeroWindingAndStroke) },
+            { FillPathNonZeroWindingCompatibility.Symbol, typeof(FillPathNonZeroWindingCompatibility) },
+            { StrokePath.Symbol, typeof(StrokePath) },
+            { SetNonStrokeColor.Symbol, typeof(SetNonStrokeColor) },
+            { SetNonStrokeColorAdvanced.Symbol, typeof(SetNonStrokeColorAdvanced) },
+            { SetNonStrokeColorDeviceCmyk.Symbol, typeof(SetNonStrokeColorDeviceCmyk) },
+            { SetNonStrokeColorDeviceGray.Symbol, typeof(SetNonStrokeColorDeviceGray) },
+            { SetNonStrokeColorDeviceRgb.Symbol, typeof(SetNonStrokeColorDeviceRgb) },
+            { SetNonStrokeColorSpace.Symbol, typeof(SetNonStrokeColorSpace) },
+            { SetStrokeColor.Symbol, typeof(SetStrokeColor) },
+            { SetStrokeColorAdvanced.Symbol, typeof(SetStrokeColorAdvanced) },
+            { SetStrokeColorDeviceCmyk.Symbol, typeof(SetStrokeColorDeviceCmyk) },
+            { SetStrokeColorDeviceGray.Symbol, typeof(SetStrokeColorDeviceGray) },
+            { SetStrokeColorDeviceRgb.Symbol, typeof(SetStrokeColorDeviceRgb) },
+            { SetStrokeColorSpace.Symbol, typeof(SetStrokeColorSpace) },
+            { ModifyCurrentTransformationMatrix.Symbol, typeof(ModifyCurrentTransformationMatrix) },
+            { Pop.Symbol, typeof(Pop) },
+            { Push.Symbol, typeof(Push) },
+            { SetGraphicsStateParametersFromDictionary.Symbol, typeof(SetGraphicsStateParametersFromDictionary) },
+            { BeginText.Symbol, typeof(BeginText) },
+            { EndText.Symbol, typeof(EndText) },
+            { MoveToNextLine.Symbol, typeof(MoveToNextLine) },
+            { MoveToNextLineWithOffset.Symbol, typeof(MoveToNextLineWithOffset) },
+            { MoveToNextLineWithOffsetSetLeading.Symbol, typeof(MoveToNextLineWithOffsetSetLeading) },
+            { SetTextMatrix.Symbol, typeof(SetTextMatrix) },
+            { MoveToNextLineShowText.Symbol, typeof(MoveToNextLineShowText) },
+            { MoveToNextLineShowTextWithSpacing.Symbol, typeof(MoveToNextLineShowTextWithSpacing) },
+            { ShowText.Symbol, typeof(ShowText) },
+            { ShowTextsWithPositioning.Symbol, typeof(ShowTextsWithPositioning) },
+            { SetCharacterSpacing.Symbol, typeof(SetCharacterSpacing) },
+            { SetFontAndSize.Symbol, typeof(SetFontAndSize) },
+            { SetHorizontalScaling.Symbol, typeof(SetHorizontalScaling) },
+            { SetTextLeading.Symbol, typeof(SetTextLeading) },
+            { SetTextRenderingMode.Symbol, typeof(SetTextRenderingMode) },
+            { SetTextRise.Symbol, typeof(SetTextRise) },
+            { SetWordSpacing.Symbol, typeof(SetWordSpacing) },
+            { Type3SetGlyphWidth.Symbol, typeof(Type3SetGlyphWidth) },
+            { Type3SetGlyphWidthAndBoundingBox.Symbol, typeof(Type3SetGlyphWidthAndBoundingBox) }
+        };
 
         public ReflectionGraphicsStateOperationFactory()
         {
-            var assemblyTypes = Assembly.GetAssembly(typeof(ReflectionGraphicsStateOperationFactory)).GetTypes();
+            //var assemblyTypes = Assembly.GetAssembly(typeof(ReflectionGraphicsStateOperationFactory)).GetTypes();
 
-            var result = new Dictionary<string, Type>();
+            //var result = new Dictionary<string, Type>();
 
-            foreach (var assemblyType in assemblyTypes)
-            {
-                if (!assemblyType.IsInterface && typeof(IGraphicsStateOperation).IsAssignableFrom(assemblyType))
-                {
-                    var symbol = assemblyType.GetField("Symbol");
+            //foreach (var assemblyType in assemblyTypes)
+            //{
+            //    if (!assemblyType.IsInterface && typeof(IGraphicsStateOperation).IsAssignableFrom(assemblyType))
+            //    {
+            //        var symbol = assemblyType.GetField("Symbol");
 
-                    if (symbol == null)
-                    {
-                        throw new InvalidOperationException("An operation type was defined without the public const Symbol being declared. Type was: " + assemblyType.FullName);
-                    }
+            //        if (symbol == null)
+            //        {
+            //            throw new InvalidOperationException("An operation type was defined without the public const Symbol being declared. Type was: " + assemblyType.FullName);
+            //        }
 
-                    var value = symbol.GetValue(null).ToString();
+            //        var value = symbol.GetValue(null).ToString();
 
-                    result[value] = assemblyType;
-                }
-            }
+            //        result[value] = assemblyType;
+            //    }
+            //}
 
-            operations = result;
+            //operations = result;
         }
 
         private static decimal[] TokensToDecimalArray(IReadOnlyList<IToken> tokens, bool exceptLast = false)
