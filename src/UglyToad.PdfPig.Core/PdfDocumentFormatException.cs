@@ -28,12 +28,5 @@
         public PdfDocumentFormatException(string message, Exception inner) : base(message, inner)
         {
         }
-
-        /// <inheritdoc />
-        protected PdfDocumentFormatException(
-            SerializationInfo info,
-            StreamingContext context) : base(info, context)
-        {
-        }
     }
 }
