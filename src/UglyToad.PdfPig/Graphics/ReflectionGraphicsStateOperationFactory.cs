@@ -28,28 +28,28 @@ namespace UglyToad.PdfPig.Graphics
 
         public ReflectionGraphicsStateOperationFactory()
         {
-            var assemblyTypes = Assembly.GetAssembly(typeof(ReflectionGraphicsStateOperationFactory))!.GetTypes();
+            //var assemblyTypes = Assembly.GetAssembly(typeof(ReflectionGraphicsStateOperationFactory)).GetTypes();
 
-            var result = new Dictionary<string, Type>();
+            //var result = new Dictionary<string, Type>();
 
-            foreach (var assemblyType in assemblyTypes)
-            {
-                if (!assemblyType.IsInterface && typeof(IGraphicsStateOperation).IsAssignableFrom(assemblyType))
-                {
-                    var symbol = assemblyType.GetField("Symbol");
+            //foreach (var assemblyType in assemblyTypes)
+            //{
+            //    if (!assemblyType.IsInterface && typeof(IGraphicsStateOperation).IsAssignableFrom(assemblyType))
+            //    {
+            //        var symbol = assemblyType.GetField("Symbol");
 
-                    if (symbol is null)
-                    {
-                        throw new InvalidOperationException("An operation type was defined without the public const Symbol being declared. Type was: " + assemblyType.FullName);
-                    }
+            //        if (symbol == null)
+            //        {
+            //            throw new InvalidOperationException("An operation type was defined without the public const Symbol being declared. Type was: " + assemblyType.FullName);
+            //        }
 
-                    var value = symbol.GetValue(null)!.ToString()!;
+            //        var value = symbol.GetValue(null).ToString();
 
-                    result[value] = assemblyType;
-                }
-            }
+            //        result[value] = assemblyType;
+            //    }
+            //}
 
-            operations = result;
+            //operations = result;
         }
 
         private static double[] TokensToDoubleArray(IReadOnlyList<IToken> tokens, bool exceptLast = false)
