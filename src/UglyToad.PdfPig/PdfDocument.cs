@@ -125,7 +125,7 @@
         public static PdfDocument Open(Stream stream, ParsingOptions? options = null) => PdfDocumentFactory.Open(stream, options);
 
         /// <summary>
-        /// TODO
+        /// Add the page factory.
         /// </summary>
         /// <typeparam name="TPage"></typeparam>
         /// <param name="pageFactory"></param>
@@ -135,7 +135,7 @@
         }
 
         /// <summary>
-        /// TODO
+        /// Add the page factory.
         /// </summary>
         /// <typeparam name="TPage"></typeparam>
         /// <typeparam name="TPageFactory"></typeparam>
