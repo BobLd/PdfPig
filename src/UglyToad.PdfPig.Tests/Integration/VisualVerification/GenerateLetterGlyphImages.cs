@@ -73,9 +73,17 @@
 
                     if (RenderGlyphRectangle)
                     {
-                        foreach (var letter in page.Letters)
+                        foreach (var word in page.GetWords())
                         {
-                            DrawRectangle(letter.GlyphRectangle, canvas, redPaint, size.Height, Scale);
+                            var first = word.Letters[0];
+                            var last = word.Letters[word.Letters.Count - 1];
+
+                            double x1 = first.GlyphRectangle.TopLeft.X;
+                            double x2 = last.GlyphRectangle.TopRight.X;
+                            double y1 = word.Letters.Max(l => l.GlyphRectangle.TopLeft.Y);
+                            double y2 = word.Letters.Min(l => l.GlyphRectangle.BottomLeft.Y);
+                            var bbox = new PdfRectangle(x1, y1, x2, y2);
+                            DrawRectangle(bbox, canvas, redPaint, size.Height, Scale);
                         }
                     }
 
@@ -107,6 +115,12 @@
             graphics.DrawLine(GetPoint(rectangle.BottomRight), GetPoint(rectangle.TopRight), pen);
             graphics.DrawLine(GetPoint(rectangle.TopRight), GetPoint(rectangle.TopLeft), pen);
             graphics.DrawLine(GetPoint(rectangle.TopLeft), GetPoint(rectangle.BottomLeft), pen);
+        }
+
+        [Fact]
+        public void Issue749()
+        {
+            Run("document11-2");
         }
 
         // veraPDF_Issue1010_x -> https://github.com/veraPDF/veraPDF-library/issues/1010
