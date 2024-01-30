@@ -108,7 +108,7 @@
                 .Split(' ')
                 .Select(byte.Parse).ToArray();
             
-            Assert.Equal(filtered, expected);
+            Assert.Equal(filtered.ToArray(), expected);
         }
 
         /// <summary>

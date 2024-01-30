@@ -4,6 +4,8 @@
     using Core;
     using Filters;
     using Parser.Parts;
+    using System;
+    using System.Linq;
     using Tokenization.Scanner;
     using Tokens;
 
@@ -57,13 +59,13 @@
         {
             var filters = filterProvider.GetFilters(stream.StreamDictionary);
 
-            var transform = stream.Data;
+            Span<byte> transform = stream.Data.ToArray();
             for (var i = 0; i < filters.Count; i++)
             {
-                transform = filters[i].Decode(transform, stream.StreamDictionary, i);
+                transform = filters[i].Decode(transform.ToArray().AsSpan(), stream.StreamDictionary, i);
             }
 
-            return transform;
+            return transform.ToArray();
         }
 
         /// <summary>
@@ -73,13 +75,13 @@
         {
             var filters = filterProvider.GetFilters(stream.StreamDictionary, scanner);
 
-            var transform = stream.Data;
+            Span<byte> transform = stream.Data.ToArray();
             for (var i = 0; i < filters.Count; i++)
             {
-                transform = filters[i].Decode(transform, stream.StreamDictionary, i);
+                transform = filters[i].Decode(transform.ToArray().AsSpan(), stream.StreamDictionary, i);
             }
 
-            return transform;
+            return transform.ToArray();
         }
     }
 }

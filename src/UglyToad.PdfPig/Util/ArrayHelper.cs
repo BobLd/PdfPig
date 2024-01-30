@@ -26,5 +26,13 @@
                 array[i] = value;
             }
         }
+
+        public static void Copy<T>(Span<T> sourceArray, int sourceIndex, Span<T> destinationArray, int destinationIndex, int length)
+        {
+            if (!sourceArray.Slice(sourceIndex).TryCopyTo(destinationArray.Slice(destinationIndex, length)))
+            {
+                throw new IndexOutOfRangeException("TODO");
+            }
+        }
     }
 }

@@ -1,7 +1,6 @@
 ﻿namespace UglyToad.PdfPig.Filters
 {
     using System;
-    using System.Collections.Generic;
     using System.IO;
     using Tokens;
 
@@ -13,32 +12,33 @@
     {
         private const byte EmptyBlock = (byte)'z';
         private const byte Offset = (byte)'!';
-        private const byte EmptyCharacterPadding = (byte) 'u';
+        private const byte EmptyCharacterPadding = (byte)'u';
 
         private static readonly byte[] EndOfDataBytes = { (byte)'~', (byte)'>' };
 
-        private static readonly int[] PowerByIndex = {
+        private static readonly int[] PowerByIndex =
+        {
             1,
             85,
             85 * 85,
             85 * 85 * 85,
-            85 * 85 * 85 *85
+            85 * 85 * 85 * 85
         };
 
         /// <inheritdoc />
         public bool IsSupported { get; } = true;
 
         /// <inheritdoc />
-        public byte[] Decode(IReadOnlyList<byte> input, DictionaryToken streamDictionary, int filterIndex)
+        public Span<byte> Decode(Span<byte> input, DictionaryToken streamDictionary, int filterIndex)
         {
-            var asciiBuffer = new byte[5];
+            Span<byte> asciiBuffer = stackalloc byte[5];
 
             var index = 0;
 
             using (var stream = new MemoryStream())
             using (var writer = new BinaryWriter(stream))
             {
-                for (var i = 0; i < input.Count; i++)
+                for (var i = 0; i < input.Length; i++)
                 {
                     var value = input[i];
 
@@ -49,7 +49,7 @@
 
                     if (value == EndOfDataBytes[0])
                     {
-                        if (i == input.Count - 1 || input[i + 1] == EndOfDataBytes[1])
+                        if (i == input.Length - 1 || input[i + 1] == EndOfDataBytes[1])
                         {
                             if (index > 0)
                             {
@@ -105,7 +105,7 @@
             }
         }
 
-        private static void WriteData(byte[] ascii, int index, BinaryWriter writer)
+        private static void WriteData(Span<byte> ascii, int index, BinaryWriter writer)
         {
             if (index < 2)
             {
@@ -117,7 +117,7 @@
             {
                 ascii[i] = EmptyCharacterPadding - Offset;
             }
-            
+
             int value = 0;
             value += ascii[0] * PowerByIndex[4];
             value += ascii[1] * PowerByIndex[3];

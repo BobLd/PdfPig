@@ -22,12 +22,12 @@
         private const int NineBitBoundary = 511;
         private const int TenBitBoundary = 1023;
         private const int ElevenBitBoundary = 2047;
-        
+
         /// <inheritdoc />
         public bool IsSupported { get; } = true;
 
         /// <inheritdoc />
-        public byte[] Decode(IReadOnlyList<byte> input, DictionaryToken streamDictionary, int filterIndex)
+        public Span<byte> Decode(Span<byte> input, DictionaryToken streamDictionary, int filterIndex)
         {
             var parameters = DecodeParameterResolver.GetFilterParameters(streamDictionary, filterIndex);
 
@@ -53,16 +53,16 @@
             return data;
         }
 
-        private static byte[] Decode(IReadOnlyList<byte> input, bool isEarlyChange)
+        private static Span<byte> Decode(Span<byte> input, bool isEarlyChange)
         {
             // A guess.
-            var result = new List<byte>((int)(input.Count * 1.5));
+            var result = new List<byte>((int)(input.Length * 1.5));
 
             var table = GetDefaultTable();
 
             var codeBits = 9;
 
-            var data = new BitStream(input);
+            var data = new BitStream(input.ToArray());
 
             var codeOffset = isEarlyChange ? 0 : 1;
 

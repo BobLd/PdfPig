@@ -1,9 +1,7 @@
 ﻿namespace UglyToad.PdfPig.Filters
 {
     using System;
-    using System.Collections.Generic;
     using System.IO;
-    using System.Linq;
     using Tokens;
     using Util;
 
@@ -18,7 +16,7 @@
         public bool IsSupported { get; } = true;
 
         /// <inheritdoc />
-        public byte[] Decode(IReadOnlyList<byte> input, DictionaryToken streamDictionary, int filterIndex)
+        public Span<byte> Decode(Span<byte> input, DictionaryToken streamDictionary, int filterIndex)
         {
             var decodeParms = DecodeParameterResolver.GetFilterParameters(streamDictionary, filterIndex);
 
@@ -42,7 +40,7 @@
             using (var stream = new CcittFaxDecoderStream(new MemoryStream(input.ToArray()), cols, compressionType, encodedByteAlign))
             {
                 var arraySize = (cols + 7) / 8 * rows;
-                var decompressed = new byte[arraySize];
+                Span<byte> decompressed = new byte[arraySize];
                 ReadFromDecoderStream(stream, decompressed);
 
                 // we expect black to be 1, if not invert the bitmap 
@@ -56,13 +54,13 @@
             }
         }
 
-        private static CcittFaxCompressionType DetermineCompressionType(IReadOnlyList<byte> input, int k)
+        private static CcittFaxCompressionType DetermineCompressionType(Span<byte> input, int k)
         {
             if (k == 0)
             {
                 var compressionType = CcittFaxCompressionType.Group3_1D; // Group 3 1D
 
-                if (input.Count < 20)
+                if (input.Length < 20)
                 {
                     throw new InvalidOperationException("The format is invalid");
                 }
@@ -85,7 +83,7 @@
 
                 return compressionType;
             }
-            
+
             if (k > 0)
             {
                 // Group 3 2D
@@ -95,7 +93,7 @@
             return CcittFaxCompressionType.Group4_2D;
         }
 
-        private static void ReadFromDecoderStream(CcittFaxDecoderStream decoderStream, byte[] result)
+        private static void ReadFromDecoderStream(CcittFaxDecoderStream decoderStream, Span<byte> result)
         {
             var pos = 0;
             int read;
@@ -110,7 +108,7 @@
             decoderStream.Close();
         }
 
-        private static void InvertBitmap(byte[] bufferData)
+        private static void InvertBitmap(Span<byte> bufferData)
         {
             for (int i = 0, c = bufferData.Length; i < c; i++)
             {

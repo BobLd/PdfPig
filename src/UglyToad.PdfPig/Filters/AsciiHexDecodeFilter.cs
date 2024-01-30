@@ -1,7 +1,6 @@
 ﻿namespace UglyToad.PdfPig.Filters
 {
     using System;
-    using System.Collections.Generic;
     using System.IO;
     using Tokens;
 
@@ -11,7 +10,7 @@
     /// </summary>
     internal class AsciiHexDecodeFilter : IFilter
     {
-        private static readonly short[] ReverseHex = 
+        private static readonly short[] ReverseHex =
         {
             /*   0 */  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
             /*  10 */  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -30,15 +29,15 @@
         public bool IsSupported { get; } = true;
 
         /// <inheritdoc />
-        public byte[] Decode(IReadOnlyList<byte> input, DictionaryToken streamDictionary, int filterIndex)
+        public Span<byte> Decode(Span<byte> input, DictionaryToken streamDictionary, int filterIndex)
         {
-            var pair = new byte[2];
+            Span<byte> pair = stackalloc byte[2];
             var index = 0;
 
             using (var memoryStream = new MemoryStream())
             using (var binaryWriter = new BinaryWriter(memoryStream))
             {
-                for (var i = 0; i < input.Count; i++)
+                for (var i = 0; i < input.Length; i++)
                 {
                     if (input[i] == '>')
                     {
@@ -76,7 +75,7 @@
             }
         }
 
-        private static void WriteHexToByte(byte[] hexBytes, BinaryWriter writer)
+        private static void WriteHexToByte(Span<byte> hexBytes, BinaryWriter writer)
         {
             var first = ReverseHex[hexBytes[0]];
             var second = ReverseHex[hexBytes[1]];
@@ -91,7 +90,7 @@
                 throw new InvalidOperationException("Invalid character encountered in hex encoded stream: " + (char)hexBytes[0]);
             }
 
-            var value = (byte) (first * 16 + second);
+            var value = (byte)(first * 16 + second);
 
             writer.Write(value);
         }

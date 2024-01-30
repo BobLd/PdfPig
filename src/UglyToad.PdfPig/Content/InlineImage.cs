@@ -93,14 +93,14 @@
 
             bytesFactory = supportsFilters ? new Lazy<IReadOnlyList<byte>>(() =>
             {
-                var b = bytes.ToArray();
+                var b = bytes.ToArray().AsSpan();
                 for (var i = 0; i < filters.Count; i++)
                 {
                     var filter = filters[i];
                     b = filter.Decode(b, streamDictionary, i);
                 }
 
-                return b;
+                return b.ToArray();
             }) : null;
         }
 

@@ -1,6 +1,6 @@
 ﻿namespace UglyToad.PdfPig.Filters
 {
-    using System.Collections.Generic;
+    using System;
     using System.IO;
     using Tokens;
 
@@ -17,13 +17,13 @@
         public bool IsSupported { get; } = true;
 
         /// <inheritdoc />
-        public byte[] Decode(IReadOnlyList<byte> input, DictionaryToken streamDictionary, int filterIndex)
+        public Span<byte> Decode(Span<byte> input, DictionaryToken streamDictionary, int filterIndex)
         {
             using (var memoryStream = new MemoryStream())
             using (var writer = new BinaryWriter(memoryStream))
             {
                 var i = 0;
-                while (i < input.Count)
+                while (i < input.Length)
                 {
                     var runLength = input[i];
 

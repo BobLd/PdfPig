@@ -2,10 +2,8 @@
 {
     using Fonts;
     using System;
-    using System.Collections.Generic;
     using System.IO;
     using System.IO.Compression;
-    using System.Linq;
     using Tokens;
     using Util;
 
@@ -34,7 +32,7 @@
         public bool IsSupported { get; } = true;
 
         /// <inheritdoc />
-        public byte[] Decode(IReadOnlyList<byte> input, DictionaryToken streamDictionary, int filterIndex)
+        public Span<byte> Decode(Span<byte> input, DictionaryToken streamDictionary, int filterIndex)
         {
             if (input == null)
             {
@@ -45,10 +43,10 @@
 
             var predictor = parameters.GetIntOrDefault(NameToken.Predictor, -1);
 
-            var bytes = input.ToArray();
+            //var bytes = input; //.ToArray();
             try
             {
-                var decompressed = Decompress(bytes);
+                var decompressed = Decompress(input);
 
                 if (predictor == -1)
                 {
@@ -68,17 +66,19 @@
                 // ignored.
             }
 
-            return bytes;
+            return input;
         }
 
-        private byte[] Decompress(byte[] input)
+        private Span<byte> Decompress(Span<byte> input)
         {
-            using (var memoryStream = new MemoryStream(input))
+            using (var memoryStream = new MemoryStream(input.ToArray()))
             using (var output = new MemoryStream())
             {
                 // The first 2 bytes are the header which DeflateStream does not support.
                 memoryStream.ReadByte();
                 memoryStream.ReadByte();
+
+                input.Slice(2);
 
                 try
                 {

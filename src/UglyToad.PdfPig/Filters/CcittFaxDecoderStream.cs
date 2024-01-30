@@ -448,6 +448,41 @@
             return read;
         }
 
+        public override int Read(Span<byte> buffer)
+        {
+            throw new NotImplementedException();
+        }
+
+        public int Read(Span<byte> b, int off, int len)
+        {
+            if (decodedLength < 0)
+            {
+                b.Slice(off, len).Fill(0x0);
+                //ArrayHelper.Fill(b, off, off + len, (byte)0x0);
+                return len;
+            }
+
+            if (decodedPos >= decodedLength)
+            {
+                Fetch();
+
+                if (decodedLength < 0)
+                {
+                    b.Slice(off, len).Fill(0x0);
+                    //ArrayHelper.Fill(b, off, off + len, (byte)0x0);
+                    return len;
+                }
+            }
+
+            var read = Math.Min(decodedLength - decodedPos, len);
+
+            ArrayHelper.Copy(decodedRow, decodedPos, b, off, read);
+
+            decodedPos += read;
+
+            return read;
+        }
+
         private class Node
         {
             public Node Left { get; set; }

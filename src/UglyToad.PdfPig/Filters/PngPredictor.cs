@@ -7,7 +7,7 @@
 
     internal static class PngPredictor
     {
-        public static byte[] Decode(byte[] inputBytes, int predictor, int colors, int bitsPerComponent, int columns)
+        public static Span<byte> Decode(Span<byte> inputBytes, int predictor, int colors, int bitsPerComponent, int columns)
         {
             if (inputBytes == null)
             {
@@ -31,9 +31,8 @@
 
             using (var memoryStream = new MemoryStream())
             using (var output = new BinaryWriter(memoryStream))
-            using (var input = new RandomAccessBuffer(inputBytes))
+            using (var input = new RandomAccessBuffer(inputBytes.ToArray()))
             {
-
                 while (input.Available() > 0)
                 {
                     // test for PNG predictor; each value >= 10 (not only 15) indicates usage of PNG predictor

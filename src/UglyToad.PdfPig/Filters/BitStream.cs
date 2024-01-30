@@ -1,16 +1,15 @@
 ﻿namespace UglyToad.PdfPig.Filters
 {
     using System;
-    using System.Collections.Generic;
 
     internal class BitStream
     {
-        private readonly IReadOnlyList<byte> data;
+        private readonly byte[] data;
 
         private int currentWithinByteBitOffset;
         private int currentByteIndex;
 
-        public BitStream(IReadOnlyList<byte> data)
+        public BitStream(byte[] data)
         {
             this.data = data ?? throw new ArgumentNullException(nameof(data));
         }
@@ -34,7 +33,7 @@
                     currentByteIndex++;
                 }
 
-                if (currentByteIndex >= data.Count)
+                if (currentByteIndex >= data.Length)
                 {
                     throw new InvalidOperationException($"Reached the end of the bit stream while trying to read {i} bits.");
                 }
@@ -56,7 +55,7 @@
             // 'And' out the leading bits.
             var firstBitOfDataWithinInt = (sizeof(int) * 8) - numberOfBits;
             result &= (int)(0xffffffff >> firstBitOfDataWithinInt);
-            
+
             currentWithinByteBitOffset = endWithinByteBitOffset;
 
             return result;
