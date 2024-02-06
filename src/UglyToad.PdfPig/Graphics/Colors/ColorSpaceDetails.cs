@@ -717,22 +717,24 @@
         /// <inheritdoc/>
         internal override byte[] Transform(byte[] values)
         {
-            var cache = new Dictionary<int, double[]>();
-            var transformed = new List<byte>();
-            for (var i = 0; i < values.Length; i += 3)
+            var localCache = new Dictionary<byte, double[]>();
+            var transformed = new List<byte>(values.Length * AlternateColorSpace.NumberOfColorComponents);
+            for (var i = 0; i < values.Length; i++)
             {
-                byte b = values[i++];
-                if (!cache.TryGetValue(b, out double[] colors))
+                byte b = values[i];
+                if (!localCache.TryGetValue(b, out double[] colors))
                 {
                     colors = Process(b / 255.0);
-                    cache[b] = colors;
+                    localCache[b] = colors;
                 }
 
-                for (int c = 0; c < colors.Length; c++)
+                foreach (var c in colors)
                 {
-                    transformed.Add(ConvertToByte(colors[c]));
+                    transformed.Add(ConvertToByte(c));
                 }
             }
+
+            System.Diagnostics.Debug.Assert(transformed.Count.Equals(values.Length * AlternateColorSpace.NumberOfColorComponents));
 
             return transformed.ToArray();
         }
