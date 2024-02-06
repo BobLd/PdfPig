@@ -15,7 +15,7 @@
     internal class TrueTypeWritingFont : IWritingFont
     {
         private readonly TrueTypeFont font;
-        private readonly IReadOnlyList<byte> fontFileBytes;
+        private readonly byte[] fontFileBytes;
 
         private readonly object mappingLock = new object();
         private readonly Dictionary<char, byte> characterMapping = new Dictionary<char, byte>();
@@ -25,7 +25,7 @@
 
         public string Name => font.Name;
 
-        public TrueTypeWritingFont(TrueTypeFont font, IReadOnlyList<byte> fontFileBytes)
+        public TrueTypeWritingFont(TrueTypeFont font, byte[] fontFileBytes)
         {
             this.font = font;
             this.fontFileBytes = fontFileBytes;
@@ -50,7 +50,7 @@
         public IndirectReferenceToken  WriteFont(IPdfStreamWriter writer, IndirectReferenceToken reservedIndirect=null)
         {
             var newEncoding = new TrueTypeSubsetEncoding(characterMapping.Keys.ToList());
-            var subsetBytes = TrueTypeSubsetter.Subset(fontFileBytes.ToArray(), newEncoding);
+            var subsetBytes = TrueTypeSubsetter.Subset(fontFileBytes, newEncoding);
 
             var embeddedFile = DataCompresser.CompressToStream(subsetBytes);
 

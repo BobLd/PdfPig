@@ -35,7 +35,7 @@
         /// <summary>
         /// The encoded bytes of the image with all filters still applied.
         /// </summary>
-        IReadOnlyList<byte> RawBytes { get; }
+        byte[] RawBytes { get; }
 
         /// <summary>
         /// The color rendering intent to be used when rendering the image.
@@ -91,7 +91,7 @@
         /// Get the decoded bytes of the image if applicable. For JPEG images and some other types the
         /// <see cref="RawBytes"/> should be used directly.
         /// </summary>
-        bool TryGetBytes(out IReadOnlyList<byte> bytes);
+        bool TryGetBytes(out byte[] bytes);
 
         /// <summary>
         /// Try to convert the image to PNG. Doesn't support conversion of JPG to PNG.

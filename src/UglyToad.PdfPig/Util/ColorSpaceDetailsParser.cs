@@ -336,7 +336,7 @@
 
                         var fourth = colorSpaceArray[3];
 
-                        IReadOnlyList<byte> tableBytes;
+                        byte[] tableBytes;
 
                         if (DirectObjectFinder.TryGet(fourth, scanner, out HexToken tableHexToken))
                         {

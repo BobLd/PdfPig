@@ -777,7 +777,7 @@
         }
 
         /// <inheritdoc/>
-        public virtual void EndInlineImage(IReadOnlyList<byte> bytes)
+        public virtual void EndInlineImage(byte[] bytes)
         {
             if (InlineImageBuilder == null)
             {

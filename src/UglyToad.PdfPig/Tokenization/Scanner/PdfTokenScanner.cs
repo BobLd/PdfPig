@@ -435,7 +435,7 @@
                     // Use the declared length to copy just the data we want.
                     byte[] data = new byte[length.Value];
 
-                    memoryStream.Read(data, 0, (int)length.Value);
+                    _ = memoryStream.Read(data, 0, (int)length.Value);
 
                     stream = new StreamToken(streamDictionaryToken, data);
                 }
@@ -465,7 +465,7 @@
 
                     byte[] data = new byte[dataLength];
 
-                    memoryStream.Read(data, 0, (int)dataLength);
+                    _ = memoryStream.Read(data, 0, (int)dataLength);
 
                     stream = new StreamToken(streamDictionaryToken, data);
                 }
@@ -532,7 +532,7 @@
                 throw new InvalidOperationException($"Reading using the stream length failed to read as many bytes as the stream specified. Wanted {length.Value}, got {countRead} at {startDataOffset + 1}.");
             }
 
-            inputBytes.Read(readBuffer);
+            _ = inputBytes.Read(readBuffer);
             // Skip for the line break before 'endstream'.
             for (var i = 0; i < newlineCount; i++)
             {

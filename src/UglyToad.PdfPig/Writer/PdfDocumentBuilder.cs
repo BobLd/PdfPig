@@ -127,7 +127,7 @@ namespace UglyToad.PdfPig.Writer
         /// <param name="fontFileBytes">The bytes of a TrueType font file.</param>
         /// <param name="reasons">Any reason messages explaining why the file can't be used, if applicable.</param>
         /// <returns><see langword="true"/> if the file can be used, <see langword="false"/> otherwise.</returns>
-        public bool CanUseTrueTypeFont(IReadOnlyList<byte> fontFileBytes, out IReadOnlyList<string> reasons)
+        public bool CanUseTrueTypeFont(byte[] fontFileBytes, out IReadOnlyList<string> reasons)
         {
             var reasonsMutable = new List<string>();
             reasons = reasonsMutable;
@@ -139,7 +139,7 @@ namespace UglyToad.PdfPig.Writer
                     return false;
                 }
 
-                if (fontFileBytes.Count == 0)
+                if (fontFileBytes.Length == 0)
                 {
                     reasonsMutable.Add("Provided bytes were empty.");
                     return false;
@@ -179,7 +179,7 @@ namespace UglyToad.PdfPig.Writer
         /// </summary>
         /// <param name="fontFileBytes">The bytes of a TrueType font.</param>
         /// <returns>An identifier which can be passed to <see cref="PdfPageBuilder.AddText"/>.</returns>
-        public AddedFont AddTrueTypeFont(IReadOnlyList<byte> fontFileBytes)
+        public AddedFont AddTrueTypeFont(byte[] fontFileBytes)
         {
             try
             {

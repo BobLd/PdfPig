@@ -24,12 +24,12 @@
                     throw new InvalidOperationException("The destination token in a line for Cid Character should be an integer, instead it was: " + scanner.CurrentToken);
                 }
 
-                var sourceInteger = sourceCode.Bytes.ToInt(sourceCode.Bytes.Count);
+                var sourceInteger = sourceCode.Bytes.ToInt(sourceCode.Bytes.Length);
                 var mapping = new CidCharacterMapping(sourceInteger, destinationCode.Int);
 
                 results.Add(mapping);
             }
-            
+
             builder.CidCharacterMappings = results;
         }
     }

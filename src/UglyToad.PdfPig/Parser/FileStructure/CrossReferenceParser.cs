@@ -204,7 +204,7 @@
                         bytes.Seek(from);
 
                         var buffer = new byte[bufferSize];
-                        bytes.Read(buffer);
+                        _ = bytes.Read(buffer);
                         var content = OtherEncodings.BytesAsLatin1String(buffer);
 
                         var xrefAt = content.IndexOf("xref", StringComparison.OrdinalIgnoreCase);
@@ -346,9 +346,7 @@
 
                 bytes.Seek(lastOffset);
             }
-            bytes.Read(buffer);
-
-
+            _ = bytes.Read(buffer);
 
             return false;
         }

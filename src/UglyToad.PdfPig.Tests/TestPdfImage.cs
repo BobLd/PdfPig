@@ -1,6 +1,7 @@
 ﻿namespace UglyToad.PdfPig.Tests
 {
     using System.Collections.Generic;
+    using System.Linq;
     using UglyToad.PdfPig.Content;
     using UglyToad.PdfPig.Core;
     using UglyToad.PdfPig.Graphics.Colors;
@@ -18,7 +19,7 @@
 
         public int BitsPerComponent { get; set; } = 8;
 
-        public IReadOnlyList<byte> RawBytes { get; }
+        public byte[] RawBytes { get; }
 
         public RenderingIntent RenderingIntent { get; set; } = RenderingIntent.RelativeColorimetric;
 
@@ -34,9 +35,9 @@
 
         public ColorSpaceDetails ColorSpaceDetails { get; set; }
 
-        public IReadOnlyList<byte> DecodedBytes { get; set; }
+        public byte[] DecodedBytes { get; set; }
 
-        public bool TryGetBytes(out IReadOnlyList<byte> bytes)
+        public bool TryGetBytes(out byte[] bytes)
         {
             bytes = DecodedBytes;
             return bytes != null;

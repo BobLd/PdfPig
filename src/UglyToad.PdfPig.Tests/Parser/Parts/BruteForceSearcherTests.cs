@@ -240,7 +240,7 @@ endobj";
         {
             bytes.Seek(location);
             var txt = new byte[10];
-            bytes.Read(txt);
+            _ = bytes.Read(txt);
 
             var s = OtherEncodings.BytesAsLatin1String(txt);
 

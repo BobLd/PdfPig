@@ -1,5 +1,6 @@
 ﻿namespace UglyToad.PdfPig.Tests.Graphics.Operations
 {
+    using PdfPig.Core;
     using System;
     using System.Collections.Generic;
     using System.IO;
@@ -44,7 +45,7 @@
                 }
                 else if (operationType == typeof(EndInlineImage))
                 {
-                    operation = new EndInlineImage(new List<byte>());
+                    operation = new EndInlineImage(EmptyArray<byte>.Instance);
                 }
                 else if (operationType == typeof(BeginInlineImageData))
                 {

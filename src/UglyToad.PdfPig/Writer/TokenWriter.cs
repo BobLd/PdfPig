@@ -511,7 +511,7 @@
             WriteLineBreak(outputStream);
             outputStream.Write(StreamStart, 0, StreamStart.Length);
             WriteLineBreak(outputStream);
-            outputStream.Write(streamToken.Data.ToArray(), 0, streamToken.Data.Count);
+            outputStream.Write(streamToken.Data, 0, streamToken.Data.Length);
             WriteLineBreak(outputStream);
             outputStream.Write(StreamEnd, 0, StreamEnd.Length);
         }

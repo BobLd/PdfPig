@@ -4,6 +4,7 @@
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Security.AccessControl;
     using Tokens;
     using UglyToad.PdfPig.Content;
     using UglyToad.PdfPig.Functions;
@@ -63,7 +64,7 @@
         /// <summary>
         /// Transform image bytes.
         /// </summary>
-        internal abstract IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded);
+        internal abstract byte[] Transform(byte[] decoded);
 
         /// <summary>
         /// Convert to byte.
@@ -131,7 +132,7 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override byte[] Transform(byte[] decoded)
         {
             return decoded;
         }
@@ -193,7 +194,7 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override byte[] Transform(byte[] decoded)
         {
             return decoded;
         }
@@ -256,7 +257,7 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override byte[] Transform(byte[] decoded)
         {
             return decoded;
         }
@@ -279,7 +280,8 @@
         internal static ColorSpaceDetails Stencil(ColorSpaceDetails colorSpaceDetails, double[] decode)
         {
             var blackIsOne = decode.Length >= 2 && decode[0] == 1 && decode[1] == 0;
-            return new IndexedColorSpaceDetails(colorSpaceDetails, 1, blackIsOne ? new byte[] { 255, 0 } : new byte[] { 0, 255 });
+            return new IndexedColorSpaceDetails(colorSpaceDetails, 1,
+                blackIsOne ? new byte[] { 255, 0 } : new byte[] { 0, 255 });
         }
 
         /// <inheritdoc/>
@@ -306,15 +308,16 @@
         /// <summary>
         /// Provides the mapping between index values and the corresponding colors in the base color space.
         /// </summary>
-        public IReadOnlyList<byte> ColorTable { get; }
+        public byte[] ColorTable { get; }
 
         /// <summary>
         /// Create a new <see cref="IndexedColorSpaceDetails"/>.
         /// </summary>
-        public IndexedColorSpaceDetails(ColorSpaceDetails baseColorSpaceDetails, byte hiVal, IReadOnlyList<byte> colorTable)
+        public IndexedColorSpaceDetails(ColorSpaceDetails baseColorSpaceDetails, byte hiVal, byte[] colorTable)
             : base(ColorSpace.Indexed)
         {
-            BaseColorSpace = baseColorSpaceDetails ?? throw new ArgumentNullException(nameof(baseColorSpaceDetails));
+            BaseColorSpace = baseColorSpaceDetails ??
+                             throw new ArgumentNullException(nameof(baseColorSpaceDetails));
             HiVal = hiVal;
             ColorTable = colorTable;
             BaseType = baseColorSpaceDetails.Type;
@@ -332,7 +335,9 @@
         {
             if (values == null || values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
+                throw new ArgumentException(
+                    $"Invalid number of imputs, expecting {NumberOfColorComponents} but got {values.Length}",
+                    nameof(values));
             }
 
             return cache.GetOrAdd(values[0], v =>
@@ -342,70 +347,75 @@
             });
         }
 
-        internal byte[] UnwrapIndexedColorSpaceBytes(IReadOnlyList<byte> input)
+        private IEnumerable<byte> process3(byte x)
         {
-            var multiplier = 1;
+            for (var i = 0; i < 3; i++)
+            {
+                yield return ColorTable[x * 3 + i];
+            }
+        }
+
+        private IEnumerable<byte> process4(byte x)
+        {
+            for (var i = 0; i < 4; i++)
+            {
+                yield return ColorTable[x * 4 + i];
+            }
+        }
+
+        private IEnumerable<byte> processN(byte x)
+        {
+            for (var i = 0; i < BaseColorSpace.NumberOfColorComponents; i++)
+            {
+                yield return ColorTable[x * BaseColorSpace.NumberOfColorComponents + i];
+            }
+        }
+
+        internal byte[] UnwrapIndexedColorSpaceBytes(byte[] input)
+        {
+            var multiplier = 0;
             Func<byte, IEnumerable<byte>> transformer = null;
             switch (BaseType)
             {
                 case ColorSpace.DeviceRGB:
                 case ColorSpace.CalRGB:
                 case ColorSpace.Lab:
-                    transformer = x =>
-                    {
-                        var r = new byte[3];
-                        for (var i = 0; i < 3; i++)
-                        {
-                            r[i] = ColorTable[x * 3 + i];
-                        }
-
-                        return r;
-                    };
+                    transformer = process3;
                     multiplier = 3;
                     break;
 
                 case ColorSpace.DeviceCMYK:
-                    transformer = x =>
-                    {
-                        var r = new byte[4];
-                        for (var i = 0; i < 4; i++)
-                        {
-                            r[i] = ColorTable[x * 4 + i];
-                        }
-
-                        return r;
-                    };
-
+                    transformer = process4;
                     multiplier = 4;
                     break;
 
                 case ColorSpace.DeviceGray:
                 case ColorSpace.CalGray:
                 case ColorSpace.Separation:
-                    transformer = x => new[] { ColorTable[x] };
                     multiplier = 1;
                     break;
 
                 case ColorSpace.DeviceN:
                 case ColorSpace.ICCBased:
-                    transformer = x =>
-                    {
-                        var r = new byte[BaseColorSpace.NumberOfColorComponents];
-                        for (var i = 0; i < BaseColorSpace.NumberOfColorComponents; i++)
-                        {
-                            r[i] = ColorTable[x * BaseColorSpace.NumberOfColorComponents + i];
-                        }
-
-                        return r;
-                    };
-
+                    transformer = processN;
                     multiplier = BaseColorSpace.NumberOfColorComponents;
                     break;
             }
 
+            if (multiplier == 1)
+            {
+                // In place
+                for (int k = 0; k < input.Length; k++)
+                {
+                    input[k] = ColorTable[input[k]];
+                }
+
+                return input;
+            }
+
             if (transformer != null)
             {
-                var result = new byte[input.Count * multiplier];
+                var result = new byte[input.Length * multiplier];
                 var i = 0;
                 foreach (var b in input)
                 {
@@ -418,7 +428,7 @@
                 return result;
             }
 
-            return input.ToArray();
+            return input;
         }
 
         /// <inheritdoc/>
@@ -435,7 +445,7 @@
         /// Unwrap then transform using base color space details.
         /// </para>
         /// </summary>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override byte[] Transform(byte[] decoded)
         {
             var unwraped = UnwrapIndexedColorSpaceBytes(decoded);
             return BaseColorSpace.Transform(unwraped);
@@ -531,11 +541,11 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override byte[] Transform(byte[] decoded)
         {
             var cache = new Dictionary<int, double[]>();
             var transformed = new List<byte>();
-            for (var i = 0; i < decoded.Count; i += NumberOfColorComponents)
+            for (var i = 0; i < decoded.Length; i += NumberOfColorComponents)
             {
                 int key = 0;
                 double[] comps = new double[NumberOfColorComponents];
@@ -703,11 +713,11 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> values)
+        internal override byte[] Transform(byte[] values)
         {
             var cache = new Dictionary<int, double[]>();
             var transformed = new List<byte>();
-            for (var i = 0; i < values.Count; i += 3)
+            for (var i = 0; i < values.Length; i += 3)
             {
                 byte b = values[i++];
                 if (!cache.TryGetValue(b, out double[] colors))
@@ -722,7 +732,7 @@
                 }
             }
 
-            return transformed;
+            return transformed.ToArray();
         }
 
         /// <inheritdoc/>
@@ -814,15 +824,15 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override byte[] Transform(byte[] decoded)
         {
-            var transformed = new List<byte>();
-            for (var i = 0; i < decoded.Count; i++)
+            var transformed = new byte[decoded.Length];
+            for (var i = 0; i < decoded.Length; i++)
             {
                 var component = decoded[i] / 255.0;
                 var rgbPixel = Process(component);
                 // We only need one component here 
-                transformed.Add(ConvertToByte(rgbPixel[0]));
+                transformed[i] = ConvertToByte(rgbPixel[0]);
             }
 
             return transformed;
@@ -955,10 +965,10 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override byte[] Transform(byte[] decoded)
         {
             var transformed = new List<byte>();
-            for (var i = 0; i < decoded.Count; i += 3)
+            for (var i = 0; i < decoded.Length; i += 3)
             {
                 var rgbPixel = Process(decoded[i] / 255.0, decoded[i + 1] / 255.0, decoded[i + 2] / 255.0);
                 transformed.Add(ConvertToByte(rgbPixel[0]));
@@ -966,7 +976,7 @@
                 transformed.Add(ConvertToByte(rgbPixel[2]));
             }
 
-            return transformed;
+            return transformed.ToArray();
         }
 
         /// <inheritdoc/>
@@ -1075,10 +1085,10 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override byte[] Transform(byte[] decoded)
         {
             var transformed = new List<byte>();
-            for (var i = 0; i < decoded.Count; i += 3)
+            for (var i = 0; i < decoded.Length; i += 3)
             {
                 var rgbPixel = Process(decoded[i] / 255.0, decoded[i + 1] / 255.0, decoded[i + 2] / 255.0);
                 transformed.Add(ConvertToByte(rgbPixel[0]));
@@ -1086,7 +1096,7 @@
                 transformed.Add(ConvertToByte(rgbPixel[2]));
             }
 
-            return transformed;
+            return transformed.ToArray();
         }
 
         private static double g(double x)
@@ -1261,7 +1271,7 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override byte[] Transform(byte[] decoded)
         {
             // TODO - use ICC profile
 
@@ -1360,7 +1370,7 @@
         /// Cannot be called for <see cref="PatternColorSpaceDetails"/>, will throw a <see cref="InvalidOperationException"/>.
         /// </para>
         /// </summary>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override byte[] Transform(byte[] decoded)
         {
             throw new InvalidOperationException("PatternColorSpaceDetails");
         }
@@ -1415,7 +1425,7 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override byte[] Transform(byte[] decoded)
         {
             throw new InvalidOperationException("UnsupportedColorSpaceDetails");
         }

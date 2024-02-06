@@ -44,7 +44,7 @@ namespace UglyToad.PdfPig.Writer
             WriteLineBreak(outputStream);
             outputStream.Write(StreamStart, 0, StreamStart.Length);
             WriteLineBreak(outputStream);
-            outputStream.Write(outputStreamToken.Data.ToArray(), 0, outputStreamToken.Data.Count);
+            outputStream.Write(outputStreamToken.Data, 0, outputStreamToken.Data.Length);
             WriteLineBreak(outputStream);
             outputStream.Write(StreamEnd, 0, StreamEnd.Length);
         }
@@ -65,7 +65,7 @@ namespace UglyToad.PdfPig.Writer
         private bool TryGetStreamWithoutText(StreamToken streamToken, out StreamToken outputStreamToken)
         {
             var filterProvider = new FilterProviderWithLookup(DefaultFilterProvider.Instance);
-            IReadOnlyList<byte> bytes;
+            byte[] bytes;
             try
             {
                 bytes = streamToken.Decode(filterProvider);

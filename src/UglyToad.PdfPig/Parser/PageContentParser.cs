@@ -143,7 +143,7 @@
 
                                 var nextByteSet = scanner.RecoverFromIncorrectEndImage(lastEndImageOffset.Value);
                                 graphicsStateOperations.RemoveRange(index, graphicsStateOperations.Count - index);
-                                var newEndInlineImage = new EndInlineImage(prevEndInlineImage.ImageData.Concat(nextByteSet).ToList());
+                                var newEndInlineImage = new EndInlineImage(prevEndInlineImage.ImageData.Concat(nextByteSet).ToArray());
                                 graphicsStateOperations.Add(newEndInlineImage);
                                 lastEndImageOffset = scanner.CurrentPosition - 3;
                             }

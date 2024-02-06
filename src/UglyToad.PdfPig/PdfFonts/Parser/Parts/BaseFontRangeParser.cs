@@ -34,7 +34,7 @@
                     throw new InvalidFontFormatException("bfrange ended unexpectedly after the high source code.");
                 }
 
-                List<byte> destinationBytes = null;
+                byte[] destinationBytes = null;
                 ArrayToken destinationArray = null;
 
                 switch (scanner.CurrentToken)
@@ -43,7 +43,7 @@
                         destinationArray = arrayToken;
                         break;
                     case HexToken hexToken:
-                        destinationBytes = hexToken.Bytes.ToList();
+                        destinationBytes = hexToken.Bytes;
                         break;
                     case NumericToken _:
                         throw new NotImplementedException("From the spec it seems this possible but the meaning is unclear...");
@@ -75,7 +75,7 @@
                         {
                             builder.AddBaseFontCharacter(startCode, hex.Bytes);
                         }
-                        
+
                         Increment(startCode, startCode.Count - 1);
 
                         arrayIndex++;
@@ -95,7 +95,7 @@
 
                     Increment(startCode, startCode.Count - 1);
 
-                    Increment(destinationBytes, destinationBytes.Count - 1);
+                    Increment(destinationBytes, destinationBytes.Length - 1);
                 }
             }
         }

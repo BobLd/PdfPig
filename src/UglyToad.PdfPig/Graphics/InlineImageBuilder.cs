@@ -23,7 +23,7 @@
         /// <summary>
         /// Inline image bytes.
         /// </summary>
-        public IReadOnlyList<byte> Bytes { get; internal set; }
+        public byte[] Bytes { get; internal set; }
 
         internal InlineImage CreateInlineImage(TransformationMatrix transformationMatrix, ILookupFilterProvider filterProvider,
             IPdfTokenScanner tokenScanner,

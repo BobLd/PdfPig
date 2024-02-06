@@ -8,7 +8,7 @@
     /// <inheritdoc />
     /// <summary>
     /// The LZW (Lempel-Ziv-Welch) filter is a variable-length, adaptive compression method
-    /// that has been adopted as one of the standard compression methods in the Tag Image File Format (TIFF) standard. 
+    /// that has been adopted as one of the standard compression methods in the Tag Image File Format (TIFF) standard.
     /// </summary>
     internal class LzwFilter : IFilter
     {
@@ -22,12 +22,12 @@
         private const int NineBitBoundary = 511;
         private const int TenBitBoundary = 1023;
         private const int ElevenBitBoundary = 2047;
-        
+
         /// <inheritdoc />
         public bool IsSupported { get; } = true;
 
         /// <inheritdoc />
-        public byte[] Decode(IReadOnlyList<byte> input, DictionaryToken streamDictionary, int filterIndex)
+        public byte[] Decode(byte[] input, DictionaryToken streamDictionary, int filterIndex)
         {
             var parameters = DecodeParameterResolver.GetFilterParameters(streamDictionary, filterIndex);
 
@@ -53,10 +53,10 @@
             return data;
         }
 
-        private static byte[] Decode(IReadOnlyList<byte> input, bool isEarlyChange)
+        private static byte[] Decode(byte[] input, bool isEarlyChange)
         {
             // A guess.
-            var result = new List<byte>((int)(input.Count * 1.5));
+            var result = new List<byte>((int)(input.Length * 1.5));
 
             var table = GetDefaultTable();
 
@@ -76,7 +76,7 @@
                 {
                     break;
                 }
-                
+
                 if (next == ClearTable)
                 {
                     table = GetDefaultTable();
@@ -116,7 +116,7 @@
 
                     table[table.Count] = newSequence;
                 }
-                
+
                 previous = next;
 
                 if (table.Count >= ElevenBitBoundary + codeOffset)

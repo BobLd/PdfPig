@@ -313,7 +313,7 @@
                 }
                 else if (DirectObjectFinder.TryGet(textValueToken, tokenScanner, out StreamToken valueStreamToken))
                 {
-                    textValue = OtherEncodings.BytesAsLatin1String(valueStreamToken.Decode(filterProvider, tokenScanner).ToArray());
+                    textValue = OtherEncodings.BytesAsLatin1String(valueStreamToken.Decode(filterProvider, tokenScanner));
                 }
             }
 

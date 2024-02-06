@@ -45,7 +45,7 @@ namespace UglyToad.PdfPig.Tokens
         /// <summary>
         /// The bytes of the hex data.
         /// </summary>
-        public IReadOnlyList<byte> Bytes { get; }
+        public byte[] Bytes { get; }
 
         /// <summary>
         /// Create a new <see cref="HexToken"/> from the provided hex characters.
@@ -58,7 +58,7 @@ namespace UglyToad.PdfPig.Tokens
                 throw new ArgumentNullException(nameof(characters));
             }
 
-            var bytes = new List<byte>();
+            var bytes = new List<byte>(characters.Count / 2);
 
             for (var i = 0; i < characters.Count; i += 2)
             {
@@ -97,7 +97,7 @@ namespace UglyToad.PdfPig.Tokens
                 Data = builder.ToString();
             }
 
-            Bytes = bytes;
+            Bytes = bytes.ToArray();
         }
 
         /// <summary>
@@ -129,7 +129,7 @@ namespace UglyToad.PdfPig.Tokens
             var bytes = token.Bytes;
 
             var value = bytes[0] & 0xFF;
-            if (bytes.Count == 2)
+            if (bytes.Length == 2)
             {
                 value <<= 8;
                 value += bytes[1] & 0xFF;

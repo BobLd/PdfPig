@@ -2,7 +2,6 @@
 {
     using System;
     using System.Collections.Generic;
-    using System.Linq;
     using Core;
     using Filters;
     using Graphics.Colors;
@@ -17,7 +16,7 @@
     /// </summary>
     public class InlineImage : IPdfImage
     {
-        private readonly Lazy<IReadOnlyList<byte>> bytesFactory;
+        private readonly Lazy<byte[]> bytesFactory;
 
         /// <inheritdoc />
         public PdfRectangle Bounds { get; }
@@ -51,7 +50,7 @@
         public bool Interpolate { get; }
 
         /// <inheritdoc />
-        public IReadOnlyList<byte> RawBytes { get; }
+        public byte[] RawBytes { get; }
 
         /// <inheritdoc />
         public ColorSpaceDetails ColorSpaceDetails { get; }
@@ -63,7 +62,7 @@
             RenderingIntent renderingIntent,
             bool interpolate,
             IReadOnlyList<double> decode,
-            IReadOnlyList<byte> bytes,
+            byte[] bytes,
             IReadOnlyList<IFilter> filters,
             DictionaryToken streamDictionary,
             ColorSpaceDetails colorSpaceDetails)
@@ -91,9 +90,9 @@
                 }
             }
 
-            bytesFactory = supportsFilters ? new Lazy<IReadOnlyList<byte>>(() =>
+            bytesFactory = supportsFilters ? new Lazy<byte[]>(() =>
             {
-                var b = bytes.ToArray();
+                var b = RawBytes;
                 for (var i = 0; i < filters.Count; i++)
                 {
                     var filter = filters[i];
@@ -105,7 +104,7 @@
         }
 
         /// <inheritdoc />
-        public bool TryGetBytes(out IReadOnlyList<byte> bytes)
+        public bool TryGetBytes(out byte[] bytes)
         {
             bytes = null;
             if (bytesFactory == null)

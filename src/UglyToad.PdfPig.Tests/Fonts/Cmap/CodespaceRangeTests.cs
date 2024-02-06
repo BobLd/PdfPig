@@ -130,7 +130,7 @@
         {
             var token = new HexToken(characters);
 
-            return token.Bytes.ToArray();
+            return token.Bytes;
         }
     }
 }

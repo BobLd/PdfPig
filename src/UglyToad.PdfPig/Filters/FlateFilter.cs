@@ -2,16 +2,14 @@
 {
     using Fonts;
     using System;
-    using System.Collections.Generic;
     using System.IO;
     using System.IO.Compression;
-    using System.Linq;
     using Tokens;
     using Util;
 
     /// <inheritdoc />
     /// <summary>
-    /// The Flate filter is based on the public-domain zlib/deflate compression method, a variable-length Lempel-Ziv 
+    /// The Flate filter is based on the public-domain zlib/deflate compression method, a variable-length Lempel-Ziv
     /// adaptive compression method cascaded with adaptive Huffman coding. 
     /// It is fully defined in Internet RFCs 1950, ZLIB Compressed Data Format Specification, and
     /// 1951, DEFLATE Compressed Data Format Specification
@@ -34,7 +32,7 @@
         public bool IsSupported { get; } = true;
 
         /// <inheritdoc />
-        public byte[] Decode(IReadOnlyList<byte> input, DictionaryToken streamDictionary, int filterIndex)
+        public byte[] Decode(byte[] input, DictionaryToken streamDictionary, int filterIndex)
         {
             if (input == null)
             {
@@ -45,10 +43,9 @@
 
             var predictor = parameters.GetIntOrDefault(NameToken.Predictor, -1);
 
-            var bytes = input.ToArray();
             try
             {
-                var decompressed = Decompress(bytes);
+                var decompressed = Decompress(input);
 
                 if (predictor == -1)
                 {
@@ -68,7 +65,7 @@
                 // ignored.
             }
 
-            return bytes;
+            return input;
         }
 
         private byte[] Decompress(byte[] input)

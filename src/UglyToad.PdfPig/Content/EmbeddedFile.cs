@@ -22,14 +22,14 @@
         /// <summary>
         /// The decrypted bytes of the file.
         /// </summary>
-        public IReadOnlyList<byte> Bytes { get; }
+        public byte[] Bytes { get; }
 
         /// <summary>
         /// The underlying embedded file stream.
         /// </summary>
         public StreamToken Stream { get; }
-        
-        internal EmbeddedFile(string name, string fileSpecification, IReadOnlyList<byte> bytes, StreamToken stream)
+
+        internal EmbeddedFile(string name, string fileSpecification, byte[] bytes, StreamToken stream)
         {
             Name = name ?? throw new ArgumentNullException(nameof(name));
             FileSpecification = fileSpecification;

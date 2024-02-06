@@ -17,7 +17,7 @@
     public class XObjectImage : IPdfImage
     {
         [CanBeNull]
-        private readonly Lazy<IReadOnlyList<byte>> bytesFactory;
+        private readonly Lazy<byte[]> bytesFactory;
 
         /// <inheritdoc />
         public PdfRectangle Bounds { get; }
@@ -58,7 +58,7 @@
         public DictionaryToken ImageDictionary { get; }
 
         /// <inheritdoc />
-        public IReadOnlyList<byte> RawBytes { get; }
+        public byte[] RawBytes { get; }
 
         /// <inheritdoc />
         public ColorSpaceDetails ColorSpaceDetails { get; }
@@ -76,8 +76,8 @@
             bool interpolate,
             IReadOnlyList<double> decode,
             DictionaryToken imageDictionary,
-            IReadOnlyList<byte> rawBytes,
-            Lazy<IReadOnlyList<byte>> bytes,
+            byte[] rawBytes,
+            Lazy<byte[]> bytes,
             ColorSpaceDetails colorSpaceDetails)
         {
             Bounds = bounds;
@@ -96,7 +96,7 @@
         }
 
         /// <inheritdoc />
-        public bool TryGetBytes(out IReadOnlyList<byte> bytes)
+        public bool TryGetBytes(out byte[] bytes)
         {
             bytes = null;
             if (bytesFactory == null)

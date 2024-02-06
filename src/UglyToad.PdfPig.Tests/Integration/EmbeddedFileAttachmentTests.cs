@@ -31,7 +31,7 @@
 
                 Assert.Equal(1, files.Count);
 
-                Assert.Equal(20668, files[0].Bytes.Count);
+                Assert.Equal(20668, files[0].Bytes.Length);
             }
         }
     }

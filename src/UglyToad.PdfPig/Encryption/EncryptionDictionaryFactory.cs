@@ -47,10 +47,10 @@
                 }
                 else if (ownerToken is HexToken ownerHex)
                 {
-                    ownerBytes = ownerHex.Bytes.ToArray();
+                    ownerBytes = ownerHex.Bytes;
                 }
             }
-            
+
             byte[] userBytes = null;
             if (encryptionDictionary.TryGet(NameToken.U, out IToken userToken))
             {
@@ -60,10 +60,10 @@
                 }
                 else if (userToken is HexToken userHex)
                 {
-                    userBytes = userHex.Bytes.ToArray();
+                    userBytes = userHex.Bytes;
                 }
             }
-            
+
             var access = default(UserAccessPermissions);
 
             if (encryptionDictionary.TryGetOptionalTokenDirect(NameToken.P, tokenScanner, out NumericToken accessToken))
@@ -99,7 +99,7 @@
 
             if (encryptionDictionary.TryGet(name, tokenScanner, out HexToken hexToken))
             {
-                return hexToken.Bytes.ToArray();
+                return hexToken.Bytes;
             }
 
             return null;

@@ -149,8 +149,7 @@
                         var properties = CopyToken(writer, streamToken.StreamDictionary, tokenScanner, referencesFromDocument, callstack) as DictionaryToken;
                         Debug.Assert(properties != null);
 
-                        var bytes = streamToken.Data;
-                        return new StreamToken(properties, bytes);
+                        return new StreamToken(properties, streamToken.Data);
                     }
 
                 case ObjectToken _:

@@ -96,7 +96,7 @@
 
                 bytes.Seek(currentOffset);
 
-                bytes.Read(objBuffer);
+                _ = bytes.Read(objBuffer);
 
                 if (!IsStartObjMarker(objBuffer))
                 {

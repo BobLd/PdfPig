@@ -62,9 +62,9 @@
 
         public Dictionary<int, string> BaseFontCharacterMap { get; } = new Dictionary<int, string>();
 
-        public void AddBaseFontCharacter(IReadOnlyList<byte> bytes, IReadOnlyList<byte> value)
+        public void AddBaseFontCharacter(IReadOnlyList<byte> bytes, byte[] value)
         {
-            AddBaseFontCharacter(bytes, CreateStringFromBytes(value.ToArray()));
+            AddBaseFontCharacter(bytes, CreateStringFromBytes(value));
         }
 
         public void AddBaseFontCharacter(IReadOnlyList<byte> bytes, string value)

@@ -253,7 +253,7 @@ A¡¬àð‰É©ˆ°‘¼›‚%¥×s³®í»š}%§X{{tøNåÝž¶ö¢ÖÞ¾�
 
             var stream = Assert.IsType<StreamToken>(tokens[0].Data);
 
-            var str = Encoding.UTF8.GetString(stream.Data.ToArray());
+            var str = Encoding.UTF8.GetString(stream.Data);
 
             Assert.StartsWith("H‰œUkLSgþÚh¹IÝÅl", str);
 
@@ -278,7 +278,7 @@ endobj";
 
             var stream = Assert.IsType<StreamToken>(token.Data);
 
-            var bytes = stream.Data.ToArray();
+            var bytes = stream.Data;
             Assert.Equal(45, bytes.Length);
 
             var outputString = Encoding.UTF8.GetString(bytes);
@@ -311,7 +311,7 @@ endobj";
 
             var stream = Assert.IsType<StreamToken>(token.Data);
 
-            var bytes = stream.Data.ToArray();
+            var bytes = stream.Data;
             Assert.Equal(52, bytes.Length);
 
             var outputString = Encoding.UTF8.GetString(bytes);
@@ -342,7 +342,7 @@ endobj";
 
             Assert.Equal("1245", stream.StreamDictionary.Data["S"].ToString());
 
-            Assert.Equal("%¥×³®í»š}%§X{{tøNåÝž¶ö¢ÖÞgrehtyyy$&%&£$££(*¾–~´¼", Encoding.UTF8.GetString(stream.Data.ToArray()));
+            Assert.Equal("%¥×³®í»š}%§X{{tøNåÝž¶ö¢ÖÞgrehtyyy$&%&£$££(*¾–~´¼", Encoding.UTF8.GetString(stream.Data));
         }
 
         [Fact]

@@ -155,7 +155,7 @@
             if (hasEmptyCodespace)
             {
                 var data = new byte[minCodeLength];
-                bytes.Read(data);
+                _ = bytes.Read(data);
                 return data.ToInt(minCodeLength);
             }
 

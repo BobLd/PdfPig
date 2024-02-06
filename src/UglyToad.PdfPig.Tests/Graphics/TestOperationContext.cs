@@ -182,7 +182,7 @@
         {
         }
 
-        public void EndInlineImage(IReadOnlyList<byte> bytes)
+        public void EndInlineImage(byte[] bytes)
         {
         }
 

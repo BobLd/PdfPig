@@ -62,7 +62,7 @@
                 switch (token)
                 {
                     case HexToken hex:
-                        documentIdBytes = hex.Bytes.ToArray();
+                        documentIdBytes = hex.Bytes;
                         break;
                     case StringToken str:
                         documentIdBytes = str.GetBytes();
@@ -386,7 +386,7 @@
 
                         var streamDictionary = (DictionaryToken)DecryptInternal(reference, stream.StreamDictionary);
 
-                        var decrypted = DecryptData(stream.Data.ToArray(), reference);
+                        var decrypted = DecryptData(stream.Data, reference);
 
                         token = new StreamToken(streamDictionary, decrypted);
 
@@ -411,7 +411,7 @@
                     }
                 case HexToken hexToken:
                     {
-                        var data = hexToken.Bytes.ToArray();
+                        var data = hexToken.Bytes;
 
                         var decrypted = DecryptData(data, reference);
 

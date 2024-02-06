@@ -25,8 +25,8 @@
 
             var fieldSizes = new CrossReferenceStreamFieldSize(stream.StreamDictionary);
 
-            var lineCount = decoded.Count / fieldSizes.LineLength;
-            
+            var lineCount = decoded.Length / fieldSizes.LineLength;
+
             long previousOffset = -1;
             if (stream.StreamDictionary.TryGet(NameToken.Prev, out var prevToken) && prevToken is NumericToken prevNumeric)
             {

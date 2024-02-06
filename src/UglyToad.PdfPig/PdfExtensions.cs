@@ -53,7 +53,7 @@
         /// <summary>
         /// Get the decoded data from this stream.
         /// </summary>
-        public static IReadOnlyList<byte> Decode(this StreamToken stream, IFilterProvider filterProvider)
+        public static byte[] Decode(this StreamToken stream, IFilterProvider filterProvider)
         {
             var filters = filterProvider.GetFilters(stream.StreamDictionary);
 
@@ -69,7 +69,7 @@
         /// <summary>
         /// Get the decoded data from this stream.
         /// </summary>
-        public static IReadOnlyList<byte> Decode(this StreamToken stream, ILookupFilterProvider filterProvider, IPdfTokenScanner scanner)
+        public static byte[] Decode(this StreamToken stream, ILookupFilterProvider filterProvider, IPdfTokenScanner scanner)
         {
             var filters = filterProvider.GetFilters(stream.StreamDictionary, scanner);
 

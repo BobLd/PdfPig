@@ -114,13 +114,13 @@
         /// <summary>
         /// GetLongOrDefault the start and end offset of a search term.
         /// </summary>
-        private static (int start, int end) GetOffset(IReadOnlyList<byte> input, string term, int offset = 0)
+        private static (int start, int end) GetOffset(byte[] input, string term, int offset = 0)
         {
             var streamBytes = Encoding.UTF8.GetBytes(term);
 
             var index = 0;
             var outerFound = false;
-            for (int i = offset; i < input.Count; i++)
+            for (int i = offset; i < input.Length; i++)
             {
                 if (input[i] == streamBytes[0])
                 {

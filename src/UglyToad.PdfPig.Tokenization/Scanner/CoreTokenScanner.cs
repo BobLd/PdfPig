@@ -250,12 +250,12 @@
         /// </summary>
         /// <param name="lastEndImageOffset">The offset of the "E" of the "EI" marker which was incorrectly read.</param>
         /// <returns>The set of bytes from the incorrect "EI" to the correct "EI" including the incorrect "EI".</returns>
-        public IReadOnlyList<byte> RecoverFromIncorrectEndImage(long lastEndImageOffset)
+        public byte[] RecoverFromIncorrectEndImage(long lastEndImageOffset)
         {
             var data = new List<byte>();
 
             inputBytes.Seek(lastEndImageOffset);
-            
+
             if (!inputBytes.MoveNext() || inputBytes.CurrentByte != 'E')
             {
                 var message = $"Failed to recover the image data stream for an inline image at offset {lastEndImageOffset}. " +
@@ -281,10 +281,10 @@
             // Skip beyond the 'I' in the "EI" token we just read so the scanner is in a valid position.
             inputBytes.MoveNext();
 
-            return data;
+            return data.ToArray();
         }
 
-        private IReadOnlyList<byte> ReadInlineImageData()
+        private byte[] ReadInlineImageData()
         {
             // The ID operator should be followed by a single white-space character, and the next character is interpreted
             // as the first byte of image data. 
@@ -295,14 +295,13 @@
 
             var startsAt = inputBytes.CurrentOffset - 2;
 
-            return ReadUntilEndImage(startsAt);
+            return ReadUntilEndImage(startsAt).ToArray();
         }
 
         private List<byte> ReadUntilEndImage(long startsAt)
         {
             const byte lastPlainText = 127;
             const byte space = 32;
-
 
             var imageData = new List<byte>();
             byte prevByte = 0;

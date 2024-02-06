@@ -118,7 +118,7 @@
             }
             else if (DirectObjectFinder.TryGet<ArrayToken>(contents, PdfScanner, out var array))
             {
-                var bytes = new List<byte>();
+                var bytes = new List<byte>(array.Data.Count);
 
                 for (var i = 0; i < array.Data.Count; i++)
                 {
@@ -144,7 +144,7 @@
                     }
                 }
 
-                page = ProcessPageInternal(number, dictionary, namedDestinations, mediaBox, cropBox, userSpaceUnit, rotation, initialMatrix, bytes);
+                page = ProcessPageInternal(number, dictionary, namedDestinations, mediaBox, cropBox, userSpaceUnit, rotation, initialMatrix, bytes.ToArray());
             }
             else
             {
@@ -177,11 +177,11 @@
             UserSpaceUnit userSpaceUnit,
             PageRotationDegrees rotation,
             TransformationMatrix initialMatrix,
-            IReadOnlyList<byte> contentBytes)
+            byte[] contentBytes)
         {
             IReadOnlyList<IGraphicsStateOperation> operations;
 
-            if (contentBytes == null || contentBytes.Count == 0)
+            if (contentBytes == null || contentBytes.Length == 0)
             {
                 operations = EmptyArray<IGraphicsStateOperation>.Instance;
             }

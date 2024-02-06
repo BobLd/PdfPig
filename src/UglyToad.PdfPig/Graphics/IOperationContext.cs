@@ -158,7 +158,7 @@
         /// <summary>
         /// Indicates that the current inline image is complete.
         /// </summary>
-        void EndInlineImage(IReadOnlyList<byte> bytes);
+        void EndInlineImage(byte[] bytes);
 
         /// <summary>
         /// Modify the clipping rule of the current path.

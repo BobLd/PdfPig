@@ -14,12 +14,12 @@
         /// The symbol for this operation in a stream.
         /// </summary>
         public const string Symbol = "EI";
-        
+
         /// <summary>
         /// The raw data for the inline image which should be interpreted according to the corresponding <see cref="BeginInlineImageData.Dictionary"/>.
         /// </summary>
-        public IReadOnlyList<byte> ImageData { get; }
-        
+        public byte[] ImageData { get; }
+
         /// <inheritdoc />
         public string Operator => Symbol;
 
@@ -27,7 +27,7 @@
         /// Create a new <see cref="EndInlineImage"/> operation.
         /// </summary>
         /// <param name="imageData">The raw byte data of this image.</param>
-        public EndInlineImage(IReadOnlyList<byte> imageData)
+        public EndInlineImage(byte[] imageData)
         {
             ImageData = imageData ?? throw new ArgumentNullException(nameof(imageData));
         }

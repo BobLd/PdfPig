@@ -21,6 +21,7 @@
 
             try
             {
+
                 bytesPure = ColorSpaceDetailsByteConverter.Convert(image.ColorSpaceDetails, bytesPure,
                     image.BitsPerComponent, image.WidthInSamples, image.HeightInSamples);
 
@@ -32,8 +33,8 @@
 
                 var requiredSize = (image.WidthInSamples * image.HeightInSamples * numberOfComponents);
 
-                var actualSize = bytesPure.Count;
-                var isCorrectlySized = bytesPure.Count == requiredSize ||
+                var actualSize = bytesPure.Length;
+                var isCorrectlySized = bytesPure.Length == requiredSize ||
                     // Spec, p. 37: "...error if the stream contains too much data, with the exception that
                     // there may be an extra end-of-line marker..."
                     (actualSize == requiredSize + 1 && bytesPure[actualSize - 1] == ReadHelper.AsciiLineFeed) ||
