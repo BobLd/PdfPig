@@ -548,16 +548,18 @@
             for (var i = 0; i < decoded.Length; i += NumberOfColorComponents)
             {
                 int key = 0;
-                double[] comps = new double[NumberOfColorComponents];
                 for (int n = 0; n < NumberOfColorComponents; n++)
                 {
-                    byte b = decoded[i + n];
-                    key = (key * 31) ^ b;
-                    comps[n] = b / 255.0;
+                    key = (key * 31) ^ decoded[i + n];
                 }
 
                 if (!cache.TryGetValue(key, out double[] colors))
                 {
+                    double[] comps = new double[NumberOfColorComponents];
+                    for (int n = 0; n < NumberOfColorComponents; n++)
+                    {
+                        comps[n] = decoded[i + n] / 255.0;
+                    }
                     colors = Process(comps);
                     cache[key] = colors;
                 }
