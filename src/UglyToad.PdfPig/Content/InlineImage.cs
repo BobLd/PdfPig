@@ -3,7 +3,6 @@
     using System;
     using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
-    using System.Linq;
     using Core;
     using Filters;
     using Graphics.Colors;
@@ -17,7 +16,7 @@
     /// </summary>
     public class InlineImage : IPdfImage
     {
-        private readonly Lazy<IReadOnlyList<byte>>? bytesFactory;
+        private readonly Lazy<ReadOnlyMemory<byte>>? memoryFactory;
 
         /// <inheritdoc />
         public PdfRectangle Bounds { get; }
@@ -50,7 +49,10 @@
         public bool Interpolate { get; }
 
         /// <inheritdoc />
-        public IReadOnlyList<byte> RawBytes { get; }
+        public ReadOnlyMemory<byte> RawMemory { get; }
+
+        /// <inheritdoc />
+        public ReadOnlySpan<byte> RawBytes => RawMemory.Span;
 
         /// <inheritdoc />
         public ColorSpaceDetails ColorSpaceDetails { get; }
@@ -62,7 +64,7 @@
             RenderingIntent renderingIntent,
             bool interpolate,
             IReadOnlyList<double> decode,
-            IReadOnlyList<byte> bytes,
+            ReadOnlyMemory<byte> rawMemory,
             IReadOnlyList<IFilter> filters,
             DictionaryToken streamDictionary,
             ColorSpaceDetails colorSpaceDetails)
@@ -76,8 +78,7 @@
             RenderingIntent = renderingIntent;
             Interpolate = interpolate;
             ImageDictionary = streamDictionary;
-
-            RawBytes = bytes;
+            RawMemory = rawMemory;
             ColorSpaceDetails = colorSpaceDetails;
 
             var supportsFilters = true;
@@ -90,29 +91,29 @@
                 }
             }
 
-            bytesFactory = supportsFilters ? new Lazy<IReadOnlyList<byte>>(() =>
+            memoryFactory = supportsFilters ? new Lazy<ReadOnlyMemory<byte>>(() =>
             {
-                var b = bytes.ToArray();
+                var b = rawMemory.Span;
                 for (var i = 0; i < filters.Count; i++)
                 {
                     var filter = filters[i];
                     b = filter.Decode(b, streamDictionary, i);
                 }
 
-                return b;
+                return b.ToArray();
             }) : null;
         }
 
         /// <inheritdoc />
-        public bool TryGetBytes([NotNullWhen(true)] out IReadOnlyList<byte>? bytes)
+        public bool TryGetMemory(out ReadOnlyMemory<byte> bytes)
         {
             bytes = null;
-            if (bytesFactory is null)
+            if (memoryFactory is null)
             {
                 return false;
             }
 
-            bytes = bytesFactory.Value;
+            bytes = memoryFactory.Value;
 
             return true;
         }

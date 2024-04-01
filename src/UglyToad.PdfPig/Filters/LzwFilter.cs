@@ -29,7 +29,7 @@ namespace UglyToad.PdfPig.Filters
         public bool IsSupported { get; } = true;
 
         /// <inheritdoc />
-        public byte[] Decode(IReadOnlyList<byte> input, DictionaryToken streamDictionary, int filterIndex)
+        public byte[] Decode(ReadOnlySpan<byte> input, DictionaryToken streamDictionary, int filterIndex)
         {
             var parameters = DecodeParameterResolver.GetFilterParameters(streamDictionary, filterIndex);
 
@@ -55,10 +55,10 @@ namespace UglyToad.PdfPig.Filters
             return data;
         }
 
-        private static byte[] Decode(IReadOnlyList<byte> input, bool isEarlyChange)
+        private static byte[] Decode(ReadOnlySpan<byte> input, bool isEarlyChange)
         {
             // A guess.
-            var result = new List<byte>((int)(input.Count * 1.5));
+            var result = new List<byte>((int)(input.Length * 1.5));
 
             var table = GetDefaultTable();
 

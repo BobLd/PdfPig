@@ -4,6 +4,7 @@
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Runtime.InteropServices;
     using Tokens;
     using UglyToad.PdfPig.Content;
     using UglyToad.PdfPig.Functions;
@@ -62,7 +63,7 @@
         /// <summary>
         /// Transform image bytes.
         /// </summary>
-        internal abstract IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded);
+        internal abstract ReadOnlySpan<byte> Transform(ReadOnlySpan<byte> decoded);
 
         /// <summary>
         /// Convert to byte.
@@ -130,7 +131,7 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override ReadOnlySpan<byte> Transform(ReadOnlySpan<byte> decoded)
         {
             return decoded;
         }
@@ -192,7 +193,7 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override ReadOnlySpan<byte> Transform(ReadOnlySpan<byte> decoded)
         {
             return decoded;
         }
@@ -255,7 +256,7 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override ReadOnlySpan<byte> Transform(ReadOnlySpan<byte> decoded)
         {
             return decoded;
         }
@@ -278,7 +279,7 @@
         internal static ColorSpaceDetails Stencil(ColorSpaceDetails colorSpaceDetails, double[] decode)
         {
             var blackIsOne = decode.Length >= 2 && decode[0] == 1 && decode[1] == 0;
-            return new IndexedColorSpaceDetails(colorSpaceDetails, 1, blackIsOne ? new byte[] { 255, 0 } : new byte[] { 0, 255 });
+            return new IndexedColorSpaceDetails(colorSpaceDetails, 1, blackIsOne ? [255, 0] : [0, 255]);
         }
 
         /// <inheritdoc/>
@@ -302,28 +303,38 @@
         /// </summary>
         public byte HiVal { get; }
 
+        private readonly byte[] colorTable;
+
         /// <summary>
         /// Provides the mapping between index values and the corresponding colors in the base color space.
         /// </summary>
-        public IReadOnlyList<byte> ColorTable { get; }
+        public ReadOnlySpan<byte> ColorTable => colorTable;
 
         /// <summary>
         /// Create a new <see cref="IndexedColorSpaceDetails"/>.
         /// </summary>
-        public IndexedColorSpaceDetails(ColorSpaceDetails baseColorSpaceDetails, byte hiVal, IReadOnlyList<byte> colorTable)
+        public IndexedColorSpaceDetails(ColorSpaceDetails baseColorSpaceDetails, byte hiVal, byte[] colorTable)
             : base(ColorSpace.Indexed)
         {
             BaseColorSpace = baseColorSpaceDetails ?? throw new ArgumentNullException(nameof(baseColorSpaceDetails));
             HiVal = hiVal;
-            ColorTable = colorTable;
+            this.colorTable = colorTable;
             BaseType = baseColorSpaceDetails.Type;
         }
 
         /// <inheritdoc/>
         internal override double[] Process(params double[] values)
         {
-            var csBytes = UnwrapIndexedColorSpaceBytes(new[] { (byte)values[0] });
-            return BaseColorSpace.Process(csBytes.Select(b => b / 255.0).ToArray());
+            var csBytes = UnwrapIndexedColorSpaceBytes([(byte)values[0]]);
+
+            var scaledCsBytes = new double[csBytes.Length];
+
+            for (int i = 0; i < csBytes.Length; i++)
+            {
+                scaledCsBytes[i] = csBytes[i] / 255.0;
+            }
+
+            return BaseColorSpace.Process(scaledCsBytes);
         }
 
         /// <inheritdoc/>
@@ -336,15 +347,23 @@
 
             return cache.GetOrAdd(values[0], v =>
             {
-                var csBytes = UnwrapIndexedColorSpaceBytes(new[] { (byte)v });
-                return BaseColorSpace.GetColor(csBytes.Select(b => b / 255.0).ToArray());
+                var csBytes = UnwrapIndexedColorSpaceBytes([(byte)v]);
+
+                var scaledCsBytes = new double[csBytes.Length];
+
+                for (int i = 0; i < csBytes.Length; i++)
+                {
+                    scaledCsBytes[i] = csBytes[i] / 255.0;
+                }
+
+                return BaseColorSpace.GetColor(scaledCsBytes);
             });
         }
 
-        internal byte[] UnwrapIndexedColorSpaceBytes(IReadOnlyList<byte> input)
+        internal ReadOnlySpan<byte> UnwrapIndexedColorSpaceBytes(ReadOnlySpan<byte> input)
         {
             var multiplier = 1;
-            Func<byte, IEnumerable<byte>>? transformer = null;
+            Func<byte, ReadOnlyMemory<byte>>? transformer = null;
             switch (BaseType)
             {
                 case ColorSpace.DeviceRGB:
@@ -404,11 +423,11 @@
 
             if (transformer != null)
             {
-                var result = new byte[input.Count * multiplier];
+                var result = new byte[input.Length * multiplier];
                 var i = 0;
                 foreach (var b in input)
                 {
-                    foreach (var newByte in transformer(b))
+                    foreach (var newByte in transformer(b).Span)
                     {
                         result[i++] = newByte;
                     }
@@ -417,7 +436,7 @@
                 return result;
             }
 
-            return input.ToArray();
+            return input;
         }
 
         /// <inheritdoc/>
@@ -434,7 +453,7 @@
         /// Unwrap then transform using base color space details.
         /// </para>
         /// </summary>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override ReadOnlySpan<byte> Transform(ReadOnlySpan<byte> decoded)
         {
             var unwraped = UnwrapIndexedColorSpaceBytes(decoded);
             return BaseColorSpace.Transform(unwraped);
@@ -530,11 +549,11 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override ReadOnlySpan<byte> Transform(ReadOnlySpan<byte> decoded)
         {
             var cache = new Dictionary<int, double[]>();
             var transformed = new List<byte>();
-            for (var i = 0; i < decoded.Count; i += NumberOfColorComponents)
+            for (var i = 0; i < decoded.Length; i += NumberOfColorComponents)
             {
                 int key = 0;
                 var comps = new double[NumberOfColorComponents];
@@ -556,7 +575,12 @@
                     transformed.Add(ConvertToByte(colors[c]));
                 }
             }
+
+#if NET8_0_OR_GREATER
+            return CollectionsMarshal.AsSpan(transformed);
+#else
             return transformed.ToArray();
+#endif
         }
 
         /// <inheritdoc/>
@@ -702,11 +726,11 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> values)
+        internal override ReadOnlySpan<byte> Transform(ReadOnlySpan<byte> values)
         {
-            var cache = new Dictionary<int, double[]>();
-            var transformed = new List<byte>();
-            for (var i = 0; i < values.Count; i += 3)
+            var cache = new Dictionary<int, double[]>(values.Length * 3);
+            var transformed = new List<byte>(values.Length * 3);
+            for (var i = 0; i < values.Length; i += 3)
             {
                 byte b = values[i++];
                 if (!cache.TryGetValue(b, out double[]? colors))
@@ -721,7 +745,11 @@
                 }
             }
 
-            return transformed;
+#if NET8_0_OR_GREATER
+            return CollectionsMarshal.AsSpan(transformed);
+#else
+            return transformed.ToArray();
+#endif
         }
 
         /// <inheritdoc/>
@@ -769,19 +797,19 @@
         /// <summary>
         /// Create a new <see cref="CalGrayColorSpaceDetails"/>.
         /// </summary>
-        public CalGrayColorSpaceDetails(IReadOnlyList<double> whitePoint, IReadOnlyList<double>? blackPoint, double? gamma)
+        public CalGrayColorSpaceDetails(double[] whitePoint, double[]? blackPoint, double? gamma)
             : base(ColorSpace.CalGray)
         {
             WhitePoint = whitePoint ?? throw new ArgumentNullException(nameof(whitePoint));
             if (WhitePoint.Count != 3)
             {
-                throw new ArgumentOutOfRangeException(nameof(whitePoint), whitePoint, $"Must consist of exactly three numbers, but was passed {whitePoint.Count}.");
+                throw new ArgumentOutOfRangeException(nameof(whitePoint), whitePoint, $"Must consist of exactly three numbers, but was passed {whitePoint.Length}.");
             }
 
-            BlackPoint = blackPoint ?? new[] { 0.0, 0, 0 }.ToArray();
+            BlackPoint = blackPoint ?? [0.0, 0, 0];
             if (BlackPoint.Count != 3)
             {
-                throw new ArgumentOutOfRangeException(nameof(blackPoint), blackPoint, $"Must consist of exactly three numbers, but was passed {blackPoint?.Count ?? 0}.");
+                throw new ArgumentOutOfRangeException(nameof(blackPoint), blackPoint, $"Must consist of exactly three numbers, but was passed {blackPoint?.Length ?? 0}.");
             }
 
             Gamma = gamma ?? 1.0;
@@ -813,15 +841,16 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override ReadOnlySpan<byte> Transform(ReadOnlySpan<byte> decoded)
         {
-            var transformed = new List<byte>();
-            for (var i = 0; i < decoded.Count; i++)
+            var transformed = new byte[decoded.Length];
+
+            for (var i = 0; i < decoded.Length; i++)
             {
                 var component = decoded[i] / 255.0;
                 var rgbPixel = Process(component);
                 // We only need one component here 
-                transformed.Add(ConvertToByte(rgbPixel[0]));
+                transformed[i] = ConvertToByte(rgbPixel[0]);
             }
 
             return transformed;
@@ -900,31 +929,31 @@
         /// <summary>
         /// Create a new <see cref="CalRGBColorSpaceDetails"/>.
         /// </summary>
-        public CalRGBColorSpaceDetails(IReadOnlyList<double> whitePoint, IReadOnlyList<double>? blackPoint, IReadOnlyList<double>? gamma, IReadOnlyList<double>? matrix)
+        public CalRGBColorSpaceDetails(double[] whitePoint, double[]? blackPoint, double[]? gamma, double[]? matrix)
             : base(ColorSpace.CalRGB)
         {
             WhitePoint = whitePoint ?? throw new ArgumentNullException(nameof(whitePoint));
             if (WhitePoint.Count != 3)
             {
-                throw new ArgumentOutOfRangeException(nameof(whitePoint), whitePoint, $"Must consist of exactly three numbers, but was passed {whitePoint.Count}.");
+                throw new ArgumentOutOfRangeException(nameof(whitePoint), whitePoint, $"Must consist of exactly three numbers, but was passed {whitePoint.Length}.");
             }
 
-            BlackPoint = blackPoint ?? new[] { 0.0, 0, 0 };
+            BlackPoint = blackPoint ?? [0.0, 0, 0];
             if (BlackPoint.Count != 3)
             {
-                throw new ArgumentOutOfRangeException(nameof(blackPoint), blackPoint, $"Must consist of exactly three numbers, but was passed {blackPoint!.Count}.");
+                throw new ArgumentOutOfRangeException(nameof(blackPoint), blackPoint, $"Must consist of exactly three numbers, but was passed {blackPoint!.Length}.");
             }
 
-            Gamma = gamma ?? new[] { 1.0, 1, 1 };
+            Gamma = gamma ?? [1.0, 1, 1];
             if (Gamma.Count != 3)
             {
-                throw new ArgumentOutOfRangeException(nameof(gamma), gamma, $"Must consist of exactly three numbers, but was passed {gamma!.Count}.");
+                throw new ArgumentOutOfRangeException(nameof(gamma), gamma, $"Must consist of exactly three numbers, but was passed {gamma!.Length}.");
             }
 
-            Matrix = matrix ?? new[] { 1.0, 0, 0, 0, 1, 0, 0, 0, 1 };
+            Matrix = matrix ?? [1.0, 0, 0, 0, 1, 0, 0, 0, 1];
             if (Matrix.Count != 9)
             {
-                throw new ArgumentOutOfRangeException(nameof(matrix), matrix, $"Must consist of exactly nine numbers, but was passed {matrix!.Count}.");
+                throw new ArgumentOutOfRangeException(nameof(matrix), matrix, $"Must consist of exactly nine numbers, but was passed {matrix!.Length}.");
             }
 
             colorSpaceTransformer =
@@ -954,15 +983,17 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override ReadOnlySpan<byte> Transform(ReadOnlySpan<byte> decoded)
         {
-            var transformed = new List<byte>();
-            for (var i = 0; i < decoded.Count; i += 3)
+            var transformed = new byte[decoded.Length];
+            int index = 0;
+
+            for (var i = 0; i < decoded.Length; i += 3)
             {
                 var rgbPixel = Process(decoded[i] / 255.0, decoded[i + 1] / 255.0, decoded[i + 2] / 255.0);
-                transformed.Add(ConvertToByte(rgbPixel[0]));
-                transformed.Add(ConvertToByte(rgbPixel[1]));
-                transformed.Add(ConvertToByte(rgbPixel[2]));
+                transformed[index++] = ConvertToByte(rgbPixel[0]);
+                transformed[index++] = ConvertToByte(rgbPixel[1]);
+                transformed[index++] = ConvertToByte(rgbPixel[2]);
             }
 
             return transformed;
@@ -1036,25 +1067,25 @@
         /// <summary>
         /// Create a new <see cref="LabColorSpaceDetails"/>.
         /// </summary>
-        public LabColorSpaceDetails(IReadOnlyList<double> whitePoint, IReadOnlyList<double>? blackPoint, IReadOnlyList<double>? matrix)
+        public LabColorSpaceDetails(double[] whitePoint, double[]? blackPoint, double[]? matrix)
             : base(ColorSpace.Lab)
         {
-            WhitePoint = whitePoint?.Select(v => v).ToArray() ?? throw new ArgumentNullException(nameof(whitePoint));
-            if (WhitePoint.Count != 3)
+            WhitePoint = whitePoint ?? throw new ArgumentNullException(nameof(whitePoint));
+            if (whitePoint.Length != 3)
             {
-                throw new ArgumentOutOfRangeException(nameof(whitePoint), whitePoint, $"Must consist of exactly three numbers, but was passed {whitePoint.Count}.");
+                throw new ArgumentOutOfRangeException(nameof(whitePoint), whitePoint, $"Must consist of exactly three numbers, but was passed {whitePoint.Length}.");
             }
 
-            BlackPoint = blackPoint?.Select(v => v).ToArray() ?? new[] { 0.0, 0.0, 0.0 };
+            BlackPoint = blackPoint ?? [0.0, 0.0, 0.0];
             if (BlackPoint.Count != 3)
             {
-                throw new ArgumentOutOfRangeException(nameof(blackPoint), blackPoint, $"Must consist of exactly three numbers, but was passed {blackPoint!.Count}.");
+                throw new ArgumentOutOfRangeException(nameof(blackPoint), blackPoint, $"Must consist of exactly three numbers, but was passed {blackPoint!.Length}.");
             }
 
-            Matrix = matrix?.Select(v => v).ToArray() ?? new[] { -100.0, 100.0, -100.0, 100.0 };
+            Matrix = matrix ?? [-100.0, 100.0, -100.0, 100.0];
             if (Matrix.Count != 4)
             {
-                throw new ArgumentOutOfRangeException(nameof(matrix), matrix, $"Must consist of exactly four numbers, but was passed {matrix!.Count}.");
+                throw new ArgumentOutOfRangeException(nameof(matrix), matrix, $"Must consist of exactly four numbers, but was passed {matrix!.Length}.");
             }
 
             colorSpaceTransformer = new CIEBasedColorSpaceTransformer((WhitePoint[0], WhitePoint[1], WhitePoint[2]), RGBWorkingSpace.sRGB);
@@ -1074,15 +1105,17 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override ReadOnlySpan<byte> Transform(ReadOnlySpan<byte> decoded)
         {
-            var transformed = new List<byte>();
-            for (var i = 0; i < decoded.Count; i += 3)
+            var transformed = new byte[decoded.Length];
+            int index = 0;
+
+            for (var i = 0; i < decoded.Length; i += 3)
             {
                 var rgbPixel = Process(decoded[i] / 255.0, decoded[i + 1] / 255.0, decoded[i + 2] / 255.0);
-                transformed.Add(ConvertToByte(rgbPixel[0]));
-                transformed.Add(ConvertToByte(rgbPixel[1]));
-                transformed.Add(ConvertToByte(rgbPixel[2]));
+                transformed[index++] = ConvertToByte(rgbPixel[0]);
+                transformed[index++] = ConvertToByte(rgbPixel[1]);
+                transformed[index++] = ConvertToByte(rgbPixel[2]);
             }
 
             return transformed;
@@ -1259,7 +1292,7 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override ReadOnlySpan<byte> Transform(ReadOnlySpan<byte> decoded)
         {
             // TODO - use ICC profile
 
@@ -1288,7 +1321,7 @@
         /// <summary>
         /// <inheritdoc/>
         /// <para>
-        /// Valid for Uncoloured Tiling Patterns. Wwill throw a <see cref="InvalidOperationException"/> otherwise.
+        /// Valid for Uncoloured Tiling Patterns. Will throw a <see cref="InvalidOperationException"/> otherwise.
         /// </para>
         /// </summary>
         internal override int BaseNumberOfColorComponents => UnderlyingColourSpace!.NumberOfColorComponents;
@@ -1357,7 +1390,7 @@
         /// Cannot be called for <see cref="PatternColorSpaceDetails"/>, will throw a <see cref="InvalidOperationException"/>.
         /// </para>
         /// </summary>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override ReadOnlySpan<byte> Transform(ReadOnlySpan<byte> decoded)
         {
             throw new InvalidOperationException("PatternColorSpaceDetails");
         }
@@ -1412,7 +1445,7 @@
         }
 
         /// <inheritdoc/>
-        internal override IReadOnlyList<byte> Transform(IReadOnlyList<byte> decoded)
+        internal override ReadOnlySpan<byte> Transform(ReadOnlySpan<byte> decoded)
         {
             throw new InvalidOperationException("UnsupportedColorSpaceDetails");
         }

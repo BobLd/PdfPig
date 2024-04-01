@@ -1,5 +1,6 @@
 ﻿namespace UglyToad.PdfPig
 {
+    using System;
     using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
     using Core;
@@ -55,14 +56,14 @@
         /// <summary>
         /// Get the decoded data from this stream.
         /// </summary>
-        public static IReadOnlyList<byte> Decode(this StreamToken stream, IFilterProvider filterProvider)
+        public static ReadOnlyMemory<byte> Decode(this StreamToken stream, IFilterProvider filterProvider)
         {
             var filters = filterProvider.GetFilters(stream.StreamDictionary);
 
             var transform = stream.Data;
             for (var i = 0; i < filters.Count; i++)
             {
-                transform = filters[i].Decode(transform, stream.StreamDictionary, i);
+                transform = filters[i].Decode(transform.Span, stream.StreamDictionary, i);
             }
 
             return transform;
@@ -71,14 +72,14 @@
         /// <summary>
         /// Get the decoded data from this stream.
         /// </summary>
-        public static IReadOnlyList<byte> Decode(this StreamToken stream, ILookupFilterProvider filterProvider, IPdfTokenScanner scanner)
+        public static ReadOnlyMemory<byte> Decode(this StreamToken stream, ILookupFilterProvider filterProvider, IPdfTokenScanner scanner)
         {
             var filters = filterProvider.GetFilters(stream.StreamDictionary, scanner);
 
             var transform = stream.Data;
             for (var i = 0; i < filters.Count; i++)
             {
-                transform = filters[i].Decode(transform, stream.StreamDictionary, i);
+                transform = filters[i].Decode(transform.Span, stream.StreamDictionary, i);
             }
 
             return transform;

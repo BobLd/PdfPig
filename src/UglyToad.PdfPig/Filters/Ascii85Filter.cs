@@ -29,7 +29,7 @@
         public bool IsSupported { get; } = true;
 
         /// <inheritdoc />
-        public byte[] Decode(IReadOnlyList<byte> input, DictionaryToken streamDictionary, int filterIndex)
+        public byte[] Decode(ReadOnlySpan<byte> input, DictionaryToken streamDictionary, int filterIndex)
         {
             var asciiBuffer = new byte[5];
 
@@ -37,7 +37,7 @@
 
             using var writer = new ArrayPoolBufferWriter<byte>();
            
-            for (var i = 0; i < input.Count; i++)
+            for (var i = 0; i < input.Length; i++)
             {
                 var value = input[i];
 
@@ -48,7 +48,7 @@
 
                 if (value == EndOfDataBytes[0])
                 {
-                    if (i == input.Count - 1 || input[i + 1] == EndOfDataBytes[1])
+                    if (i == input.Length - 1 || input[i + 1] == EndOfDataBytes[1])
                     {
                         if (index > 0)
                         {

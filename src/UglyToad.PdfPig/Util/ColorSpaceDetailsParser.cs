@@ -1,13 +1,12 @@
 ﻿namespace UglyToad.PdfPig.Util
 {
-    using System;
     using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
+    using System.Linq;
     using Content;
     using Filters;
     using Graphics.Colors;
     using Parser.Parts;
-    using System.Linq;
     using Tokenization.Scanner;
     using Tokens;
     using UglyToad.PdfPig.Functions;
@@ -56,7 +55,7 @@
                 var colorSpaceDetails = GetColorSpaceDetails(colorSpace, imageDictionary.Without(NameToken.Filter).Without(NameToken.F), scanner, resourceStore, filterProvider, true);
 
                 var decodeRaw = imageDictionary.GetObjectOrDefault(NameToken.Decode, NameToken.D) as ArrayToken ?? new ArrayToken([]);
-                var decode = decodeRaw.Data.OfType<NumericToken>().Select(x => x.Double).ToArray();
+                var decode = decodeRaw.Data.OfType<NumericToken>().Select(static x => x.Double).ToArray();
 
                 return IndexedColorSpaceDetails.Stencil(colorSpaceDetails, decode);
             }
@@ -102,7 +101,7 @@
                         var whitePoint = whitePointToken.Data.OfType<NumericToken>().Select(x => x.Double).ToArray();
 
                         // BlackPoint is optional
-                        IReadOnlyList<double>? blackPoint = null;
+                        double[]? blackPoint = null;
                         if (dictionaryToken.TryGet(NameToken.BlackPoint, scanner, out ArrayToken? blackPointToken))
                         {
                             blackPoint = blackPointToken.Data.OfType<NumericToken>().Select(x => x.Double).ToArray();
@@ -145,24 +144,24 @@
                         var whitePoint = whitePointToken.Data.OfType<NumericToken>().Select(x => x.Double).ToArray();
 
                         // BlackPoint is optional
-                        IReadOnlyList<double>? blackPoint = null;
+                        double[]? blackPoint = null;
                         if (dictionaryToken.TryGet(NameToken.BlackPoint, scanner, out ArrayToken? blackPointToken))
                         {
-                            blackPoint = blackPointToken.Data.OfType<NumericToken>().Select(x => x.Double).ToArray();
+                            blackPoint = blackPointToken.Data.OfType<NumericToken>().Select(static x => x.Double).ToArray();
                         }
 
                         // Gamma is optional
-                        IReadOnlyList<double>? gamma = null;
+                        double[]? gamma = null;
                         if (dictionaryToken.TryGet(NameToken.Gamma, scanner, out ArrayToken? gammaToken))
                         {
-                            gamma = gammaToken.Data.OfType<NumericToken>().Select(x => x.Double).ToArray();
+                            gamma = gammaToken.Data.OfType<NumericToken>().Select(static x => x.Double).ToArray();
                         }
 
                         // Matrix is optional
-                        IReadOnlyList<double>? matrix = null;
+                        double[]? matrix = null;
                         if (dictionaryToken.TryGet(NameToken.Matrix, scanner, out ArrayToken? matrixToken))
                         {
-                            matrix = matrixToken.Data.OfType<NumericToken>().Select(x => x.Double).ToArray();
+                            matrix = matrixToken.Data.OfType<NumericToken>().Select(static x => x.Double).ToArray();
                         }
 
                         return new CalRGBColorSpaceDetails(whitePoint, blackPoint, gamma, matrix);
@@ -195,14 +194,14 @@
                         var whitePoint = whitePointToken.Data.OfType<NumericToken>().Select(x => x.Double).ToArray();
 
                         // BlackPoint is optional
-                        IReadOnlyList<double>? blackPoint = null;
+                        double[]? blackPoint = null;
                         if (dictionaryToken.TryGet(NameToken.BlackPoint, scanner, out ArrayToken? blackPointToken))
                         {
                             blackPoint = blackPointToken.Data.OfType<NumericToken>().Select(x => x.Double).ToArray();
                         }
 
                         // Matrix is optional
-                        IReadOnlyList<double>? matrix = null;
+                        double[]? matrix = null;
                         if (dictionaryToken.TryGet(NameToken.Matrix, scanner, out ArrayToken? matrixToken))
                         {
                             matrix = matrixToken.Data.OfType<NumericToken>().Select(x => x.Double).ToArray();
@@ -245,7 +244,7 @@
                         }
 
                         // Range is optional
-                        IReadOnlyList<double>? range = null;
+                        double[]? range = null;
                         if (streamToken.StreamDictionary.TryGet(NameToken.Range, scanner, out ArrayToken? arrayToken))
                         {
                             range = arrayToken.Data.OfType<NumericToken>().Select(x => x.Double).ToArray();
@@ -336,7 +335,7 @@
 
                         var fourth = colorSpaceArray[3];
 
-                        IReadOnlyList<byte> tableBytes;
+                        byte[] tableBytes;
 
                         if (DirectObjectFinder.TryGet(fourth, scanner, out HexToken? tableHexToken))
                         {
@@ -344,7 +343,7 @@
                         }
                         else if (DirectObjectFinder.TryGet(fourth, scanner, out StreamToken? tableStreamToken))
                         {
-                            tableBytes = tableStreamToken.Decode(filterProvider, scanner);
+                            tableBytes = tableStreamToken.Decode(filterProvider, scanner).Span.ToArray();
                         }
                         else if (DirectObjectFinder.TryGet(fourth, scanner, out StringToken? stringToken))
                         {

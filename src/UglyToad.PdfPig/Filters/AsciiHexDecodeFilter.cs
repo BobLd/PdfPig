@@ -1,15 +1,14 @@
 ﻿namespace UglyToad.PdfPig.Filters
 {
     using System;
-    using System.Collections.Generic;
-    using System.IO;
+    using Core;
     using Tokens;
 
     /// <inheritdoc />
     /// <summary>
     /// Encodes/decodes data using the ASCII hexadecimal encoding where each byte is represented by two ASCII characters.
     /// </summary>
-    internal class AsciiHexDecodeFilter : IFilter
+    internal sealed class AsciiHexDecodeFilter : IFilter
     {
         private static readonly short[] ReverseHex = 
         [
@@ -30,53 +29,50 @@
         public bool IsSupported { get; } = true;
 
         /// <inheritdoc />
-        public byte[] Decode(IReadOnlyList<byte> input, DictionaryToken streamDictionary, int filterIndex)
+        public byte[] Decode(ReadOnlySpan<byte> input, DictionaryToken streamDictionary, int filterIndex)
         {
-            var pair = new byte[2];
+            Span<byte> pair = stackalloc byte[2];
             var index = 0;
 
-            using (var memoryStream = new MemoryStream())
-            using (var binaryWriter = new BinaryWriter(memoryStream))
+            using var writer = new ArrayPoolBufferWriter<byte>(input.Length);
+
+            for (var i = 0; i < input.Length; i++)
             {
-                for (var i = 0; i < input.Count; i++)
+                if (input[i] == '>')
                 {
-                    if (input[i] == '>')
-                    {
-                        break;
-                    }
-
-                    if (IsWhitespace(input[i]) || input[i] == '<')
-                    {
-                        continue;
-                    }
-
-                    pair[index] = input[i];
-                    index++;
-
-                    if (index == 2)
-                    {
-                        WriteHexToByte(pair, binaryWriter);
-
-                        index = 0;
-                    }
+                    break;
                 }
 
-                if (index > 0)
+                if (IsWhitespace(input[i]) || input[i] == '<')
                 {
-                    if (index == 1)
-                    {
-                        pair[1] = (byte) '0';
-                    }
-
-                    WriteHexToByte(pair, binaryWriter);
+                    continue;
                 }
 
-                binaryWriter.Flush();
-                return memoryStream.ToArray();
+                pair[index] = input[i];
+                index++;
+
+                if (index == 2)
+                {
+                    WriteHexToByte(pair, writer);
+
+                    index = 0;
+                }
             }
+
+            if (index > 0)
+            {
+                if (index == 1)
+                {
+                    pair[1] = (byte)'0';
+                }
+
+                WriteHexToByte(pair, writer);
+            }
+
+            return writer.WrittenSpan.ToArray();
         }
 
-        private static void WriteHexToByte(byte[] hexBytes, BinaryWriter writer)
+        private static void WriteHexToByte(ReadOnlySpan<byte> hexBytes, ArrayPoolBufferWriter<byte> writer)
         {
             var first = ReverseHex[hexBytes[0]];
             var second = ReverseHex[hexBytes[1]];

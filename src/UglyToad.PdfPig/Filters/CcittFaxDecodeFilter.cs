@@ -1,9 +1,7 @@
 ﻿namespace UglyToad.PdfPig.Filters
 {
     using System;
-    using System.Collections.Generic;
     using System.IO;
-    using System.Linq;
     using Tokens;
     using Util;
 
@@ -12,13 +10,13 @@
     ///
     /// Ported from https://github.com/apache/pdfbox/blob/714156a15ea6fcfe44ac09345b01e192cbd74450/pdfbox/src/main/java/org/apache/pdfbox/filter/CCITTFaxFilter.java
     /// </summary>
-    internal class CcittFaxDecodeFilter : IFilter
+    internal sealed class CcittFaxDecodeFilter : IFilter
     {
         /// <inheritdoc />
         public bool IsSupported { get; } = true;
 
         /// <inheritdoc />
-        public byte[] Decode(IReadOnlyList<byte> input, DictionaryToken streamDictionary, int filterIndex)
+        public byte[] Decode(ReadOnlySpan<byte> input, DictionaryToken streamDictionary, int filterIndex)
         {
             var decodeParms = DecodeParameterResolver.GetFilterParameters(streamDictionary, filterIndex);
 
@@ -56,13 +54,13 @@
             }
         }
 
-        private static CcittFaxCompressionType DetermineCompressionType(IReadOnlyList<byte> input, int k)
+        private static CcittFaxCompressionType DetermineCompressionType(ReadOnlySpan<byte> input, int k)
         {
             if (k == 0)
             {
                 var compressionType = CcittFaxCompressionType.Group3_1D; // Group 3 1D
 
-                if (input.Count < 20)
+                if (input.Length < 20)
                 {
                     throw new InvalidOperationException("The format is invalid");
                 }
@@ -110,7 +108,7 @@
             decoderStream.Close();
         }
 
-        private static void InvertBitmap(byte[] bufferData)
+        private static void InvertBitmap(Span<byte> bufferData)
         {
             for (int i = 0, c = bufferData.Length; i < c; i++)
             {
