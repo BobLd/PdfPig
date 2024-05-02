@@ -123,7 +123,7 @@
             return new Type1FontSimple(name, firstCharacter, lastCharacter, widths, descriptor, encoding!, toUnicodeCMap!, font!);
         }
 
-        private Union<Type1Font, CompactFontFormatFontCollection>? ParseFontProgram(FontDescriptor descriptor)
+        private Union<Type1Font, CompactFontFormatFontCollection>? ParseFontProgram(FontDescriptor? descriptor)
         {
             if (descriptor?.FontFile is null)
             {

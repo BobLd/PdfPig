@@ -53,19 +53,21 @@
             return result;
         }
 
-        public static FontDescriptor GetFontDescriptor(IPdfTokenScanner pdfScanner, DictionaryToken dictionary)
+        public static FontDescriptor? GetFontDescriptor(IPdfTokenScanner pdfScanner, DictionaryToken dictionary, bool skipMissingFonts = false)
         {
             if (!dictionary.TryGet(NameToken.FontDescriptor, pdfScanner, out DictionaryToken? parsed))
             {
+                if (skipMissingFonts)
+                {
+                    return null;
+                }
                 throw new InvalidFontFormatException($"No font descriptor indirect reference found in the TrueType font: {dictionary}.");
             }
-            
-            var descriptor = FontDescriptorFactory.Generate(parsed, pdfScanner);
 
-            return descriptor;
+            return FontDescriptorFactory.Generate(parsed, pdfScanner);
         }
-        
-        public static NameToken GetName(IPdfTokenScanner pdfScanner, DictionaryToken dictionary, FontDescriptor descriptor)
+
+        public static NameToken GetName(IPdfTokenScanner pdfScanner, DictionaryToken dictionary, FontDescriptor? descriptor)
         {
             if (dictionary.TryGet(NameToken.BaseFont, out var nameBase))
             {
@@ -74,11 +76,11 @@
                 return name;
             }
 
-            if (descriptor.FontName != null)
+            if (descriptor?.FontName != null)
             {
                 return descriptor.FontName;
             }
-            
+
             throw new InvalidFontFormatException($"Could not find a name for this font {dictionary}.");
         }
     }

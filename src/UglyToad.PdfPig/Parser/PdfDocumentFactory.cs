@@ -170,7 +170,7 @@
 
             var type1Handler = new Type1FontHandler(pdfScanner, filterProvider, encodingReader);
 
-            var trueTypeHandler = new TrueTypeFontHandler(parsingOptions.Logger,
+            var trueTypeHandler = new TrueTypeFontHandler(parsingOptions,
                 pdfScanner,
                 filterProvider,
                 encodingReader,

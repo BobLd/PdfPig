@@ -27,7 +27,7 @@
 
         private readonly double[] widths;
 
-        private readonly FontDescriptor fontDescriptor;
+        private readonly FontDescriptor? fontDescriptor;
 
         private readonly Encoding encoding;
 
@@ -48,7 +48,7 @@
             int firstChar,
             int lastChar,
             double[] widths,
-            FontDescriptor fontDescriptor,
+            FontDescriptor? fontDescriptor,
             Encoding encoding,
             CMap toUnicodeCMap,
             Union<Type1Font, CompactFontFormatFontCollection> fontProgram)

@@ -25,6 +25,7 @@
     internal class TrueTypeFontHandler : IFontHandler
     {
         private readonly ILog log;
+        private readonly ParsingOptions parsingOptions;
         private readonly IPdfTokenScanner pdfScanner;
         private readonly ILookupFilterProvider filterProvider;
         private readonly IEncodingReader encodingReader;
@@ -32,14 +33,15 @@
         private readonly IFontHandler type1FontHandler;
 
         public TrueTypeFontHandler(
-            ILog log,
+            ParsingOptions parsingOptions,
             IPdfTokenScanner pdfScanner,
             ILookupFilterProvider filterProvider,
             IEncodingReader encodingReader,
             ISystemFontFinder systemFontFinder,
             IFontHandler type1FontHandler)
         {
-            this.log = log;
+            this.parsingOptions = parsingOptions;
+            this.log = parsingOptions.Logger;
             this.filterProvider = filterProvider;
             this.encodingReader = encodingReader;
             this.systemFontFinder = systemFontFinder;
@@ -97,7 +99,9 @@
 
             var widths = FontDictionaryAccessHelper.GetWidths(pdfScanner, dictionary);
 
-            var descriptor = FontDictionaryAccessHelper.GetFontDescriptor(pdfScanner, dictionary);
+            var descriptor = FontDictionaryAccessHelper.GetFontDescriptor(pdfScanner, dictionary, parsingOptions.SkipMissingFonts);
+
+            // TODO get null descriptor if skipmissingfont is true
 
             var font = ParseTrueTypeFont(descriptor, out var actualHandler);
 
@@ -159,9 +163,14 @@
             return new TrueTypeSimpleFont(name, descriptor, toUnicodeCMap, encoding, font, firstCharacter, widths);
         }
 
-        private TrueTypeFont? ParseTrueTypeFont(FontDescriptor descriptor, [NotNullWhen(true)] out IFontHandler? actualHandler)
+        private TrueTypeFont? ParseTrueTypeFont(FontDescriptor? descriptor, [NotNullWhen(true)] out IFontHandler? actualHandler)
         {
             actualHandler = null;
+
+            if (descriptor is null)
+            {
+                return null;
+            }
 
             if (descriptor.FontFile is null)
             {
