@@ -77,22 +77,27 @@ namespace UglyToad.PdfPig.Fonts.SystemFonts
 
             ISystemFontLister lister;
 #if NETSTANDARD2_0_OR_GREATER || NET
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            if (OperatingSystem.IsWindows())
             {
                 lister = new WindowsSystemFontLister();
             }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            else if (OperatingSystem.IsMacOS())
             {
                 lister = new MacSystemFontLister();
             }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            else if (OperatingSystem.IsLinux())
             {
                 lister = new LinuxSystemFontLister();
+            }
+            else if (OperatingSystem.IsAndroid())
+            {
+                lister = new AndroidSystemFontLister();
             }
             else
             {
                 throw new NotSupportedException($"Unsupported operating system: {RuntimeInformation.OSDescription}.");
             }
+
 #elif NETFRAMEWORK
             lister = new WindowsSystemFontLister();
 #else
