@@ -10,6 +10,16 @@
         }
 
         [Fact]
+        public void Issue848()
+        {
+            using (var document = PdfDocument.Open(IntegrationHelpers.GetDocumentPath("test_doc_issue_848"), ParsingOptions.LenientParsingOff))
+            {
+                document.TryGetForm(out var form);
+                Assert.NotNull(form);
+            }
+        }
+
+        [Fact]
         public void TryGetFormNotNull()
         {
             using (var document = PdfDocument.Open(GetFilename(), ParsingOptions.LenientParsingOff))
