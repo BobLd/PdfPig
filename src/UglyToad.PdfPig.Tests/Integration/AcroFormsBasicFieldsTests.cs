@@ -15,7 +15,40 @@
             using (var document = PdfDocument.Open(IntegrationHelpers.GetDocumentPath("test_doc_issue_848"), ParsingOptions.LenientParsingOff))
             {
                 document.TryGetForm(out var form);
+
+                foreach (var field in form.Fields)
+                {
+                    var str = GetText(field).ToArray();
+                }
+
                 Assert.NotNull(form);
+            }
+        }
+
+        private static IEnumerable<string> GetText(AcroFieldBase acro, string text = null)
+        {
+            if (text is null)
+            {
+                text = acro.Information.PartialName;
+            }
+            else
+            {
+                text += "." + acro.Information.PartialName;
+            }
+
+            if (acro is AcroNonTerminalField nonTerminal)
+            {
+                foreach (var child in nonTerminal.Children)
+                {
+                    foreach (var t in GetText(child, text))
+                    {
+                        yield return t;
+                    }
+                }
+            }
+            else if (acro.Information.Parent.HasValue)
+            {
+               yield return text; // final
             }
         }
 
