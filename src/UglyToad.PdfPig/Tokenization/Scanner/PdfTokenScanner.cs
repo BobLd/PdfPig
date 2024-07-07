@@ -12,11 +12,12 @@
     using Filters;
     using Tokens;
 
-    internal class PdfTokenScanner : IPdfTokenScanner
+    internal partial class PdfTokenScanner : IPdfTokenScanner
     {
         private static ReadOnlySpan<byte> EndstreamBytes => "endstream"u8;
 
-        private static readonly Regex EndsWithNumberRegex = new Regex(@"(?<=^[^\s\d]+)\d+$");
+        [GeneratedRegex(@"(?<=^[^\s\d]+)\d+$")]
+        private static partial Regex EndsWithNumberRegex();
 
         private readonly IInputBytes inputBytes;
         private readonly IObjectLocationProvider objectLocationProvider;
@@ -113,7 +114,7 @@
                 // specifically %%EOF1 0 obj where scanning starts from 'F'.
                 if (generation != null && previousTokens[1] is OperatorToken op)
                 {
-                    var match = EndsWithNumberRegex.Match(op.Data);
+                    var match = EndsWithNumberRegex().Match(op.Data);
 
                     if (match.Success && int.TryParse(match.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var number))
                     {
