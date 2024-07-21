@@ -7,6 +7,7 @@
     using Filters;
     using Graphics.Colors;
     using Parser.Parts;
+    using SixLabors.ImageSharp.Metadata.Profiles.Icc;
     using Tokenization.Scanner;
     using Tokens;
     using UglyToad.PdfPig.Functions;
@@ -248,6 +249,13 @@
                         if (streamToken.StreamDictionary.TryGet(NameToken.Range, scanner, out ArrayToken? arrayToken))
                         {
                             range = arrayToken.Data.OfType<NumericToken>().Select(x => x.Double).ToArray();
+                        }
+
+                        IccProfile icc = new IccProfile(streamToken.Decode(filterProvider, scanner).Span.ToArray());
+
+                        if (!icc.CheckIsValid())
+                        {
+                            // error
                         }
 
                         // Metadata is optional
