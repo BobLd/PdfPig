@@ -1,6 +1,4 @@
-﻿// TODO - Use instead (MIT) https://www.nayuki.io/page/fast-discrete-cosine-transform-algorithms
-
-// Copyright (c) Six Labors and contributors.
+﻿// Copyright (c) Six Labors and contributors.
 // Licensed under the Apache License, Version 2.0.
 
 #nullable enable
@@ -53,7 +51,7 @@ namespace JpegLibrary
         /// <param name="src">Source</param>
         /// <param name="dest">Destination</param>
         /// <param name="temp">Temporary block provided by the caller</param>
-        public static void TransformIDCT(ref JpegBlock8x8F src, ref JpegBlock8x8F dest, ref JpegBlock8x8F temp)
+        public static void TransformIDCT(ref Block8x8F src, ref Block8x8F dest, ref Block8x8F temp)
         {
             // TODO: Transpose is a bottleneck now. We need full AVX support to optimize it:
             // https://github.com/dotnet/corefx/issues/22940
@@ -78,7 +76,7 @@ namespace JpegLibrary
         /// <param name="s">The source block</param>
         /// <param name="d">Destination block</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void IDCT8x4_LeftPart(ref JpegBlock8x8F s, ref JpegBlock8x8F d)
+        public static void IDCT8x4_LeftPart(ref Block8x8F s, ref Block8x8F d)
         {
             Vector4 my1 = s.V1L;
             Vector4 my7 = s.V7L;
@@ -136,7 +134,7 @@ namespace JpegLibrary
         /// <param name="s">The source block</param>
         /// <param name="d">The destination block</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void IDCT8x4_RightPart(ref JpegBlock8x8F s, ref JpegBlock8x8F d)
+        public static void IDCT8x4_RightPart(ref Block8x8F s, ref Block8x8F d)
         {
             Vector4 my1 = s.V1R;
             Vector4 my7 = s.V7R;
@@ -194,7 +192,7 @@ namespace JpegLibrary
         /// </summary>
         /// <param name="s">Source</param>
         /// <param name="d">Destination</param>
-        public static void FDCT8x4_LeftPart(ref JpegBlock8x8F s, ref JpegBlock8x8F d)
+        public static void FDCT8x4_LeftPart(ref Block8x8F s, ref Block8x8F d)
         {
             Vector4 c0 = s.V0L;
             Vector4 c1 = s.V7L;
@@ -259,7 +257,7 @@ namespace JpegLibrary
         /// </summary>
         /// <param name="s">Source</param>
         /// <param name="d">Destination</param>
-        public static void FDCT8x4_RightPart(ref JpegBlock8x8F s, ref JpegBlock8x8F d)
+        public static void FDCT8x4_RightPart(ref Block8x8F s, ref Block8x8F d)
         {
             Vector4 c0 = s.V0R;
             Vector4 c1 = s.V7R;
@@ -323,9 +321,9 @@ namespace JpegLibrary
         /// <param name="temp">Temporary block provided by the caller</param>
         /// <param name="offsetSourceByNeg128">If true, a constant -128.0 offset is applied for all values before FDCT </param>
         public static void TransformFDCT(
-            ref JpegBlock8x8F src,
-            ref JpegBlock8x8F dest,
-            ref JpegBlock8x8F temp,
+            ref Block8x8F src,
+            ref Block8x8F dest,
+            ref Block8x8F temp,
             bool offsetSourceByNeg128)
         {
             src.TransposeInto(ref temp);
@@ -346,9 +344,9 @@ namespace JpegLibrary
         }
 
         public static void TransformFDCT(
-                    ref JpegBlock8x8F src,
-                    ref JpegBlock8x8F dest,
-                    ref JpegBlock8x8F temp)
+                    ref Block8x8F src,
+                    ref Block8x8F dest,
+                    ref Block8x8F temp)
         {
             src.TransposeInto(ref temp);
 

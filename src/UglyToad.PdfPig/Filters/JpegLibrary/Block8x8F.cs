@@ -1,39 +1,68 @@
-﻿#nullable enable
+﻿// Copyright (c) Six Labors.
+// Licensed under the Apache License, Version 2.0.
 
-using System;
+// (Modified)
+
+#nullable enable
+
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace JpegLibrary
 {
-    internal struct JpegBlock8x8F
+    /// <summary>
+    /// 8x8 matrix of <see cref="float"/> coefficients.
+    /// </summary>
+    [StructLayout(LayoutKind.Explicit)]
+    internal struct Block8x8F
     {
+        /// <summary>
+        /// A number of scalar coefficients in a <see cref="Block8x8F"/>
+        /// </summary>
         public const int Size = 64;
 
+#pragma warning disable SA1600 // ElementsMustBeDocumented
+        [FieldOffset(0)]
         public Vector4 V0L;
+        [FieldOffset(16)]
         public Vector4 V0R;
 
+        [FieldOffset(32)]
         public Vector4 V1L;
+        [FieldOffset(48)]
         public Vector4 V1R;
 
+        [FieldOffset(64)]
         public Vector4 V2L;
+        [FieldOffset(80)]
         public Vector4 V2R;
 
+        [FieldOffset(96)]
         public Vector4 V3L;
+        [FieldOffset(112)]
         public Vector4 V3R;
 
+        [FieldOffset(128)]
         public Vector4 V4L;
+        [FieldOffset(144)]
         public Vector4 V4R;
 
+        [FieldOffset(160)]
         public Vector4 V5L;
+        [FieldOffset(176)]
         public Vector4 V5R;
 
+        [FieldOffset(192)]
         public Vector4 V6L;
+        [FieldOffset(208)]
         public Vector4 V6R;
 
+        [FieldOffset(224)]
         public Vector4 V7L;
+        [FieldOffset(240)]
         public Vector4 V7R;
+#pragma warning restore SA1600 // ElementsMustBeDocumented
 
         public float this[int index]
         {
@@ -44,7 +73,7 @@ namespace JpegLibrary
                 {
                     ThrowArgumentOutOfRangeException(nameof(index));
                 }
-                ref float selfRef = ref Unsafe.As<JpegBlock8x8F, float>(ref this);
+                ref float selfRef = ref Unsafe.As<Block8x8F, float>(ref this);
                 return Unsafe.Add(ref selfRef, index);
             }
 
@@ -55,7 +84,7 @@ namespace JpegLibrary
                 {
                     ThrowArgumentOutOfRangeException(nameof(index));
                 }
-                ref float selfRef = ref Unsafe.As<JpegBlock8x8F, float>(ref this);
+                ref float selfRef = ref Unsafe.As<Block8x8F, float>(ref this);
                 Unsafe.Add(ref selfRef, index) = value;
             }
         }
@@ -66,10 +95,10 @@ namespace JpegLibrary
             set => this[(y * 8) + x] = value;
         }
 
-        public static JpegBlock8x8F operator *(in JpegBlock8x8F block, float value)
+        public static Block8x8F operator *(in Block8x8F block, float value)
         {
-            ref JpegBlock8x8F blockRef = ref Unsafe.AsRef(block);
-            JpegBlock8x8F result = block;
+            ref Block8x8F blockRef = ref Unsafe.AsRef(block);
+            Block8x8F result = block;
             result.V0L = Vector4.Multiply(blockRef.V0L, value);
             result.V0R = Vector4.Multiply(blockRef.V0R, value);
             result.V1L = Vector4.Multiply(blockRef.V1L, value);
@@ -89,10 +118,10 @@ namespace JpegLibrary
             return result;
         }
 
-        public static JpegBlock8x8F operator /(in JpegBlock8x8F block, float value)
+        public static Block8x8F operator /(in Block8x8F block, float value)
         {
-            ref JpegBlock8x8F blockRef = ref Unsafe.AsRef(block);
-            JpegBlock8x8F result = block;
+            ref Block8x8F blockRef = ref Unsafe.AsRef(block);
+            Block8x8F result = block;
             result.V0L = Vector4.Divide(blockRef.V0L, value);
             result.V0R = Vector4.Divide(blockRef.V0R, value);
             result.V1L = Vector4.Divide(blockRef.V1L, value);
@@ -112,10 +141,10 @@ namespace JpegLibrary
             return result;
         }
 
-        public static JpegBlock8x8F operator +(in JpegBlock8x8F block, float value)
+        public static Block8x8F operator +(in Block8x8F block, float value)
         {
-            ref JpegBlock8x8F blockRef = ref Unsafe.AsRef(block);
-            JpegBlock8x8F result = block;
+            ref Block8x8F blockRef = ref Unsafe.AsRef(block);
+            Block8x8F result = block;
             Vector4 valueVector = new Vector4(value);
             result.V0L = Vector4.Add(blockRef.V0L, valueVector);
             result.V0R = Vector4.Add(blockRef.V0R, valueVector);
@@ -136,10 +165,10 @@ namespace JpegLibrary
             return result;
         }
 
-        public static JpegBlock8x8F operator -(in JpegBlock8x8F block, float value)
+        public static Block8x8F operator -(in Block8x8F block, float value)
         {
-            ref JpegBlock8x8F blockRef = ref Unsafe.AsRef(block);
-            JpegBlock8x8F result = block;
+            ref Block8x8F blockRef = ref Unsafe.AsRef(block);
+            Block8x8F result = block;
             Vector4 valueVector = new Vector4(value);
             result.V0L = Vector4.Subtract(blockRef.V0L, valueVector);
             result.V0R = Vector4.Subtract(blockRef.V0R, valueVector);
@@ -180,7 +209,7 @@ namespace JpegLibrary
             V7R *= value;
         }
 
-        public void MultiplyInplace(ref JpegBlock8x8F other)
+        public void MultiplyInplace(ref Block8x8F other)
         {
             V0L *= other.V0L;
             V0R *= other.V0R;
@@ -225,7 +254,7 @@ namespace JpegLibrary
         /// </summary>
         /// <param name="d">The destination block</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void TransposeInto(ref JpegBlock8x8F d)
+        public void TransposeInto(ref Block8x8F d)
         {
             d.V0L.X = V0L.X;
             d.V1L.X = V0L.Y;

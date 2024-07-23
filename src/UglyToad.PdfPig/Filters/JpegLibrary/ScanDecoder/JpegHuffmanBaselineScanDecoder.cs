@@ -90,11 +90,11 @@ namespace JpegLibrary.ScanDecoder
             JpegBitReader bitReader = new JpegBitReader(reader.RemainingBytes);
 
             // DCT Block
-            Unsafe.SkipInit(out JpegBlock8x8F blockFBuffer);
-            Unsafe.SkipInit(out JpegBlock8x8F outputFBuffer);
-            Unsafe.SkipInit(out JpegBlock8x8F tempFBuffer);
+            Unsafe.SkipInit(out Block8x8F blockFBuffer);
+            Unsafe.SkipInit(out Block8x8F outputFBuffer);
+            Unsafe.SkipInit(out Block8x8F tempFBuffer);
 
-            JpegBlock8x8 outputBuffer;
+            Block8x8 outputBuffer;
 
             for (int rowMcu = 0; rowMcu < mcusPerColumn; rowMcu++)
             {
@@ -131,7 +131,7 @@ namespace JpegLibrary.ScanDecoder
                                 ShiftDataLevel(ref outputFBuffer, ref outputBuffer, levelShift);
 
                                 // CopyToOutput
-                                WriteBlock(outputWriter, ref Unsafe.As<JpegBlock8x8, short>(ref outputBuffer), index, (offsetX + x) * 8, blockOffsetY, hs, vs);
+                                WriteBlock(outputWriter, ref Unsafe.As<Block8x8, short>(ref outputBuffer), index, (offsetX + x) * 8, blockOffsetY, hs, vs);
                             }
                         }
                     }
@@ -176,9 +176,9 @@ namespace JpegLibrary.ScanDecoder
             reader.TryAdvance(bytesConsumed);
         }
 
-        private static void ReadBlockBaseline(ref JpegBitReader reader, JpegHuffmanDecodingComponent component, ref JpegBlock8x8 destinationBlock)
+        private static void ReadBlockBaseline(ref JpegBitReader reader, JpegHuffmanDecodingComponent component, ref Block8x8 destinationBlock)
         {
-            ref short destinationRef = ref Unsafe.As<JpegBlock8x8, short>(ref destinationBlock);
+            ref short destinationRef = ref Unsafe.As<Block8x8, short>(ref destinationBlock);
 
             Debug.Assert(component.DcTable is not null);
             Debug.Assert(component.AcTable is not null);
@@ -237,12 +237,12 @@ namespace JpegLibrary.ScanDecoder
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void WriteBlockSlow(JpegBlockOutputWriter outputWriter, ref short blockRef, int componentIndex, int x, int y, int horizontalSubsamplingFactor, int verticalSubsamplingFactor)
         {
-            Unsafe.SkipInit(out JpegBlock8x8 tempBlock);
+            Unsafe.SkipInit(out Block8x8 tempBlock);
 
             int hShift = JpegMathHelper.Log2((uint)horizontalSubsamplingFactor);
             int vShift = JpegMathHelper.Log2((uint)verticalSubsamplingFactor);
 
-            ref short tempRef = ref Unsafe.As<JpegBlock8x8, short>(ref Unsafe.AsRef(tempBlock));
+            ref short tempRef = ref Unsafe.As<Block8x8, short>(ref Unsafe.AsRef(tempBlock));
 
             for (int v = 0; v < verticalSubsamplingFactor; v++)
             {

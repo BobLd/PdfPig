@@ -1,31 +1,50 @@
-﻿#nullable enable
+﻿// Copyright (c) Six Labors.
+// Licensed under the Apache License, Version 2.0.
 
-using System;
+// (Modified)
+
+#nullable enable
+
 using System.Runtime.CompilerServices;
 
 namespace JpegLibrary
 {
-    /// <summary>
-    /// Represents a 8x8 spatial block.
-    /// </summary>
-    public unsafe struct JpegBlock8x8
-    {
-        private fixed short _data[64];
+    using System.Runtime.InteropServices;
 
-        internal void CopyTo(ref JpegBlock8x8F block)
+    /// <summary>
+    /// 8x8 matrix of <see cref="short"/> coefficients.
+    /// </summary>
+    [StructLayout(LayoutKind.Explicit)]
+    public unsafe struct Block8x8
+    {
+        /// <summary>
+        /// A number of scalar coefficients in a <see cref="Block8x8F"/>
+        /// </summary>
+        public const int Size = 64;
+
+        /// <summary>
+        /// A placeholder buffer so the actual struct occupies exactly 64 * 2 bytes.
+        /// </summary>
+        /// <remarks>
+        /// This is not used directly in the code.
+        /// </remarks>
+        [FieldOffset(0)]
+        private fixed short data[Size];
+
+        internal void CopyTo(ref Block8x8F block)
         {
-            ref short srcRef = ref _data[0];
-            ref float destRef = ref Unsafe.As<JpegBlock8x8F, float>(ref block);
+            ref short srcRef = ref data[0];
+            ref float destRef = ref Unsafe.As<Block8x8F, float>(ref block);
             for (int i = 0; i < 64; i++)
             {
                 Unsafe.Add(ref destRef, i) = Unsafe.Add(ref srcRef, i);
             }
         }
 
-        internal void LoadFrom(ref JpegBlock8x8F block)
+        internal void LoadFrom(ref Block8x8F block)
         {
-            ref short destRef = ref _data[0];
-            ref float srcRef = ref Unsafe.As<JpegBlock8x8F, float>(ref block);
+            ref short destRef = ref data[0];
+            ref float srcRef = ref Unsafe.As<Block8x8F, float>(ref block);
             for (int i = 0; i < 64; i++)
             {
                 Unsafe.Add(ref destRef, i) = (short)Unsafe.Add(ref srcRef, i);
@@ -46,7 +65,7 @@ namespace JpegLibrary
                 {
                     ThrowArgumentOutOfRangeException(nameof(index));
                 }
-                ref short selfRef = ref Unsafe.As<JpegBlock8x8, short>(ref this);
+                ref short selfRef = ref Unsafe.As<Block8x8, short>(ref this);
                 return Unsafe.Add(ref selfRef, index);
             }
 
@@ -57,7 +76,7 @@ namespace JpegLibrary
                 {
                     ThrowArgumentOutOfRangeException(nameof(index));
                 }
-                ref short selfRef = ref Unsafe.As<JpegBlock8x8, short>(ref this);
+                ref short selfRef = ref Unsafe.As<Block8x8, short>(ref this);
                 Unsafe.Add(ref selfRef, index) = value;
             }
         }

@@ -47,13 +47,13 @@ namespace JpegLibrary.ScanDecoder
             throw new InvalidDataException($"Failed to decode JPEG data at offset {offset}. {message}");
         }
 
-        protected static void DequantizeBlockAndUnZigZag(JpegQuantizationTable quantizationTable, ref JpegBlock8x8 input, ref JpegBlock8x8F output)
+        protected static void DequantizeBlockAndUnZigZag(JpegQuantizationTable quantizationTable, ref Block8x8 input, ref Block8x8F output)
         {
             Debug.Assert(!quantizationTable.IsEmpty);
 
             ref ushort elementRef = ref MemoryMarshal.GetReference(quantizationTable.Elements);
-            ref short sourceRef = ref Unsafe.As<JpegBlock8x8, short>(ref input);
-            ref float destinationRef = ref Unsafe.As<JpegBlock8x8F, float>(ref output);
+            ref short sourceRef = ref Unsafe.As<Block8x8, short>(ref input);
+            ref float destinationRef = ref Unsafe.As<Block8x8F, float>(ref output);
 
             for (int i = 0; i < 64; i++)
             {
@@ -61,10 +61,10 @@ namespace JpegLibrary.ScanDecoder
             }
         }
 
-        protected static void ShiftDataLevel(ref JpegBlock8x8F source, ref JpegBlock8x8 destination, int levelShift)
+        protected static void ShiftDataLevel(ref Block8x8F source, ref Block8x8 destination, int levelShift)
         {
-            ref float sourceRef = ref Unsafe.As<JpegBlock8x8F, float>(ref source);
-            ref short destinationRef = ref Unsafe.As<JpegBlock8x8, short>(ref destination);
+            ref float sourceRef = ref Unsafe.As<Block8x8F, float>(ref source);
+            ref short destinationRef = ref Unsafe.As<Block8x8, short>(ref destination);
 
             for (int i = 0; i < 64; i++)
             {

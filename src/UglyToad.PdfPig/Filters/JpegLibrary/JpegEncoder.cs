@@ -1,8 +1,6 @@
 ﻿#nullable enable
 
-using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -439,9 +437,9 @@ namespace JpegLibrary
             int mcusPerColumn = (inputReader.Height + 8 * maxVerticalSampling - 1) / (8 * maxVerticalSampling);
             const int levelShift = 1 << (8 - 1);
 
-            Unsafe.SkipInit(out JpegBlock8x8F inputFBuffer);
-            Unsafe.SkipInit(out JpegBlock8x8F outputFBuffer);
-            Unsafe.SkipInit(out JpegBlock8x8F tempFBuffer);
+            Unsafe.SkipInit(out Block8x8F inputFBuffer);
+            Unsafe.SkipInit(out Block8x8F outputFBuffer);
+            Unsafe.SkipInit(out Block8x8F tempFBuffer);
 
             for (int rowMcu = 0; rowMcu < mcusPerColumn; rowMcu++)
             {
@@ -462,7 +460,7 @@ namespace JpegLibrary
                             int blockOffsetY = offsetY + y;
                             for (int x = 0; x < h; x++)
                             {
-                                ref JpegBlock8x8 blockRef = ref allocator.GetBlockReference(index, offsetX + x, blockOffsetY);
+                                ref Block8x8 blockRef = ref allocator.GetBlockReference(index, offsetX + x, blockOffsetY);
 
                                 // Read Block
                                 ReadBlock(inputReader, out blockRef, component.Index, (offsetX + x) * 8 * hs, blockOffsetY * 8 * vs, hs, vs);
@@ -526,7 +524,7 @@ namespace JpegLibrary
                             int blockOffsetY = offsetY + y;
                             for (int x = 0; x < h; x++)
                             {
-                                ref JpegBlock8x8 blockRef = ref allocator.GetBlockReference(index, offsetX + x, blockOffsetY);
+                                ref Block8x8 blockRef = ref allocator.GetBlockReference(index, offsetX + x, blockOffsetY);
 
                                 GatherBlockStatistics(component, ref blockRef);
                             }
@@ -548,9 +546,9 @@ namespace JpegLibrary
             }
         }
 
-        private static void GatherBlockStatistics(JpegHuffmanEncodingComponent component, ref JpegBlock8x8 block)
+        private static void GatherBlockStatistics(JpegHuffmanEncodingComponent component, ref Block8x8 block)
         {
-            ref short blockRef = ref Unsafe.As<JpegBlock8x8, short>(ref block);
+            ref short blockRef = ref Unsafe.As<Block8x8, short>(ref block);
 
             // DC
             int blockValue = blockRef;
@@ -642,7 +640,7 @@ namespace JpegLibrary
                             int blockOffsetY = offsetY + y;
                             for (int x = 0; x < h; x++)
                             {
-                                ref JpegBlock8x8 blockRef = ref allocator.GetBlockReference(index, offsetX + x, blockOffsetY);
+                                ref Block8x8 blockRef = ref allocator.GetBlockReference(index, offsetX + x, blockOffsetY);
 
                                 EncodeBlock(ref writer, component, ref blockRef);
                             }
@@ -691,9 +689,9 @@ namespace JpegLibrary
 
             const int levelShift = 1 << (8 - 1);
 
-            Unsafe.SkipInit(out JpegBlock8x8F inputFBuffer);
-            Unsafe.SkipInit(out JpegBlock8x8F outputFBuffer);
-            Unsafe.SkipInit(out JpegBlock8x8F tempFBuffer);
+            Unsafe.SkipInit(out Block8x8F inputFBuffer);
+            Unsafe.SkipInit(out Block8x8F outputFBuffer);
+            Unsafe.SkipInit(out Block8x8F tempFBuffer);
 
 
             for (int rowMcu = 0; rowMcu < mcusPerColumn; rowMcu++)
@@ -717,7 +715,7 @@ namespace JpegLibrary
                             for (int x = 0; x < h; x++)
                             {
                                 // Read Block
-                                ReadBlock(inputReader, out JpegBlock8x8 inputBuffer, component.Index, (offsetX + x) * 8, blockOffsetY, hs, vs);
+                                ReadBlock(inputReader, out Block8x8 inputBuffer, component.Index, (offsetX + x) * 8, blockOffsetY, hs, vs);
 
                                 // Level shift
                                 ShiftDataLevel(ref inputBuffer, ref inputFBuffer, levelShift);
@@ -740,9 +738,9 @@ namespace JpegLibrary
             writer.ExitBitMode();
         }
 
-        private static void ReadBlock(JpegBlockInputReader inputReader, out JpegBlock8x8 block, int componentIndex, int x, int y, int h, int v)
+        private static void ReadBlock(JpegBlockInputReader inputReader, out Block8x8 block, int componentIndex, int x, int y, int h, int v)
         {
-            ref short blockRef = ref Unsafe.As<JpegBlock8x8, short>(ref block);
+            ref short blockRef = ref Unsafe.As<Block8x8, short>(ref block);
 
             if (h == 1 && v == 1)
             {
@@ -755,9 +753,9 @@ namespace JpegLibrary
 
         private static void ReadBlockWithSubsample(JpegBlockInputReader inputReader, ref short blockRef, int componentIndex, int x, int y, int horizontalSubsampling, int verticalSubsampling)
         {
-            Unsafe.SkipInit(out JpegBlock8x8 temp);
+            Unsafe.SkipInit(out Block8x8 temp);
 
-            ref short tempRef = ref Unsafe.As<JpegBlock8x8, short>(ref temp);
+            ref short tempRef = ref Unsafe.As<Block8x8, short>(ref temp);
 
             int hShift = JpegMathHelper.Log2((uint)horizontalSubsampling);
             int vShift = JpegMathHelper.Log2((uint)verticalSubsampling);
@@ -798,10 +796,10 @@ namespace JpegLibrary
             }
         }
 
-        private static void ShiftDataLevel(ref JpegBlock8x8 source, ref JpegBlock8x8F destination, int levelShift)
+        private static void ShiftDataLevel(ref Block8x8 source, ref Block8x8F destination, int levelShift)
         {
-            ref short sourceRef = ref Unsafe.As<JpegBlock8x8, short>(ref source);
-            ref float destinationRef = ref Unsafe.As<JpegBlock8x8F, float>(ref destination);
+            ref short sourceRef = ref Unsafe.As<Block8x8, short>(ref source);
+            ref float destinationRef = ref Unsafe.As<Block8x8F, float>(ref destination);
 
             for (int i = 0; i < 64; i++)
             {
@@ -809,13 +807,13 @@ namespace JpegLibrary
             }
         }
 
-        private static void ZigZagAndQuantizeBlock(JpegQuantizationTable quantizationTable, ref JpegBlock8x8F input, ref JpegBlock8x8 output)
+        private static void ZigZagAndQuantizeBlock(JpegQuantizationTable quantizationTable, ref Block8x8F input, ref Block8x8 output)
         {
             Debug.Assert(!quantizationTable.IsEmpty);
 
             ref ushort elementRef = ref MemoryMarshal.GetReference(quantizationTable.Elements);
-            ref float sourceRef = ref Unsafe.As<JpegBlock8x8F, float>(ref input);
-            ref short destinationRef = ref Unsafe.As<JpegBlock8x8, short>(ref output);
+            ref float sourceRef = ref Unsafe.As<Block8x8F, float>(ref input);
+            ref short destinationRef = ref Unsafe.As<Block8x8, short>(ref output);
 
             for (int i = 0; i < 64; i++)
             {
@@ -825,9 +823,9 @@ namespace JpegLibrary
             }
         }
 
-        private static void EncodeBlock(ref JpegWriter writer, JpegHuffmanEncodingComponent component, ref JpegBlock8x8 block)
+        private static void EncodeBlock(ref JpegWriter writer, JpegHuffmanEncodingComponent component, ref Block8x8 block)
         {
-            ref short blockRef = ref Unsafe.As<JpegBlock8x8, short>(ref block);
+            ref short blockRef = ref Unsafe.As<Block8x8, short>(ref block);
 
             Debug.Assert(component.DcTable is not null);
             Debug.Assert(component.AcTable is not null);

@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 namespace JpegLibrary
 {
     /// <summary>
-    /// The allocator for <see cref="JpegBlock8x8"/>.
+    /// The allocator for <see cref="Block8x8"/>.
     /// </summary>
     public sealed class JpegBlockAllocator : IDisposable
     {
@@ -78,7 +78,7 @@ namespace JpegLibrary
                 index += componentAllocations[i].HorizontalComponentBlock * componentAllocations[i].VerticalComponentBlock;
             }
 
-            int length = index * Unsafe.SizeOf<JpegBlock8x8>();
+            int length = index * Unsafe.SizeOf<Block8x8>();
             IMemoryOwner<byte> bufferHandle = _bufferHandle = _memoryPool.Rent(length);
             bufferHandle.Memory.Span.Slice(0, length).Clear();
         }
@@ -90,7 +90,7 @@ namespace JpegLibrary
         /// <param name="blockX">The offset of blocks in the horizontal orientation.</param>
         /// <param name="blockY">The offset of blocks in the vertical orientation.</param>
         /// <returns>The reference to the block.</returns>
-        public ref JpegBlock8x8 GetBlockReference(int componentIndex, int blockX, int blockY)
+        public ref Block8x8 GetBlockReference(int componentIndex, int blockX, int blockY)
         {
             ComponentAllocation[]? components = _components;
             if (components is null)
@@ -104,7 +104,7 @@ namespace JpegLibrary
             }
             ComponentAllocation component = components[componentIndex];
 
-            ref JpegBlock8x8 blockRef = ref Unsafe.As<byte, JpegBlock8x8>(ref MemoryMarshal.GetReference(_bufferHandle!.Memory.Span));
+            ref Block8x8 blockRef = ref Unsafe.As<byte, Block8x8>(ref MemoryMarshal.GetReference(_bufferHandle!.Memory.Span));
             if (blockX >= component.HorizontalComponentBlock || blockY >= component.VerticalComponentBlock)
             {
                 return ref blockRef;
@@ -134,23 +134,23 @@ namespace JpegLibrary
             for (int i = 0; i < components.Length; i++)
             {
                 ComponentAllocation component = components[i];
-                ref JpegBlock8x8 componentBlockRef = ref Unsafe.Add(ref Unsafe.As<byte, JpegBlock8x8>(ref MemoryMarshal.GetReference(_bufferHandle!.Memory.Span)), component.ComponentBlockOffset);
+                ref Block8x8 componentBlockRef = ref Unsafe.Add(ref Unsafe.As<byte, Block8x8>(ref MemoryMarshal.GetReference(_bufferHandle!.Memory.Span)), component.ComponentBlockOffset);
 
                 for (int row = 0; row < component.VerticalComponentBlock; row++)
                 {
-                    ref JpegBlock8x8 rowRef = ref Unsafe.Add(ref componentBlockRef, row * component.HorizontalComponentBlock);
+                    ref Block8x8 rowRef = ref Unsafe.Add(ref componentBlockRef, row * component.HorizontalComponentBlock);
                     for (int col = 0; col < component.HorizontalComponentBlock; col++)
                     {
-                        ref JpegBlock8x8 blockRef = ref Unsafe.Add(ref rowRef, col);
+                        ref Block8x8 blockRef = ref Unsafe.Add(ref rowRef, col);
                         WriteBlock(outputWriter, blockRef, i, col * component.HorizontalSubsamplingFactor * 8, row * component.VerticalSubsamplingFactor * 8, component.HorizontalSubsamplingFactor, component.VerticalSubsamplingFactor);
                     }
                 }
             }
         }
 
-        private static void WriteBlock(JpegBlockOutputWriter outputWriter, in JpegBlock8x8 block, int componentIndex, int x, int y, int horizontalSamplingFactor, int verticalSamplingFactor)
+        private static void WriteBlock(JpegBlockOutputWriter outputWriter, in Block8x8 block, int componentIndex, int x, int y, int horizontalSamplingFactor, int verticalSamplingFactor)
         {
-            ref short blockRef = ref Unsafe.As<JpegBlock8x8, short>(ref Unsafe.AsRef(block));
+            ref short blockRef = ref Unsafe.As<Block8x8, short>(ref Unsafe.AsRef(block));
 
             if (horizontalSamplingFactor == 1 && verticalSamplingFactor == 1)
             {
@@ -158,12 +158,12 @@ namespace JpegLibrary
             }
             else
             {
-                Unsafe.SkipInit(out JpegBlock8x8 tempBlock);
+                Unsafe.SkipInit(out Block8x8 tempBlock);
 
                 int hShift = JpegMathHelper.Log2((uint)horizontalSamplingFactor);
                 int vShift = JpegMathHelper.Log2((uint)verticalSamplingFactor);
 
-                ref short tempRef = ref Unsafe.As<JpegBlock8x8, short>(ref Unsafe.AsRef(tempBlock));
+                ref short tempRef = ref Unsafe.As<Block8x8, short>(ref Unsafe.AsRef(tempBlock));
 
                 for (int v = 0; v < verticalSamplingFactor; v++)
                 {

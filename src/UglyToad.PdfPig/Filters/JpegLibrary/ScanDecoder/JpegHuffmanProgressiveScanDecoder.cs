@@ -122,7 +122,7 @@ namespace JpegLibrary.ScanDecoder
                             int blockOffsetY = offsetY + y;
                             for (int x = 0; x < h; x++)
                             {
-                                ref JpegBlock8x8 blockRef = ref allocator.GetBlockReference(index, offsetX + x, blockOffsetY);
+                                ref Block8x8 blockRef = ref allocator.GetBlockReference(index, offsetX + x, blockOffsetY);
 
                                 ReadBlockProgressiveDC(ref bitReader, component, scanHeader, ref blockRef);
                             }
@@ -157,7 +157,7 @@ namespace JpegLibrary.ScanDecoder
                 {
                     for (int blockX = 0; blockX < horizontalBlockCount; blockX++)
                     {
-                        ref JpegBlock8x8 blockRef = ref allocator.GetBlockReference(componentIndex, blockX, blockY);
+                        ref Block8x8 blockRef = ref allocator.GetBlockReference(componentIndex, blockX, blockY);
 
                         ReadBlockProgressiveDC(ref bitReader, component, scanHeader, ref blockRef);
 
@@ -180,7 +180,7 @@ namespace JpegLibrary.ScanDecoder
                 {
                     for (int blockX = 0; blockX < horizontalBlockCount; blockX++)
                     {
-                        ref JpegBlock8x8 blockRef = ref allocator.GetBlockReference(componentIndex, blockX, blockY);
+                        ref Block8x8 blockRef = ref allocator.GetBlockReference(componentIndex, blockX, blockY);
 
                         ReadBlockProgressiveAC(ref bitReader, acTable, scanHeader, ref _eobrun, ref blockRef);
 
@@ -224,9 +224,9 @@ namespace JpegLibrary.ScanDecoder
         }
 
 
-        private static void ReadBlockProgressiveDC(ref JpegBitReader reader, JpegHuffmanDecodingComponent component, JpegScanHeader scanHeader, ref JpegBlock8x8 destinationBlock)
+        private static void ReadBlockProgressiveDC(ref JpegBitReader reader, JpegHuffmanDecodingComponent component, JpegScanHeader scanHeader, ref Block8x8 destinationBlock)
         {
-            ref short blockDataRef = ref Unsafe.As<JpegBlock8x8, short>(ref destinationBlock);
+            ref short blockDataRef = ref Unsafe.As<Block8x8, short>(ref destinationBlock);
 
             if (scanHeader.SuccessiveApproximationBitPositionHigh == 0)
             {
@@ -252,9 +252,9 @@ namespace JpegLibrary.ScanDecoder
             }
         }
 
-        private static void ReadBlockProgressiveAC(ref JpegBitReader reader, JpegHuffmanDecodingTable acTable, JpegScanHeader scanHeader, ref int eobrun, ref JpegBlock8x8 destinationBlock)
+        private static void ReadBlockProgressiveAC(ref JpegBitReader reader, JpegHuffmanDecodingTable acTable, JpegScanHeader scanHeader, ref int eobrun, ref Block8x8 destinationBlock)
         {
-            ref short blockDataRef = ref Unsafe.As<JpegBlock8x8, short>(ref destinationBlock);
+            ref short blockDataRef = ref Unsafe.As<Block8x8, short>(ref destinationBlock);
 
             if (scanHeader.SuccessiveApproximationBitPositionHigh == 0)
             {
@@ -427,9 +427,9 @@ namespace JpegLibrary.ScanDecoder
             int levelShift = _levelShift;
             JpegHuffmanDecodingComponent[] components = _components;
 
-            Unsafe.SkipInit(out JpegBlock8x8F blockFBuffer);
-            Unsafe.SkipInit(out JpegBlock8x8F outputFBuffer);
-            Unsafe.SkipInit(out JpegBlock8x8F tempFBuffer);
+            Unsafe.SkipInit(out Block8x8F blockFBuffer);
+            Unsafe.SkipInit(out Block8x8F outputFBuffer);
+            Unsafe.SkipInit(out Block8x8F tempFBuffer);
 
             for (int rowMcu = 0; rowMcu < mcusPerColumn; rowMcu++)
             {
@@ -449,7 +449,7 @@ namespace JpegLibrary.ScanDecoder
                             int blockOffsetY = offsetY + y;
                             for (int x = 0; x < h; x++)
                             {
-                                ref JpegBlock8x8 blockRef = ref allocator.GetBlockReference(index, offsetX + x, blockOffsetY);
+                                ref Block8x8 blockRef = ref allocator.GetBlockReference(index, offsetX + x, blockOffsetY);
 
                                 // Dequantization
                                 DequantizeBlockAndUnZigZag(component.QuantizationTable, ref blockRef, ref blockFBuffer);

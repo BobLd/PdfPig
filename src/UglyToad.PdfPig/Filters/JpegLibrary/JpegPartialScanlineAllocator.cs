@@ -1,6 +1,5 @@
 ﻿#nullable enable
 
-using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -120,7 +119,7 @@ namespace JpegLibrary
                 return;
             }
 
-            Unsafe.SkipInit(out JpegBlock8x8 block);
+            Unsafe.SkipInit(out Block8x8 block);
             JpegBlockOutputWriter? outputWriter = _writer;
             Debug.Assert(outputWriter is not null);
 
@@ -136,7 +135,7 @@ namespace JpegLibrary
                 int writeWidth = Math.Min(width - x, 8);
 
                 ref short componentRowColRef = ref Unsafe.Add(ref componentSampleRef, x);
-                ref short blockRef = ref Unsafe.As<JpegBlock8x8, short>(ref block);
+                ref short blockRef = ref Unsafe.As<Block8x8, short>(ref block);
 
                 if (writeHeight == 8 && writeWidth == 8)
                 {
@@ -180,9 +179,9 @@ namespace JpegLibrary
             }
         }
 
-        private static void WriteBlock(JpegBlockOutputWriter outputWriter, in JpegBlock8x8 block, int componentIndex, int x, int y, int horizontalSamplingFactor, int verticalSamplingFactor)
+        private static void WriteBlock(JpegBlockOutputWriter outputWriter, in Block8x8 block, int componentIndex, int x, int y, int horizontalSamplingFactor, int verticalSamplingFactor)
         {
-            ref short blockRef = ref Unsafe.As<JpegBlock8x8, short>(ref Unsafe.AsRef(block));
+            ref short blockRef = ref Unsafe.As<Block8x8, short>(ref Unsafe.AsRef(block));
 
             if (horizontalSamplingFactor == 1 && verticalSamplingFactor == 1)
             {
@@ -190,12 +189,12 @@ namespace JpegLibrary
             }
             else
             {
-                Unsafe.SkipInit(out JpegBlock8x8 tempBlock);
+                Unsafe.SkipInit(out Block8x8 tempBlock);
 
                 int hShift = JpegMathHelper.Log2((uint)horizontalSamplingFactor);
                 int vShift = JpegMathHelper.Log2((uint)verticalSamplingFactor);
 
-                ref short tempRef = ref Unsafe.As<JpegBlock8x8, short>(ref Unsafe.AsRef(tempBlock));
+                ref short tempRef = ref Unsafe.As<Block8x8, short>(ref Unsafe.AsRef(tempBlock));
 
                 for (int v = 0; v < verticalSamplingFactor; v++)
                 {
