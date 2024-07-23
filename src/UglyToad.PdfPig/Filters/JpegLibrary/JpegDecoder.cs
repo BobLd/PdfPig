@@ -1,10 +1,8 @@
 ﻿#nullable enable
 
 using JpegLibrary.ScanDecoder;
-using System;
 using System.Buffers;
 using System.Buffers.Binary;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;

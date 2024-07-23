@@ -1,6 +1,5 @@
 ﻿// Based on https://github.com/yigolden/JpegLibrary/blob/main/apps/JpegDecode/JpegBufferOutputWriter8Bit.cs
 
-using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 

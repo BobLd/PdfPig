@@ -1,6 +1,5 @@
 ﻿// Based on https://github.com/yigolden/JpegLibrary/blob/main/apps/JpegDecode/JpegYCbCrToRgbConverter.cs
 
-using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;

@@ -1,8 +1,5 @@
 ﻿#nullable enable
 
-using System;
-using System.Collections.Generic;
-
 namespace JpegLibrary
 {
     internal struct JpegHuffmanEncodingTableCollection
