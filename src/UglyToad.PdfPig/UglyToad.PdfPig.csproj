@@ -23,6 +23,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\pdfpig.snk" Link="pdfpig.snk" />
+    <None Include="Filters\JpegLibrary\JpegLibrary.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0">
