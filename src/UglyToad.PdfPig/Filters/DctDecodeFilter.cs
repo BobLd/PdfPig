@@ -17,7 +17,7 @@
             var decoder = new JpegDecoder();
             decoder.SetInput(input.ToArray());
             decoder.Identify();
-
+            
             int width = decoder.Width;
             int height = decoder.Height;
 
