@@ -1,6 +1,7 @@
 ﻿namespace UglyToad.PdfPig.DocumentLayoutAnalysis
 {
     using System;
+    using System.Buffers;
     using System.Collections.Generic;
     using System.Linq;
     using UglyToad.PdfPig.Core;
@@ -54,8 +55,8 @@
     /// <typeparam name="T"></typeparam>
     public class KdTree<T>
     {
-        private readonly KdTreeComparerY kdTreeComparerY = new KdTreeComparerY();
-        private readonly KdTreeComparerX kdTreeComparerX = new KdTreeComparerX();
+        private static readonly KdTreeComparerY ComparerY = new KdTreeComparerY();
+        private static readonly KdTreeComparerX ComparerX = new KdTreeComparerX();
 
         /// <summary>
         /// The root of the tree.
@@ -81,19 +82,26 @@
 
             Count = elements.Count;
 
-            KdTreeElement<T>[] array = new KdTreeElement<T>[Count];
+            KdTreeElement<T>[] array = ArrayPool<KdTreeElement<T>>.Shared.Rent(Count);
 
-            for (int i = 0; i < Count; i++)
+            try
             {
-                var el = elements[i];
-                array[i] = new KdTreeElement<T>(i, elementsPointFunc(el), el);
-            }
+                for (int i = 0; i < Count; i++)
+                {
+                    var el = elements[i];
+                    array[i] = new KdTreeElement<T>(i, elementsPointFunc(el), el);
+                }
 
 #if NET6_0_OR_GREATER
-            Root = BuildTree(new Span<KdTreeElement<T>>(array));
+                Root = BuildTree(array.AsSpan().Slice(0, Count));
 #else
-            Root = BuildTree(new ArraySegment<KdTreeElement<T>>(array));
+            Root = BuildTree(new ArraySegment<KdTreeElement<T>>(array)); // TODO - Slice
 #endif
+            }
+            finally
+            {
+                ArrayPool<KdTreeElement<T>>.Shared.Return(array);
+            }
         }
 
 #if NET6_0_OR_GREATER
@@ -111,11 +119,11 @@
 
             if (depth % 2 == 0)
             {
-                P.Sort(kdTreeComparerX);
+                P.Sort(ComparerX);
             }
             else
             {
-                P.Sort(kdTreeComparerY);
+                P.Sort(ComparerY);
             }
 
             if (P.Length == 2)

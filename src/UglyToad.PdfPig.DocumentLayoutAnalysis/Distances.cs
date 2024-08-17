@@ -169,12 +169,11 @@
 
             distance = double.MaxValue;
             int closestPointIndex = -1;
-            var candidatesPoints = candidates.Select(candidatePoint).ToList();
             var pivot = pivotPoint(element);
 
             for (var i = 0; i < candidates.Count; i++)
             {
-                double currentDistance = distanceMeasure(pivot, candidatesPoints[i]);
+                double currentDistance = distanceMeasure(pivot, candidatePoint(candidates[i]));
                 if (currentDistance < distance && !candidates[i].Equals(element))
                 {
                     distance = currentDistance;
@@ -211,12 +210,12 @@
 
             distance = double.MaxValue;
             int closestLineIndex = -1;
-            var candidatesLines = candidates.Select(candidateLine).ToList();
+
             var pivot = pivotLine(element);
 
             for (var i = 0; i < candidates.Count; i++)
             {
-                double currentDistance = distanceMeasure(pivot, candidatesLines[i]);
+                double currentDistance = distanceMeasure(pivot, candidateLine(candidates[i]));
                 if (currentDistance < distance && !candidates[i].Equals(element))
                 {
                     distance = currentDistance;
