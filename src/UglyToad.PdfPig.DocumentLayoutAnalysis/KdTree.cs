@@ -105,7 +105,7 @@
         }
 
 #if NET6_0_OR_GREATER
-        private KdTreeNode<T> BuildTree(Span<KdTreeElement<T>> P, int depth = 0)
+        private static KdTreeNode<T> BuildTree(Span<KdTreeElement<T>> P, int depth = 0)
         {
             if (P.Length == 0)
             {
@@ -139,7 +139,7 @@
             return new KdTreeNode<T>(vLeft, vRight, P[median], depth);
         }
 #else
-        private KdTreeNode<T> BuildTree(ArraySegment<KdTreeElement<T>> P, int depth = 0)
+        private static KdTreeNode<T> BuildTree(ArraySegment<KdTreeElement<T>> P, int depth = 0)
         {
             if (P.Count == 0)
             {
@@ -276,12 +276,12 @@
         public IReadOnlyList<(T, int, double)> FindNearestNeighbours(T pivot, int k, Func<T, PdfPoint> pivotPointFunc, Func<PdfPoint, PdfPoint, double> distanceMeasure)
         {
             var kdTreeNodes = new KNearestNeighboursQueue(k);
-            FindNearestNeighbours(Root, pivot, k, pivotPointFunc, distanceMeasure, kdTreeNodes);
+            FindNearestNeighbours(Root, pivot, k, pivotPointFunc, distanceMeasure, ref kdTreeNodes);
             return kdTreeNodes.SelectMany(n => n.Value.Select(e => (e.Element, e.Index, n.Key))).ToArray();
         }
 
         private static (KdTreeNode<T>, double) FindNearestNeighbours(KdTreeNode<T> node, T pivot, int k,
-            Func<T, PdfPoint> pivotPointFunc, Func<PdfPoint, PdfPoint, double> distance, KNearestNeighboursQueue queue)
+            Func<T, PdfPoint> pivotPointFunc, Func<PdfPoint, PdfPoint, double> distance, ref KNearestNeighboursQueue queue)
         {
             if (node == null)
             {
@@ -326,7 +326,7 @@
                 if (pointValue < node.L)
                 {
                     // start left
-                    (newNode, newDist) = FindNearestNeighbours(node.LeftChild, pivot, k, pivotPointFunc, distance, queue);
+                    (newNode, newDist) = FindNearestNeighbours(node.LeftChild, pivot, k, pivotPointFunc, distance, ref queue);
 
                     if (!double.IsNaN(newDist) && newDist <= currentDistance && !newNode.Element.Equals(pivot))
                     {
@@ -337,13 +337,13 @@
 
                     if (node.RightChild != null && pointValue + currentDistance >= node.L)
                     {
-                        (newNode, newDist) = FindNearestNeighbours(node.RightChild, pivot, k, pivotPointFunc, distance, queue);
+                        (newNode, newDist) = FindNearestNeighbours(node.RightChild, pivot, k, pivotPointFunc, distance, ref queue);
                     }
                 }
                 else
                 {
                     // start right
-                    (newNode, newDist) = FindNearestNeighbours(node.RightChild, pivot, k, pivotPointFunc, distance, queue);
+                    (newNode, newDist) = FindNearestNeighbours(node.RightChild, pivot, k, pivotPointFunc, distance, ref queue);
 
                     if (!double.IsNaN(newDist) && newDist <= currentDistance && !newNode.Element.Equals(pivot))
                     {
@@ -354,7 +354,7 @@
 
                     if (node.LeftChild != null && pointValue - currentDistance <= node.L)
                     {
-                        (newNode, newDist) = FindNearestNeighbours(node.LeftChild, pivot, k, pivotPointFunc, distance, queue);
+                        (newNode, newDist) = FindNearestNeighbours(node.LeftChild, pivot, k, pivotPointFunc, distance, ref queue);
                     }
                 }
 
@@ -369,19 +369,19 @@
             }
         }
 
-        private class KNearestNeighboursQueue : SortedList<double, HashSet<KdTreeNode<T>>>
+        private sealed class KNearestNeighboursQueue : SortedList<double, HashSet<KdTreeNode<T>>>
         {
-            public readonly int K;
+            private readonly int k;
 
             public KdTreeNode<T> LastElement { get; private set; }
 
             public double LastDistance { get; private set; }
 
-            public bool IsFull => Count >= K;
+            public bool IsFull => Count >= k;
 
             public KNearestNeighboursQueue(int k) : base(k)
             {
-                K = k;
+                this.k = k;
                 LastDistance = double.PositiveInfinity;
             }
 
@@ -395,7 +395,7 @@
                 if (!ContainsKey(key))
                 {
                     base.Add(key, new HashSet<KdTreeNode<T>>());
-                    if (Count > K)
+                    if (Count > k)
                     {
                         RemoveAt(Count - 1);
                     }
@@ -447,7 +447,7 @@
         /// K-D tree leaf.
         /// </summary>
         /// <typeparam name="Q"></typeparam>
-        public class KdTreeLeaf<Q> : KdTreeNode<Q>
+        public sealed class KdTreeLeaf<Q> : KdTreeNode<Q>
         {
             /// <summary>
             /// Return true if leaf.
@@ -538,7 +538,7 @@
                 return leaves;
             }
 
-            private void RecursiveGetLeaves(KdTreeNode<Q> leaf, ref List<KdTreeLeaf<Q>> leaves)
+            private static void RecursiveGetLeaves(KdTreeNode<Q> leaf, ref List<KdTreeLeaf<Q>> leaves)
             {
                 if (leaf == null)
                 {

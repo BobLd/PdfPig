@@ -1,6 +1,7 @@
 ﻿namespace UglyToad.PdfPig.Fonts.TrueType
 {
     using System;
+    using System.Buffers;
     using System.Buffers.Binary;
     using System.Text;
     using Core;
@@ -105,17 +106,32 @@
                 return false;
             }
 
-            Span<byte> data = bytesToRead <= 64
-                ? stackalloc byte[bytesToRead]
-                : new byte[bytesToRead];
+            const int maxStackSize = 64;
 
-            if (ReadBuffered(data))
+            byte[]? rentedFromPool = null;
+            Span<byte> buffer = bytesToRead <= maxStackSize
+                ? stackalloc byte[maxStackSize]
+                : rentedFromPool = ArrayPool<byte>.Shared.Rent(bytesToRead);
+
+            Span<byte> data = buffer.Slice(0, bytesToRead);
+
+            try
             {
-                result = encoding.GetString(data);
-                return true;
-            }
+                if (ReadBuffered(data))
+                {
+                    result = encoding.GetString(data);
+                    return true;
+                }
 
-            return false;
+                return false;
+            }
+            finally
+            {
+                if (rentedFromPool is not null)
+                {
+                    ArrayPool<byte>.Shared.Return(rentedFromPool);
+                }
+            }
         }
 
         /// <summary>
