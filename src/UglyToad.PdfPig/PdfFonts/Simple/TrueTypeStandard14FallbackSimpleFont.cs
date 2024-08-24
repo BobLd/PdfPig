@@ -24,19 +24,23 @@
         private readonly TrueTypeFont font;
         private readonly MetricOverrides overrides;
 
+        public string Key { get; }
+
         public NameToken? Name { get; }
 
         public bool IsVertical { get; } = false;
 
         public FontDetails Details { get; set; }
 
-        public TrueTypeStandard14FallbackSimpleFont(NameToken name, AdobeFontMetrics fontMetrics, Encoding encoding, TrueTypeFont font,
-            MetricOverrides overrides)
+        public TrueTypeStandard14FallbackSimpleFont(string key, NameToken name, AdobeFontMetrics fontMetrics,
+            Encoding encoding, TrueTypeFont font, MetricOverrides overrides)
         {
             this.fontMetrics = fontMetrics;
             this.encoding = encoding ?? throw new ArgumentNullException(nameof(encoding));
             this.font = font;
             this.overrides = overrides;
+
+            Key = key;
             Name = name;
             Details = fontMetrics is null ? FontDetails.GetDefault(Name?.Data) : new FontDetails(Name?.Data,
                 fontMetrics.Weight == "Bold",

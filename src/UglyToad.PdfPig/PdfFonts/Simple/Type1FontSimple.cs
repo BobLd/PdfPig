@@ -37,6 +37,8 @@
 
         private readonly TransformationMatrix fontMatrix;
 
+        public string Key { get; }
+
         public NameToken Name { get; }
 
         public bool IsVertical { get; } = false;
@@ -44,6 +46,7 @@
         public FontDetails Details { get; }
 
         public Type1FontSimple(
+            string key,
             NameToken name,
             int firstChar,
             int lastChar,
@@ -77,6 +80,7 @@
 
             fontMatrix = matrix;
 
+            Key = key;
             Name = name;
             Details = fontDescriptor?.ToDetails(name?.Data)
                       ?? FontDetails.GetDefault(name?.Data);

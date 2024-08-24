@@ -31,6 +31,8 @@
 
         private readonly double[] widths;
 
+        public string Key { get; }
+
 #nullable disable
         public NameToken Name { get; }
 #nullable enable
@@ -42,6 +44,7 @@
         public ToUnicodeCMap ToUnicode { get; set; }
 
         public TrueTypeSimpleFont(
+            string key,
             NameToken name,
             FontDescriptor? descriptor,
             CMap? toUnicodeCMap,
@@ -56,6 +59,7 @@
             this.firstCharacter = firstCharacter;
             this.widths = widths;
 
+            Key = key;
             Name = name;
             IsVertical = false;
             ToUnicode = new ToUnicodeCMap(toUnicodeCMap);

@@ -19,6 +19,8 @@
         private readonly double[] widths;
         private readonly ToUnicodeCMap toUnicodeCMap;
 
+        public string Key { get; }
+
         /// <summary>
         /// Type 3 fonts are usually unnamed.
         /// </summary>
@@ -28,10 +30,11 @@
 
         public FontDetails Details { get; }
 
-        public Type3Font(NameToken name, PdfRectangle boundingBox, TransformationMatrix fontMatrix,
-            Encoding encoding, int firstChar, int lastChar, double[] widths,
-            CMap toUnicodeCMap)
+        public Type3Font(string key, NameToken name, PdfRectangle boundingBox,
+            TransformationMatrix fontMatrix, Encoding encoding, int firstChar,
+            int lastChar, double[] widths, CMap toUnicodeCMap)
         {
+            Key = key;
             Name = name;
 
             this.boundingBox = boundingBox;

@@ -11,6 +11,11 @@
     public interface IFont
     {
         /// <summary>
+        /// A unique key to identify different fonts that have the same public properties (e.g. subsets).
+        /// </summary>
+        string Key { get; }
+
+        /// <summary>
         /// The font name.
         /// </summary>
         NameToken? Name { get; }

@@ -47,7 +47,7 @@
             this.pdfScanner = pdfScanner;
         }
 
-        public IFont Generate(DictionaryToken dictionary)
+        public IFont Generate(string key, DictionaryToken dictionary)
         {
             if (!dictionary.TryGetOptionalTokenDirect(NameToken.FirstChar, pdfScanner, out NumericToken? firstCharacterToken)
                 || !dictionary.TryGet<IToken>(NameToken.FontDescriptor, pdfScanner, out _)
@@ -89,7 +89,7 @@
                         .Select(x => x.Double).ToArray();
                 }
 
-                return new TrueTypeStandard14FallbackSimpleFont(baseFont, standard14Font, thisEncoding, fileSystemFont,
+                return new TrueTypeStandard14FallbackSimpleFont(key, baseFont, standard14Font, thisEncoding, fileSystemFont,
                     new TrueTypeStandard14FallbackSimpleFont.MetricOverrides(firstChar, widthsOverride));
             }
 
@@ -103,7 +103,7 @@
 
             if (font is null && actualHandler != null)
             {
-                return actualHandler.Generate(dictionary);
+                return actualHandler.Generate(key, dictionary);
             }
 
             var name = FontDictionaryAccessHelper.GetName(pdfScanner, dictionary, descriptor);
@@ -156,7 +156,7 @@
                 encoding = new BuiltInEncoding(fakeEncoding);
             }
 
-            return new TrueTypeSimpleFont(name, descriptor, toUnicodeCMap, encoding, font, firstCharacter, widths);
+            return new TrueTypeSimpleFont(key, name, descriptor, toUnicodeCMap, encoding, font, firstCharacter, widths);
         }
 
         private TrueTypeFont? ParseTrueTypeFont(FontDescriptor descriptor, [NotNullWhen(true)] out IFontHandler? actualHandler)

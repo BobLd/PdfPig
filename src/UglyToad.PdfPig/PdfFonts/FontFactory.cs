@@ -26,7 +26,7 @@
             };
         }
 
-        public IFont Get(DictionaryToken dictionary)
+        public IFont Get(string key, DictionaryToken dictionary)
         {
             var type = dictionary.GetNameOrDefault(NameToken.Type);
 
@@ -41,7 +41,7 @@
 
             if (subtype != null && handlers.TryGetValue(subtype, out var handler))
             {
-                return handler.Generate(dictionary);
+                return handler.Generate(key, dictionary);
             }
 
             throw new NotImplementedException($"Parsing not implemented for fonts of type: {subtype}, please submit a pull request or an issue.");

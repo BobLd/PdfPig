@@ -288,7 +288,7 @@
 
         private class TestFontFactory : IFontFactory
         {
-            public IFont Get(DictionaryToken dictionary)
+            public IFont Get(string key, DictionaryToken dictionary)
             {
                 return null;
             }

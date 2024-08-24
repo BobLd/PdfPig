@@ -34,7 +34,7 @@
             this.logger = logger;
         }
 
-        public IFont Generate(DictionaryToken dictionary)
+        public IFont Generate(string key, DictionaryToken dictionary)
         {
             var baseFont = dictionary.GetNameOrDefault(NameToken.BaseFont);
 
@@ -91,9 +91,7 @@
                 }
             }
 
-            var font = new Type0Font(baseFont!, cidFont, cMap, toUnicodeCMap, ucs2CMap, isChineseJapaneseOrKorean);
-
-            return font;
+            return new Type0Font(key, baseFont!, cidFont, cMap, toUnicodeCMap, ucs2CMap, isChineseJapaneseOrKorean);
         }
 
         private static bool TryGetFirstDescendant(DictionaryToken dictionary, [NotNullWhen(true)] out IToken? descendant)

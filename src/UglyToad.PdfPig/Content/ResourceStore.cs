@@ -209,7 +209,7 @@
 
                     try
                     {
-                        loadedFonts[reference] = fontFactory.Get(fontObject);
+                        loadedFonts[reference] = fontFactory.Get(pair.Key, fontObject);
                     }
                     catch
                     {
@@ -221,7 +221,7 @@
                 }
                 else if (pair.Value is DictionaryToken fd)
                 {
-                    loadedDirectFonts[NameToken.Create(pair.Key)] = fontFactory.Get(fd);
+                    loadedDirectFonts[NameToken.Create(pair.Key)] = fontFactory.Get(pair.Key, fd);
                 }
                 else
                 {
@@ -261,9 +261,7 @@
                 throw new PdfDocumentFormatException($"The requested font reference token {fontReferenceToken} wasn't a font.");
             }
 
-            var font = fontFactory.Get(fontDictionaryToken);
-
-            return font;
+            return fontFactory.Get(fontReferenceToken.Data.ToString(), fontDictionaryToken);
         }
 
         public bool TryGetNamedColorSpace(NameToken? name, out ResourceColorSpace namedToken)

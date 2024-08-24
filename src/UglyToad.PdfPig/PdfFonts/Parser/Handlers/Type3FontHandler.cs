@@ -26,7 +26,7 @@
             this.scanner = scanner;
         }
 
-        public IFont Generate(DictionaryToken dictionary)
+        public IFont Generate(string key, DictionaryToken dictionary)
         {
             var boundingBox = GetBoundingBox(dictionary);
 
@@ -57,9 +57,8 @@
 
             var name = GetFontName(dictionary);
 
-            return new Type3Font(name, boundingBox, fontMatrix, encoding!,
-                firstCharacter,
-                lastCharacter, widths, toUnicodeCMap!);
+            return new Type3Font(key, name, boundingBox, fontMatrix, encoding!,
+                firstCharacter, lastCharacter, widths, toUnicodeCMap!);
         }
 
         private NameToken GetFontName(DictionaryToken dictionary)

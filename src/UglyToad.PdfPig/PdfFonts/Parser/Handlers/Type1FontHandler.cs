@@ -29,7 +29,7 @@
             this.encodingReader = encodingReader;
         }
 
-        public IFont Generate(DictionaryToken dictionary)
+        public IFont Generate(string key, DictionaryToken dictionary)
         {
             var usingStandard14Only = !dictionary.ContainsKey(NameToken.FirstChar) || !dictionary.ContainsKey(NameToken.Widths);
 
@@ -48,7 +48,7 @@
                 {
                     var overrideEncoding = encodingReader.Read(dictionary);
 
-                    return new Type1Standard14Font(metrics, overrideEncoding);
+                    return new Type1Standard14Font(key, metrics, overrideEncoding);
                 }
             }
 
@@ -78,7 +78,7 @@
 
                     var overrideEncoding = encodingReader.Read(dictionary);
 
-                    return new Type1Standard14Font(metrics, overrideEncoding);
+                    return new Type1Standard14Font(key, metrics, overrideEncoding);
                 }
             }
 
@@ -120,7 +120,7 @@
                 encoding = new BuiltInEncoding(t1FontReplacement.Encoding);
             }
 
-            return new Type1FontSimple(name, firstCharacter, lastCharacter, widths, descriptor, encoding!, toUnicodeCMap!, font!);
+            return new Type1FontSimple(key, name, firstCharacter, lastCharacter, widths, descriptor, encoding!, toUnicodeCMap!, font!);
         }
 
         private Union<Type1Font, CompactFontFormatFontCollection>? ParseFontProgram(FontDescriptor descriptor)

@@ -21,6 +21,8 @@
         private readonly Dictionary<int, CharacterBoundingBox> boundingBoxCache
             = new Dictionary<int, CharacterBoundingBox>();
 
+        public string Key { get; }
+
         public NameToken Name => BaseFont;
 
         public NameToken BaseFont { get; }
@@ -36,6 +38,7 @@
         public FontDetails Details { get; }
 
         public Type0Font(
+            string key,
             NameToken baseFont,
             ICidFont cidFont,
             CMap cmap,
@@ -46,6 +49,7 @@
             this.ucs2CMap = ucs2CMap;
             this.isChineseJapaneseOrKorean = isChineseJapaneseOrKorean;
 
+            Key = key;
             BaseFont = baseFont ?? throw new ArgumentNullException(nameof(baseFont));
             CidFont = cidFont ?? throw new ArgumentNullException(nameof(cidFont));
             CMap = cmap ?? throw new ArgumentNullException(nameof(cmap));

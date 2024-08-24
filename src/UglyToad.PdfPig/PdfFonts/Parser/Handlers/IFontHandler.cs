@@ -4,6 +4,6 @@
 
     internal interface IFontHandler
     {
-        IFont Generate(DictionaryToken dictionary);
+        IFont Generate(string key, DictionaryToken dictionary);
     }
 }

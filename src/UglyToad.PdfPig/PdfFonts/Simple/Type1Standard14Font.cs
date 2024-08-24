@@ -19,6 +19,8 @@ namespace UglyToad.PdfPig.PdfFonts.Simple
         private readonly AdobeFontMetrics standardFontMetrics;
         private readonly Encoding encoding;
 
+        public string Key { get; }
+
         public NameToken Name { get; }
 
         public bool IsVertical { get; }
@@ -27,11 +29,12 @@ namespace UglyToad.PdfPig.PdfFonts.Simple
 
         private readonly TransformationMatrix fontMatrix = TransformationMatrix.FromValues(0.001, 0, 0, 0.001, 0, 0);
 
-        public Type1Standard14Font(AdobeFontMetrics standardFontMetrics, Encoding? overrideEncoding = null)
+        public Type1Standard14Font(string key, AdobeFontMetrics standardFontMetrics, Encoding? overrideEncoding = null)
         {
             this.standardFontMetrics = standardFontMetrics ?? throw new ArgumentNullException(nameof(standardFontMetrics));
             encoding = overrideEncoding ?? new AdobeFontMetricsEncoding(standardFontMetrics);
 
+            Key = key;
             Name = NameToken.Create(standardFontMetrics.FontName);
 
             IsVertical = false;
