@@ -2,8 +2,8 @@
 {
     using Core;
     using System;
+    using System.Buffers;
     using System.Collections.Generic;
-    using System.Linq;
 
     /// <summary>
     /// Contains helpful tools for distance measures.
@@ -169,20 +169,41 @@
 
             distance = double.MaxValue;
             int closestPointIndex = -1;
-            var candidatesPoints = candidates.Select(candidatePoint).ToList();
-            var pivot = pivotPoint(element);
 
-            for (var i = 0; i < candidates.Count; i++)
+            PdfPoint[]? rentedFromPool = null;
+
+            try
             {
-                double currentDistance = distanceMeasure(pivot, candidatesPoints[i]);
-                if (currentDistance < distance && !candidates[i].Equals(element))
+                Span<PdfPoint> candidatesPoints = candidates.Count <= 256
+                    ? stackalloc PdfPoint[candidates.Count]
+                    : (rentedFromPool = ArrayPool<PdfPoint>.Shared.Rent(candidates.Count));
+
+                for (int i = 0; i < candidates.Count; ++i)
                 {
-                    distance = currentDistance;
-                    closestPointIndex = i;
+                    candidatesPoints[i] = candidatePoint(candidates[i]);
+                }
+
+                var pivot = pivotPoint(element);
+
+                for (var i = 0; i < candidates.Count; ++i)
+                {
+                    double currentDistance = distanceMeasure(pivot, candidatesPoints[i]);
+                    if (currentDistance < distance && !candidates[i].Equals(element))
+                    {
+                        distance = currentDistance;
+                        closestPointIndex = i;
+                    }
+                }
+
+                return closestPointIndex;
+            }
+            finally
+            {
+                if (rentedFromPool is not null)
+                {
+                    ArrayPool<PdfPoint>.Shared.Return(rentedFromPool);
                 }
             }
-
-            return closestPointIndex;
         }
 
         /// <summary>
@@ -211,20 +232,41 @@
 
             distance = double.MaxValue;
             int closestLineIndex = -1;
-            var candidatesLines = candidates.Select(candidateLine).ToList();
-            var pivot = pivotLine(element);
+            
+            PdfLine[]? rentedFromPool = null;
 
-            for (var i = 0; i < candidates.Count; i++)
+            try
             {
-                double currentDistance = distanceMeasure(pivot, candidatesLines[i]);
-                if (currentDistance < distance && !candidates[i].Equals(element))
+                Span<PdfLine> candidatesLines = candidates.Count <= 128
+                    ? stackalloc PdfLine[candidates.Count]
+                    : (rentedFromPool = ArrayPool<PdfLine>.Shared.Rent(candidates.Count));
+
+                for (int i = 0; i < candidates.Count; ++i)
                 {
-                    distance = currentDistance;
-                    closestLineIndex = i;
+                    candidatesLines[i] = candidateLine(candidates[i]);
+                }
+
+                var pivot = pivotLine(element);
+
+                for (var i = 0; i < candidates.Count; ++i)
+                {
+                    double currentDistance = distanceMeasure(pivot, candidatesLines[i]);
+                    if (currentDistance < distance && !candidates[i].Equals(element))
+                    {
+                        distance = currentDistance;
+                        closestLineIndex = i;
+                    }
+                }
+
+                return closestLineIndex;
+            }
+            finally
+            {
+                if (rentedFromPool is not null)
+                {
+                    ArrayPool<PdfLine>.Shared.Return(rentedFromPool);
                 }
             }
-
-            return closestLineIndex;
         }
     }
 }
