@@ -3,7 +3,6 @@
     using Content;
     using Graphics.Colors;
     using System;
-    using System.Linq;
 
     /// <summary>
     /// Utility for working with the bytes in <see cref="IPdfImage"/>s and converting according to their <see cref="ColorSpaceDetails"/>.s
@@ -28,23 +27,23 @@
                 return decoded;
             }
 
+            byte[] data = decoded.ToArray(); // TODO - remove alloc
+
             if (bitsPerComponent != 8)
             {
                 // Unpack components such that they occupy one byte each
-                decoded = UnpackComponents(decoded, bitsPerComponent);
+                data = UnpackComponents(data, bitsPerComponent);
             }
 
             // Remove padding bytes when the stride width differs from the image width
             var bytesPerPixel = details.NumberOfColorComponents;
-            var strideWidth = decoded.Length / imageHeight / bytesPerPixel;
+            var strideWidth = data.Length / imageHeight / bytesPerPixel;
             if (strideWidth != imageWidth)
             {
-                decoded = RemoveStridePadding(decoded.ToArray(), strideWidth, imageWidth, imageHeight, bytesPerPixel);
+                data = RemoveStridePadding(data, strideWidth, imageWidth, imageHeight, bytesPerPixel);
             }
 
-            decoded = details.Transform(decoded);
-
-            return decoded;
+            return details.Transform(data.AsSpan());
         }
 
         private static byte[] UnpackComponents(ReadOnlySpan<byte> input, int bitsPerComponent)
