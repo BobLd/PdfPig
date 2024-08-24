@@ -27,12 +27,19 @@
                 return decoded;
             }
 
-            byte[] data = decoded.ToArray(); // TODO - remove alloc
+            // TODO - We should aim at removing this alloc.
+            // The decoded input variable needs to become a Span<byte>
+            Span<byte> data = decoded.ToArray();
 
             if (bitsPerComponent != 8)
             {
                 // Unpack components such that they occupy one byte each
                 data = UnpackComponents(data, bitsPerComponent);
+            }
+
+            if (data.IsEmpty)
+            {
+                return data;
             }
 
             // Remove padding bytes when the stride width differs from the image width
@@ -43,13 +50,28 @@
                 data = RemoveStridePadding(data, strideWidth, imageWidth, imageHeight, bytesPerPixel);
             }
 
-            return details.Transform(data.AsSpan());
+            return details.Transform(data);
         }
 
-        private static byte[] UnpackComponents(ReadOnlySpan<byte> input, int bitsPerComponent)
+        private static Span<byte> UnpackComponents(Span<byte> input, int bitsPerComponent)
         {
+            if (bitsPerComponent == 16) // Example with MOZILLA-3136-0.pdf (page 3)
+            {
+                int size = input.Length / 2;
+                var unpacked16 = input.Slice(0, size); // In place
+
+                for (int b = 0; b < size; ++b)
+                {
+                    // Convert to UInt16 and divide by 256
+                    unpacked16[b] = (byte)((ushort)(input[2 * b + 1] | input[2 * b] << 8) / 256);
+                }
+
+                return unpacked16;
+            }
+
             int end = 8 - bitsPerComponent;
-            var unpacked = new byte[input.Length * (int)Math.Ceiling((end + 1) / (double)bitsPerComponent)];
+            
+            Span<byte> unpacked = new byte[input.Length * (int)Math.Ceiling((end + 1) / (double)bitsPerComponent)];
 
             int right = (int)Math.Pow(2, bitsPerComponent) - 1;
 
@@ -66,14 +88,15 @@
             return unpacked;
         }
 
-        private static byte[] RemoveStridePadding(byte[] input, int strideWidth, int imageWidth, int imageHeight, int multiplier)
+        
+        private static Span<byte> RemoveStridePadding(Span<byte> input, int strideWidth, int imageWidth, int imageHeight, int multiplier)
         {
-            var result = new byte[imageWidth * imageHeight * multiplier];
+            Span<byte> result = new byte[imageWidth * imageHeight * multiplier];
             for (int y = 0; y < imageHeight; y++)
             {
                 int sourceIndex = y * strideWidth;
                 int targetIndex = y * imageWidth;
-                Array.Copy(input, sourceIndex, result, targetIndex, imageWidth);
+                input.Slice(sourceIndex, imageWidth).CopyTo(result.Slice(targetIndex, imageWidth));
             }
 
             return result;
