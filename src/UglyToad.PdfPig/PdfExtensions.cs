@@ -59,7 +59,7 @@
         /// </summary>
         internal static T Resolve<T>(this T token, IPdfTokenScanner scanner) where T : IToken
         {
-            return (T) ResolveInternal(token, scanner);
+            return (T)ResolveInternal(token, scanner);
         }
 
         private static IToken ResolveInternal(this IToken token, IPdfTokenScanner scanner)
@@ -74,7 +74,9 @@
                 var resolvedItems = new Dictionary<NameToken, IToken>();
                 foreach (var kvp in dict.Data)
                 {
-                    var value = kvp.Value is IndirectReferenceToken reference ? scanner.Get(reference.Data).Data : kvp.Value;
+                    var value = kvp.Value is IndirectReferenceToken reference
+                        ? scanner.Get(reference.Data).Data
+                        : kvp.Value;
                     resolvedItems[NameToken.Create(kvp.Key)] = ResolveInternal(value, scanner);
                 }
 
@@ -86,14 +88,16 @@
                 var resolvedItems = new List<IToken>();
                 for (int i = 0; i < arr.Length; i++)
                 {
-                    var value = arr.Data[i] is IndirectReferenceToken reference ? scanner.Get(reference.Data).Data : arr.Data[i];
+                    var value = arr.Data[i] is IndirectReferenceToken reference
+                        ? scanner.Get(reference.Data).Data
+                        : arr.Data[i];
                     resolvedItems.Add(ResolveInternal(value, scanner));
                 }
+
                 return new ArrayToken(resolvedItems);
             }
 
-            var val = token is IndirectReferenceToken tokenReference ? scanner.Get(tokenReference.Data).Data : token;
-            return val;
+            return token is IndirectReferenceToken tokenReference ? scanner.Get(tokenReference.Data).Data : token;
         }
 
         /// <summary>
