@@ -18,5 +18,4 @@ namespace UglyToad.PdfPig.Filters.Jbig2
         {
         }
     }
-
 }
