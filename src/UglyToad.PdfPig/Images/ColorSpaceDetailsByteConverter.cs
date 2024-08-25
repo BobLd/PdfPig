@@ -98,11 +98,10 @@
                     unpacked[u++] = (byte)((b >> i) & right);
                 }
             }
-
+            
             return unpacked;
         }
-
-
+        
         private static Span<byte> RemoveStridePadding(Span<byte> input, int strideWidth, int imageWidth, int imageHeight, int multiplier)
         {
             int size = imageWidth * imageHeight * multiplier;

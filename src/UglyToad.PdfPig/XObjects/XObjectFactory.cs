@@ -35,12 +35,12 @@
                 throw new InvalidOperationException($"Cannot create an image from an XObject with type: {xObject.Type}.");
             }
 
-            var dictionary = xObject.Stream.StreamDictionary.Resolve(pdfScanner);
+            var dictionary = xObject.Stream.StreamDictionary.Resolve(pdfScanner); // Resolve all indirect refs
 
             var bounds = xObject.AppliedTransformation.Transform(new PdfRectangle(new PdfPoint(0, 0), new PdfPoint(1, 1)));
 
-            var width = dictionary.Get<NumericToken>(NameToken.Width).Int;
-            var height = dictionary.Get<NumericToken>(NameToken.Height).Int;
+            var width = dictionary.Get<NumericToken>(NameToken.Width, pdfScanner).Int; // No need for pdfScanner anymore
+            var height = dictionary.Get<NumericToken>(NameToken.Height, pdfScanner).Int; // No need for pdfScanner anymore
 
             bool isImageMask = false;
             if (dictionary.TryGet(NameToken.ImageMask, pdfScanner, out BooleanToken? isMaskToken))
@@ -55,7 +55,7 @@
             int bitsPerComponent = 0;
             if (!isImageMask && !isJpxDecode)
             {
-                if (!dictionary.TryGet(NameToken.BitsPerComponent, pdfScanner, out NumericToken? bitsPerComponentToken))
+                if (!dictionary.TryGet(NameToken.BitsPerComponent, pdfScanner, out NumericToken? bitsPerComponentToken))  // No need for pdfScanner anymore
                 {
                     throw new PdfDocumentFormatException($"No bits per component defined for image: {dictionary}.");
                 }
@@ -73,7 +73,7 @@
                 intent = renderingIntentToken.Data.ToRenderingIntent();
             }
 
-            var interpolate = dictionary.TryGet(NameToken.Interpolate, pdfScanner, out BooleanToken? interpolateToken)
+            var interpolate = dictionary.TryGet(NameToken.Interpolate, pdfScanner, out BooleanToken? interpolateToken) // No need for pdfScanner anymore
                               && interpolateToken.Data;
 
             if (dictionary.TryGet(NameToken.Filter, out var filterToken) && filterToken is IndirectReferenceToken)
@@ -119,12 +119,12 @@
 
             var streamToken = new StreamToken(dictionary, xObject.Stream.Data);
 
-            var decodedBytes = supportsFilters ? new Lazy<ReadOnlyMemory<byte>>(() => streamToken.Decode(filterProvider, pdfScanner))
+            var decodedBytes = supportsFilters ? new Lazy<ReadOnlyMemory<byte>>(() => streamToken.Decode(filterProvider, pdfScanner)) // No need for pdfScanner anymore
                 : null;
 
             var decode = Array.Empty<double>();
 
-            if (dictionary.TryGet(NameToken.Decode, pdfScanner, out ArrayToken? decodeArrayToken))
+            if (dictionary.TryGet(NameToken.Decode, pdfScanner, out ArrayToken? decodeArrayToken)) // No need for pdfScanner anymore
             {
                 decode = decodeArrayToken.Data.OfType<NumericToken>()
                     .Select(x => x.Double)
@@ -135,11 +135,11 @@
             int[]? mask = null;
             if (!isImageMask)
             {
-                if (dictionary.TryGet(NameToken.ColorSpace, pdfScanner, out NameToken? colorSpaceNameToken))
+                if (dictionary.TryGet(NameToken.ColorSpace, pdfScanner, out NameToken? colorSpaceNameToken)) // No need for pdfScanner anymore
                 {
                     details = resourceStore.GetColorSpaceDetails(colorSpaceNameToken, dictionary);
                 }
-                else if (dictionary.TryGet(NameToken.ColorSpace, pdfScanner, out ArrayToken? colorSpaceArrayToken)
+                else if (dictionary.TryGet(NameToken.ColorSpace, pdfScanner, out ArrayToken? colorSpaceArrayToken) // No need for pdfScanner anymore
                     && colorSpaceArrayToken.Length > 0 && colorSpaceArrayToken.Data[0] is NameToken firstColorSpaceName)
                 {
                     details = resourceStore.GetColorSpaceDetails(firstColorSpaceName, dictionary);

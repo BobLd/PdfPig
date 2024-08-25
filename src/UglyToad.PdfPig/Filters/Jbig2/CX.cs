@@ -4,14 +4,18 @@
     /// CX represents the context used by arithmetic decoding and arithmetic integer decoding. It selects the probability
     /// estimate and statistics used during decoding procedure.
     /// </summary>
-    internal class CX
+    internal sealed class CX
     {
         private readonly byte[] cx;
         private readonly byte[] mps;
 
         public int Index { get; set; }
 
-        public int Cx { get => cx[Index] & 0x7f; set => cx[Index] = (byte)(value & 0x7f); }
+        public int Cx
+        {
+            get => cx[Index] & 0x7f;
+            set => cx[Index] = (byte)(value & 0x7f);
+        }
 
         /// <summary>
         /// Returns the decision. Possible values are 0 or 1.
