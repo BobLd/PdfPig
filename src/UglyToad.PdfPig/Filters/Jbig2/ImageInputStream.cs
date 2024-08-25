@@ -3,15 +3,15 @@
     using System;
     using System.IO;
 
-    internal class ImageInputStream : AbstractImageInputStream
+    internal sealed class ImageInputStream : AbstractImageInputStream
     {
         private readonly Stream inner;
 
         /// <inheritdoc />
-        public override sealed long Length => inner.Length;
+        public override long Length => inner.Length;
 
         /// <inheritdoc />
-        public override sealed long Position => inner.Position;
+        public override long Position => inner.Position;
 
         /// <summary>
         /// Constructs a <see cref="ImageInputStream"/> that will read the image data
@@ -35,14 +35,14 @@
         }
 
         /// <inheritdoc />
-        public override sealed void Seek(long pos)
+        public override void Seek(long pos)
         {
             SetBitOffset(0);
             inner.Position = pos;
         }
 
         /// <inheritdoc />
-        public override sealed int Read()
+        public override int Read()
         {
             if (IsAtEnd())
             {
@@ -54,7 +54,7 @@
         }
 
         /// <inheritdoc />
-        public override sealed int Read(byte[] b, int off, int len)
+        public override int Read(Span<byte> b, int off, int len)
         {
             if (IsAtEnd())
             {
@@ -62,12 +62,12 @@
             }
 
             SetBitOffset(0);
-            var numBytesRead = inner.Read(b, 0, len);
-            return numBytesRead;
+
+            return inner.Read(b.Slice(0, len));
         }
 
         /// <inheritdoc />
-        public override sealed void Dispose()
+        public override void Dispose()
         {
             inner.Dispose();
         }
