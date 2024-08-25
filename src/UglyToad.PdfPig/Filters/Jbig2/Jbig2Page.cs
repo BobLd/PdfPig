@@ -1,12 +1,13 @@
-﻿namespace UglyToad.PdfPig.Filters.Jbig2
+﻿#nullable disable
+
+namespace UglyToad.PdfPig.Filters.Jbig2
 {
     using System.Collections.Generic;
-    using UglyToad.PdfPig.Util;
 
     /// <summary>
     /// This class represents a JBIG2 page.
     /// </summary>
-    internal class Jbig2Page
+    internal sealed class Jbig2Page
     {
         // This list contains all segments of this page, sorted by segment number in ascending order.
         private readonly SortedDictionary<int, SegmentHeader> segments = new SortedDictionary<int, SegmentHeader>();
@@ -15,7 +16,7 @@
         private readonly int pageNumber;
 
         // The page bitmap that represents the page buffer
-        private Bitmap pageBitmap;
+        private Jbig2Bitmap pageBitmap;
 
         private int finalHeight;
         private int finalWidth;
@@ -37,18 +38,9 @@
         /// <returns>The retrieved <see cref="SegmentHeader"/> or null.</returns>
         internal SegmentHeader GetSegment(int number)
         {
-            SegmentHeader s = segments.ContainsKey(number) ? segments[number] : null;
+            SegmentHeader s = segments.GetValueOrDefault(number);
 
-            if (null != s)
-            {
-                return s;
-            }
-
-            if (null != document)
-            {
-                return document.GetGlobalSegment(number);
-            }
-            return null;
+            return s ?? document?.GetGlobalSegment(number);
         }
 
         /// <summary>
@@ -68,15 +60,15 @@
         }
 
         /// <summary>
-        /// Returns the decoded bitmap if present.Otherwise the page bitmap will be composed before returning
+        /// Returns the decoded bitmap if present. Otherwise the page bitmap will be composed before returning
         /// the result.
         /// </summary>
         /// <returns>The result of decoding a page</returns>
         /// <exception cref="Jbig2Exception"/>
         /// <exception cref="System.IO.IOException"/>
-        public Bitmap GetBitmap()
+        public Jbig2Bitmap GetBitmap()
         {
-            if (null == pageBitmap)
+            if (pageBitmap is null)
             {
                 ComposePageBitmap();
             }
@@ -84,7 +76,7 @@
         }
 
         /// <summary>
-        /// This method composes the bitmaps of segments to a page and stores the page as a <see cref="Bitmap"/>.
+        /// This method composes the bitmaps of segments to a page and stores the page as a <see cref="Jbig2Bitmap"/>.
         /// </summary>
         /// <exception cref="Jbig2Exception"/>
         /// <exception cref="System.IO.IOException"/>
@@ -115,13 +107,13 @@
 
         private void CreateNormalPage(PageInformation pageInformation)
         {
-            pageBitmap = new Bitmap(pageInformation.BitmapWidth, pageInformation.BitmapHeight);
+            pageBitmap = new Jbig2Bitmap(pageInformation.BitmapWidth, pageInformation.BitmapHeight);
 
             // Page 79, 3)
             // If default pixel value is not 0, byte will be filled with 0xff
             if (pageInformation.DefaultPixelValue != 0)
             {
-                ArrayHelper.Fill(pageBitmap.GetByteArray(), (byte)0xff);
+                pageBitmap.ByteArray.AsSpan().Fill(0xff);
             }
 
             foreach (SegmentHeader s in segments.Values)
@@ -139,7 +131,7 @@
                     case 43: // Immediate lossless generic refinement region
                         IRegion r = (IRegion)s.GetSegmentData();
 
-                        Bitmap regionBitmap = r.GetRegionBitmap();
+                        Jbig2Bitmap regionBitmap = r.GetRegionBitmap();
 
                         if (FitsPage(pageInformation, regionBitmap))
                         {
@@ -150,7 +142,7 @@
                             RegionSegmentInformation regionInfo = r.RegionInfo;
                             CombinationOperator op = GetCombinationOperator(pageInformation,
                                     regionInfo.CombinationOperator);
-                            Bitmaps.Blit(regionBitmap, pageBitmap, regionInfo.X,
+                            Jbig2Bitmaps.Blit(regionBitmap, pageBitmap, regionInfo.X,
                                     regionInfo.Y, op);
                         }
 
@@ -164,7 +156,7 @@
         /// the region's bitmap as the page's bitmap. Otherwise we have to blit the smaller region's bitmap into the page's
         /// bitmap.
         /// </summary>
-        private bool FitsPage(PageInformation pageInformation, Bitmap regionBitmap)
+        private bool FitsPage(PageInformation pageInformation, Jbig2Bitmap regionBitmap)
         {
             return CountRegions() == 1 && pageInformation.DefaultPixelValue == 0
                     && pageInformation.BitmapWidth == regionBitmap.Width
@@ -175,23 +167,21 @@
         {
             List<ISegmentData> pageStripes = CollectPageStripes();
 
-            pageBitmap = new Bitmap(pageInformation.BitmapWidth, finalHeight);
+            pageBitmap = new Jbig2Bitmap(pageInformation.BitmapWidth, finalHeight);
 
             int startLine = 0;
             foreach (ISegmentData sd in pageStripes)
             {
-                if (sd is EndOfStripe)
+                if (sd is EndOfStripe oes)
                 {
-                    startLine = ((EndOfStripe)sd).GetLineNumber() + 1;
+                    startLine = oes.GetLineNumber() + 1;
                 }
                 else
                 {
                     IRegion r = (IRegion)sd;
                     RegionSegmentInformation regionInfo = r.RegionInfo;
-                    CombinationOperator op = GetCombinationOperator(pageInformation,
-                            regionInfo.CombinationOperator);
-                    Bitmaps.Blit(r.GetRegionBitmap(), pageBitmap, regionInfo.X, startLine,
-                            op);
+                    CombinationOperator op = GetCombinationOperator(pageInformation, regionInfo.CombinationOperator);
+                    Jbig2Bitmaps.Blit(r.GetRegionBitmap(), pageBitmap, regionInfo.X, startLine, op);
                 }
             }
         }
@@ -262,17 +252,14 @@
         /// <param name="pi"><see cref="PageInformation"/> object.</param>
         /// <param name="newOperator">The combination operator, specified by actual segment.</param>
         /// <returns>the new combination operator.</returns>
-        private CombinationOperator GetCombinationOperator(PageInformation pi,
-                CombinationOperator newOperator)
+        private static CombinationOperator GetCombinationOperator(PageInformation pi, CombinationOperator newOperator)
         {
             if (pi.IsCombinationOperatorOverrideAllowed)
             {
                 return newOperator;
             }
-            else
-            {
-                return pi.CombinationOperator;
-            }
+
+            return pi.CombinationOperator;
         }
 
         /// <summary>
@@ -320,6 +307,7 @@
                     finalHeight = pi.BitmapHeight;
                 }
             }
+
             return finalHeight;
         }
 
@@ -329,6 +317,7 @@
             {
                 finalWidth = GetPageInformation().BitmapWidth;
             }
+
             return finalWidth;
         }
 
@@ -338,6 +327,7 @@
             {
                 resolutionX = GetPageInformation().ResolutionX;
             }
+
             return resolutionX;
         }
 
@@ -347,6 +337,7 @@
             {
                 resolutionY = GetPageInformation().ResolutionY;
             }
+
             return resolutionY;
         }
 
@@ -355,7 +346,7 @@
             return (PageInformation)GetPageInformationSegment().GetSegmentData();
         }
 
-        public override sealed string ToString()
+        public override string ToString()
         {
             return GetType().Name + " (Page number: " + pageNumber + ")";
         }

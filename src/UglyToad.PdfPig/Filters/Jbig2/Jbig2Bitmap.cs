@@ -3,11 +3,8 @@ namespace UglyToad.PdfPig.Filters.Jbig2
     /// <summary>
     /// This class represents a bi-level image that is organized like a bitmap.
     /// </summary>
-    internal class Bitmap
+    internal sealed class Jbig2Bitmap
     {
-        // 8 pixels per byte, 0 for white, 1 for black
-        private readonly byte[] bitmap;
-
         /// <summary>
         /// The height of the bitmap in pixels.
         /// </summary>
@@ -25,19 +22,17 @@ namespace UglyToad.PdfPig.Filters.Jbig2
 
         /// <summary>
         /// Creates an instance of a blank image.
-        /// The image data is stored in a byte array. Each pixels is stored as one bit, so that each byte contains 8 pixel.
+        /// The image data is stored in a byte array. Each pixel is stored as one bit, so that each byte contains 8 pixel.
         /// A pixel has by default the value 0 for white and 1 for black.
         /// Row stride means the amount of bytes per line. It is computed automatically and fills the pad bits with 0.
         /// </summary>
-        /// <param name="width"></param>
-        /// <param name="height"></param>
-        public Bitmap(int width, int height)
+        public Jbig2Bitmap(int width, int height)
         {
             Height = height;
             Width = width;
             RowStride = (width + 7) >> 3;
 
-            bitmap = new byte[Height * RowStride];
+            ByteArray = new byte[Height * RowStride];
         }
 
         /// <summary>
@@ -64,9 +59,9 @@ namespace UglyToad.PdfPig.Filters.Jbig2
 
             int shift = 7 - bitOffset;
 
-            byte src = bitmap[byteIndex];
-            byte result = (byte)(src | (pixelValue << shift));
-            bitmap[byteIndex] = result;
+            ref byte src = ref ByteArray[byteIndex];
+
+            src = (byte)(src | (pixelValue << shift));
         }
 
         /// <summary>
@@ -83,12 +78,9 @@ namespace UglyToad.PdfPig.Filters.Jbig2
 
         /// <summary>
         /// Returns the bitmap as a byte array.
+        /// <para>8 pixels per byte, 0 for white, 1 for black.</para>
         /// </summary>
-        /// <returns>The byte array of this bitmap.</returns>
-        public byte[] GetByteArray()
-        {
-            return bitmap;
-        }
+        public byte[] ByteArray { get; }
 
         /// <summary>
         /// Returns a byte from the bitmap byte array.
@@ -97,7 +89,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
         /// <returns>The byte at the requested index.</returns>
         public byte GetByte(int index)
         {
-            return bitmap[index];
+            return ByteArray[index];
         }
 
         /// <summary>
@@ -107,7 +99,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
         /// <param name="value">The byte that should be set.</param>
         public void SetByte(int index, byte value)
         {
-            bitmap[index] = value;
+            ByteArray[index] = value;
         }
 
         /// <summary>
@@ -118,7 +110,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
         /// <returns>The converted byte at the requested index as an integer.</returns>
         public int GetByteAsInteger(int index)
         {
-            return bitmap[index] & 0xff;
+            return ByteArray[index] & 0xff;
         }
 
         /// <summary>
@@ -127,7 +119,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
         /// </summary>
         /// <param name="x">The x coordinate of a pixel.</param>
         /// <returns>The bit offset of a pixel in its byte.</returns>
-        public int GetBitOffset(int x)
+        public static int GetBitOffset(int x)
         {
             // The same as x % 8.
             // The rightmost three bits are 1. The value masks all bits upon the value "7".

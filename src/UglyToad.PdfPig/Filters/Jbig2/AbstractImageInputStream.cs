@@ -3,7 +3,6 @@
     using System;
     using System.Collections.Generic;
     using System.IO;
-    using System.Linq;
 
     internal abstract class AbstractImageInputStream : IImageInputStream
     {
@@ -24,10 +23,10 @@
         public abstract int Read();
 
         /// <inheritdoc />
-        public abstract int Read(byte[] b, int off, int len);
+        public abstract int Read(Span<byte> b, int off, int len);
 
         /// <inheritdoc />
-        public int Read(byte[] b)
+        public int Read(Span<byte> b)
         {
             return Read(b, 0, b.Length);
         }
@@ -45,7 +44,7 @@
 
             // Rewind if we're still processing the byte
             if (bitOffset > 0)
-            { 
+            {
                 Seek(Position - 1);
             }
 
@@ -56,7 +55,7 @@
         public long ReadBits(int numBits)
         {
             if (numBits > 32)
-            { 
+            {
                 throw new ArgumentOutOfRangeException(nameof(numBits));
             }
 
@@ -76,7 +75,7 @@
         {
             var value = Read();
             if (value == -1)
-            { 
+            {
                 throw new EndOfStreamException();
             }
 
@@ -86,10 +85,12 @@
         /// <inheritdoc />
         public uint ReadUnsignedInt()
         {
-            var buffer = new byte[4];
+            Span<byte> buffer = stackalloc byte[4];
             Read(buffer);
 
-            return BitConverter.ToUInt32(buffer.Reverse().ToArray(), 0);
+            buffer.Reverse();
+
+            return BitConverter.ToUInt32(buffer);
         }
 
         /// <inheritdoc />
@@ -101,12 +102,14 @@
         /// <inheritdoc />
         public void Reset()
         {
-            if (markedPositions.Count > 0)
+            if (markedPositions.Count == 0)
             {
-                var position = markedPositions.Pop();
-                Seek(position.streamPos);
-                bitOffset = position.bitOffset;
+                return;
             }
+
+            var position = markedPositions.Pop();
+            Seek(position.streamPos);
+            bitOffset = position.bitOffset;
         }
 
         /// <inheritdoc />
@@ -118,21 +121,21 @@
                 Seek(Length);
                 return desiredPosition - Length;
             }
-            else
-            {
-                Seek(desiredPosition);
-                return n;
-            }
+
+            Seek(desiredPosition);
+            return n;
         }
 
         /// <inheritdoc />
         public void SkipBits()
         {
-            if (bitOffset != 0)
+            if (bitOffset == 0)
             {
-                bitOffset = 0;
-                Seek(Position + 1);
+                return;
             }
+
+            bitOffset = 0;
+            Seek(Position + 1);
         }
 
         /// <inheritdoc />

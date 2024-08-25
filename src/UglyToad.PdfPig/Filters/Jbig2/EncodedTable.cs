@@ -5,7 +5,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
     /// <summary>
     /// This class represents a encoded huffman table.
     /// </summary>
-    internal class EncodedTable : HuffmanTable
+    internal sealed class EncodedTable : HuffmanTable
     {
         private readonly Table table;
 
@@ -17,7 +17,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
 
         public void ParseTable()
         {
-            var sis = table.getSubInputStream();
+            var sis = table.GetSubInputStream();
 
             var codeTable = new List<Code>();
 
