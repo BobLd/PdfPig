@@ -1,11 +1,13 @@
-﻿namespace UglyToad.PdfPig.Filters.Jbig2
+﻿#nullable disable
+
+namespace UglyToad.PdfPig.Filters.Jbig2
 {
     /// <summary>
     /// This class represents a generic region segment.
     /// Parsing is done as described in 7.4.5.
     /// Decoding procedure is done as described in 6.2.5.7 and 7.4.6.4.
     /// </summary>
-    internal class GenericRegion : IRegion
+    internal sealed class GenericRegion : IRegion
     {
         private SubInputStream subInputStream;
         private long dataHeaderOffset = 0;
@@ -25,10 +27,10 @@
         private bool[] gbAtOverride;
 
         // If true, AT pixels are not on their nominal location and have to be overridden
-        private bool @override;
+        private bool isOverride;
 
         // Decoded data as pixel values (use row stride/width to wrap line)
-        private Bitmap regionBitmap;
+        private Jbig2Bitmap regionBitmap;
 
         private ArithmeticDecoder arithDecoder;
         private CX cx;
@@ -123,15 +125,15 @@
         /// <summary>
         /// The procedure is described in 6.2.5.7, page 17.
         /// </summary>
-        /// <returns>The decoded <see cref="Bitmap"/>.</returns>
-        public Bitmap GetRegionBitmap()
+        /// <returns>The decoded <see cref="Jbig2Bitmap"/>.</returns>
+        public Jbig2Bitmap GetRegionBitmap()
         {
-            if (null == regionBitmap)
+            if (regionBitmap is null)
             {
                 if (IsMMREncoded)
                 {
                     // MMR DECODER CALL
-                    if (null == mmrDecompressor)
+                    if (mmrDecompressor is null)
                     {
                         mmrDecompressor = new MMRDecompressor(RegionInfo.BitmapWidth,
                                 RegionInfo.BitmapHeight,
@@ -150,18 +152,11 @@
                     // 6.2.5.7 - 1)
                     int ltp = 0;
 
-                    if (arithDecoder == null)
-                    {
-                        arithDecoder = new ArithmeticDecoder(subInputStream);
-                    }
-                    if (cx == null)
-                    {
-                        cx = new CX(65536, 1);
-                    }
+                    arithDecoder ??= new ArithmeticDecoder(subInputStream);
+                    cx ??= new CX(65536, 1);
 
                     // 6.2.5.7 - 2)
-                    regionBitmap = new Bitmap(RegionInfo.BitmapWidth,
-                            RegionInfo.BitmapHeight);
+                    regionBitmap = new Jbig2Bitmap(RegionInfo.BitmapWidth, RegionInfo.BitmapHeight);
 
                     int paddedWidth = (regionBitmap.Width + 7) & -8;
 
@@ -195,8 +190,7 @@
                             // pixel++;
                             // }
                             // } else {
-                            DecodeLine(line, regionBitmap.Width, regionBitmap.RowStride,
-                                    paddedWidth);
+                            DecodeLine(line, regionBitmap.Width, regionBitmap.RowStride, paddedWidth);
                             // }
                         }
                     }
@@ -227,8 +221,7 @@
             return arithDecoder.Decode(cx);
         }
 
-        private void DecodeLine(int lineNumber, int width, int rowStride,
-                int paddedWidth)
+        private void DecodeLine(int lineNumber, int width, int rowStride, int paddedWidth)
         {
             int byteIndex = regionBitmap.GetByteIndex(0, lineNumber);
             int idx = byteIndex - rowStride;
@@ -318,7 +311,7 @@
                 for (int minorX = 0; minorX < minorWidth; minorX++)
                 {
                     int toShift = 7 - minorX;
-                    if (@override)
+                    if (isOverride)
                     {
                         overriddenContext = OverrideAtTemplate0a(context, (x + minorX), lineNumber,
                                 result, minorX, toShift);
@@ -386,7 +379,7 @@
                 for (int minorX = 0; minorX < minorWidth; minorX++)
                 {
                     int toShift = 7 - minorX;
-                    if (@override)
+                    if (isOverride)
                     {
                         overriddenContext = OverrideAtTemplate0b(context, (x + minorX), lineNumber,
                                 result, minorX, toShift);
@@ -453,7 +446,7 @@
 
                 for (int minorX = 0; minorX < minorWidth; minorX++)
                 {
-                    if (@override)
+                    if (isOverride)
                     {
                         overriddenContext = OverrideAtTemplate1(context, x + minorX, lineNumber, result,
                                 minorX);
@@ -521,7 +514,7 @@
 
                 for (int minorX = 0; minorX < minorWidth; minorX++)
                 {
-                    if (@override)
+                    if (isOverride)
                     {
                         overriddenContext = OverrideAtTemplate2(context, x + minorX, lineNumber, result,
                                 minorX);
@@ -577,7 +570,7 @@
 
                 for (int minorX = 0; minorX < minorWidth; minorX++)
                 {
-                    if (@override)
+                    if (isOverride)
                     {
                         overriddenContext = OverrideAtTemplate3(context, x + minorX, lineNumber, result,
                                 minorX);
@@ -601,7 +594,7 @@
 
         private void UpdateOverrideFlags()
         {
-            if (GbAtX == null || GbAtY == null)
+            if (GbAtX is null || GbAtY is null)
             {
                 return;
             }
@@ -619,7 +612,7 @@
                     if (!UseExtTemplates)
                     {
                         if (GbAtX[0] != 3 || GbAtY[0] != -1)
-                        { 
+                        {
                             SetOverrideFlag(0);
                         }
 
@@ -731,7 +724,7 @@
         private void SetOverrideFlag(int index)
         {
             gbAtOverride[index] = true;
-            @override = true;
+            isOverride = true;
         }
 
         private int OverrideAtTemplate0a(int context, int x, int y, int result,
@@ -819,6 +812,7 @@
                     context |= GetPixel(x + GbAtX[1], y + GbAtY[1]) << 13;
                 }
             }
+
             if (gbAtOverride[2])
             {
                 context &= 0xfdff;
@@ -831,6 +825,7 @@
                     context |= GetPixel(x + GbAtX[2], y + GbAtY[2]) << 9;
                 }
             }
+
             if (gbAtOverride[3])
             {
                 context &= 0xbfff;
@@ -843,6 +838,7 @@
                     context |= GetPixel(x + GbAtX[3], y + GbAtY[3]) << 14;
                 }
             }
+
             if (gbAtOverride[4])
             {
                 context &= 0xefff;
@@ -855,6 +851,7 @@
                     context |= GetPixel(x + GbAtX[4], y + GbAtY[4]) << 12;
                 }
             }
+
             if (gbAtOverride[5])
             {
                 context &= 0xffdf;
@@ -867,6 +864,7 @@
                     context |= GetPixel(x + GbAtX[5], y + GbAtY[5]) << 5;
                 }
             }
+
             if (gbAtOverride[6])
             {
                 context &= 0xfffb;
@@ -879,6 +877,7 @@
                     context |= GetPixel(x + GbAtX[6], y + GbAtY[6]) << 2;
                 }
             }
+
             if (gbAtOverride[7])
             {
                 context &= 0xfff7;
@@ -891,6 +890,7 @@
                     context |= GetPixel(x + GbAtX[7], y + GbAtY[7]) << 3;
                 }
             }
+
             if (gbAtOverride[8])
             {
                 context &= 0xf7ff;
@@ -903,6 +903,7 @@
                     context |= GetPixel(x + GbAtX[8], y + GbAtY[8]) << 11;
                 }
             }
+
             if (gbAtOverride[9])
             {
                 context &= 0xffef;
@@ -915,6 +916,7 @@
                     context |= GetPixel(x + GbAtX[9], y + GbAtY[9]) << 4;
                 }
             }
+
             if (gbAtOverride[10])
             {
                 context &= 0x7fff;
@@ -927,6 +929,7 @@
                     context |= GetPixel(x + GbAtX[10], y + GbAtY[10]) << 15;
                 }
             }
+
             if (gbAtOverride[11])
             {
                 context &= 0xfdff;
@@ -943,46 +946,37 @@
             return context;
         }
 
-        private int OverrideAtTemplate1(int context, int x, int y, int result,
-                int minorX)
+        private int OverrideAtTemplate1(int context, int x, int y, int result, int minorX)
         {
             context &= 0x1ff7;
             if (GbAtY[0] == 0 && GbAtX[0] >= -minorX)
             {
                 return (context | (result >> (7 - (minorX + GbAtX[0])) & 0x1) << 3);
             }
-            else
-            {
-                return (context | GetPixel(x + GbAtX[0], y + GbAtY[0]) << 3);
-            }
+
+            return (context | GetPixel(x + GbAtX[0], y + GbAtY[0]) << 3);
         }
 
-        private int OverrideAtTemplate2(int context, int x, int y, int result,
-                int minorX)
+        private int OverrideAtTemplate2(int context, int x, int y, int result, int minorX)
         {
             context &= 0x3fb;
             if (GbAtY[0] == 0 && GbAtX[0] >= -minorX)
             {
                 return (context | (result >> (7 - (minorX + GbAtX[0])) & 0x1) << 2);
             }
-            else
-            {
-                return (context | GetPixel(x + GbAtX[0], y + GbAtY[0]) << 2);
-            }
+
+            return (context | GetPixel(x + GbAtX[0], y + GbAtY[0]) << 2);
         }
 
-        private int OverrideAtTemplate3(int context, int x, int y, int result,
-                int minorX)
+        private int OverrideAtTemplate3(int context, int x, int y, int result, int minorX)
         {
             context &= 0x3ef;
             if (GbAtY[0] == 0 && GbAtX[0] >= -minorX)
             {
                 return (context | (result >> (7 - (minorX + GbAtX[0])) & 0x1) << 4);
             }
-            else
-            {
-                return (context | GetPixel(x + GbAtX[0], y + GbAtY[0]) << 4);
-            }
+
+            return (context | GetPixel(x + GbAtX[0], y + GbAtY[0]) << 4);
         }
 
         private byte GetPixel(int x, int y)
@@ -1008,8 +1002,7 @@
         /// <param name="dataLength">the length of the data</param>
         /// <param name="gbh">bitmap height</param>
         /// <param name="gbw">bitmap width</param>
-        internal void SetParameters(bool isMMREncoded, long dataOffset,
-                long dataLength, int gbh, int gbw)
+        internal void SetParameters(bool isMMREncoded, long dataOffset, long dataLength, int gbh, int gbw)
         {
             this.IsMMREncoded = isMMREncoded;
             this.dataOffset = dataOffset;
@@ -1038,13 +1031,13 @@
                 int symWidth, int hcHeight, CX cx,
                 ArithmeticDecoder arithmeticDecoder)
         {
-            this.IsMMREncoded = isMMREncoded;
-            this.GbTemplate = sdTemplate;
-            this.IsTPGDon = isTPGDon;
-            this.GbAtX = sdATX;
-            this.GbAtY = sdATY;
-            this.RegionInfo.BitmapWidth = symWidth;
-            this.RegionInfo.BitmapHeight = hcHeight;
+            IsMMREncoded = isMMREncoded;
+            GbTemplate = sdTemplate;
+            IsTPGDon = isTPGDon;
+            GbAtX = sdATX;
+            GbAtY = sdATY;
+            RegionInfo.BitmapWidth = symWidth;
+            RegionInfo.BitmapHeight = hcHeight;
 
             if (null != cx)
             {
@@ -1053,10 +1046,10 @@
 
             if (null != arithmeticDecoder)
             {
-                this.arithDecoder = arithmeticDecoder;
+                arithDecoder = arithmeticDecoder;
             }
 
-            this.mmrDecompressor = null;
+            mmrDecompressor = null;
             ResetBitmap();
         }
 
