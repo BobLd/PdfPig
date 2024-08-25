@@ -35,6 +35,17 @@
             {
                 // Unpack components such that they occupy one byte each
                 data = UnpackComponents(data, bitsPerComponent);
+
+                // TODO - Below is required for JBIG2 but needs to be investigated
+                // Why is this required here? This does not belong here imo
+                if (bitsPerComponent == 1 && details.Type != ColorSpace.Indexed)
+                {
+                    for (int i = 0; i < data.Length; ++i)
+                    {
+                        ref byte x = ref data[i];
+                        x = x == 1 ? byte.MinValue : byte.MaxValue;
+                    }
+                }
             }
 
             // Remove padding bytes when the stride width differs from the image width
@@ -80,11 +91,10 @@
                     unpacked[u++] = (byte)((b >> i) & right);
                 }
             }
-
+            
             return unpacked;
         }
-
-
+        
         private static Span<byte> RemoveStridePadding(Span<byte> input, int strideWidth, int imageWidth, int imageHeight, int multiplier)
         {
             int size = imageWidth * imageHeight * multiplier;

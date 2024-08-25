@@ -3,7 +3,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
     /// <summary>
     /// This class represents a "Table" segment. It handles custom tables, see Annex B.
     /// </summary>
-    internal class Table : ISegmentData
+    internal sealed class Table : ISegmentData
     {
         private SubInputStream subInputStream;
 
@@ -26,7 +26,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             if ((bit = subInputStream.ReadBit()) == 1)
             {
                 throw new InvalidHeaderValueException(
-                        "B.2.1 Code table flags: Bit 7 must be zero, but was " + bit);
+                    "B.2.1 Code table flags: Bit 7 must be zero, but was " + bit);
             }
 
             // Bit 4-6
@@ -48,7 +48,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             ParseHeader();
         }
 
-        public SubInputStream getSubInputStream()
+        public SubInputStream GetSubInputStream()
         {
             return subInputStream;
         }
