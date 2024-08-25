@@ -2,7 +2,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
 {
     using System;
 
-    internal class InvalidHeaderValueException : Jbig2Exception
+    internal sealed class InvalidHeaderValueException : Jbig2Exception
     {
         public InvalidHeaderValueException()
         {
