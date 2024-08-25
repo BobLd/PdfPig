@@ -7,18 +7,28 @@ namespace UglyToad.PdfPig.Filters.Jbig2
     /// <summary>
     /// The basic class for all JBIG2 segments.
     /// </summary>
-    internal class SegmentHeader
+    internal sealed class SegmentHeader
     {
         private static readonly Dictionary<int, Type> SEGMENT_TYPE_MAP = new Dictionary<int, Type>
         {
-            { 0, typeof(SymbolDictionary) }, { 4, typeof(TextRegion) },
-            { 6, typeof(TextRegion) }, { 7, typeof(TextRegion) }, { 16, typeof(PatternDictionary) },
-            { 20, typeof(HalftoneRegion) }, { 22, typeof(HalftoneRegion) },
-            { 23, typeof(HalftoneRegion) }, { 36, typeof(GenericRegion) },
-            { 38, typeof(GenericRegion) }, { 39, typeof(GenericRegion) },
-            { 40, typeof(GenericRefinementRegion) }, { 42, typeof(GenericRefinementRegion) },
-            { 43, typeof(GenericRefinementRegion) }, { 48, typeof(PageInformation) },
-            { 50, typeof(EndOfStripe) }, { 52, typeof(Profiles) }, { 53, typeof(Table) }
+            { 0, typeof(SymbolDictionary) },
+            { 4, typeof(TextRegion) },
+            { 6, typeof(TextRegion) },
+            { 7, typeof(TextRegion) },
+            { 16, typeof(PatternDictionary) },
+            { 20, typeof(HalftoneRegion) },
+            { 22, typeof(HalftoneRegion) },
+            { 23, typeof(HalftoneRegion) },
+            { 36, typeof(GenericRegion) },
+            { 38, typeof(GenericRegion) },
+            { 39, typeof(GenericRegion) },
+            { 40, typeof(GenericRefinementRegion) },
+            { 42, typeof(GenericRefinementRegion) },
+            { 43, typeof(GenericRefinementRegion) },
+            { 48, typeof(PageInformation) },
+            { 50, typeof(EndOfStripe) },
+            { 52, typeof(Profiles) },
+            { 53, typeof(Table) }
         };
 
         private readonly SubInputStream subInputStream;
@@ -102,7 +112,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
         /// <summary>
         /// 7.2.4 Amount of referred-to segments
         /// </summary>
-        private int ReadAmountOfReferredToSegments(IImageInputStream subInputStream)
+        private static int ReadAmountOfReferredToSegments(IImageInputStream subInputStream)
         {
             int countOfRTS = (int)(subInputStream.ReadBits(3) & 0xf);
 

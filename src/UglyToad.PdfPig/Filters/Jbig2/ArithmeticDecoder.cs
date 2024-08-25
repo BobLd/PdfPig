@@ -3,7 +3,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
     /// <summary>
     ///  This class represents the arithmetic decoder, described in ISO/IEC 14492:2001 in E.3
     /// </summary>
-    internal class ArithmeticDecoder
+    internal sealed class ArithmeticDecoder
     {
         private static readonly int[][] QE = new[]{
             new []{ 0x5601, 01, 01, 1 }, new []{ 0x3401, 02, 06, 0 }, new []{ 0x1801, 03, 09, 0 },
@@ -67,7 +67,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             if ((c >> 16) < qeValue)
             {
                 d = LpsExchange(cx, icx, qeValue);
-                Renormalize();
+                ReNormalize();
             }
             else
             {
@@ -75,7 +75,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                 if ((a & 0x8000) == 0)
                 {
                     d = MpsExchange(cx, icx);
-                    Renormalize();
+                    ReNormalize();
                 }
                 else
                 {
@@ -120,7 +120,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             c &= 0xffffffffL;
         }
 
-        private void Renormalize()
+        private void ReNormalize()
         {
             do
             {
@@ -152,11 +152,9 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                 cx.Cx = QE[icx][2];
                 return 1 - mps;
             }
-            else
-            {
-                cx.Cx = QE[icx][1];
-                return mps;
-            }
+
+            cx.Cx = QE[icx][1];
+            return mps;
         }
 
         private int LpsExchange(CX cx, int icx, int qeValue)
@@ -170,17 +168,15 @@ namespace UglyToad.PdfPig.Filters.Jbig2
 
                 return mps;
             }
-            else
-            {
-                if (QE[icx][3] == 1)
-                {
-                    cx.ToggleMps();
-                }
 
-                cx.Cx = QE[icx][2];
-                a = qeValue;
-                return 1 - mps;
+            if (QE[icx][3] == 1)
+            {
+                cx.ToggleMps();
             }
+
+            cx.Cx = QE[icx][2];
+            a = qeValue;
+            return 1 - mps;
         }
     }
 }

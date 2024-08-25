@@ -2,13 +2,12 @@
 {
     using System;
     using System.Collections.Generic;
-    using UglyToad.PdfPig.Util;
     using static HuffmanTable;
 
     /// <summary>
     /// This class represented the segment type "Text region", 7.4.3, page 56.
     /// </summary>
-    internal class TextRegion : IRegion
+    internal sealed class TextRegion : IRegion
     {
         private SubInputStream subInputStream;
 
@@ -45,8 +44,8 @@
         private int sbStrips;
         private int amountOfSymbols;
 
-        private Bitmap regionBitmap;
-        private List<Bitmap> symbols = new List<Bitmap>();
+        private Jbig2Bitmap regionBitmap;
+        private List<Jbig2Bitmap> symbols = new List<Jbig2Bitmap>();
 
         private ArithmeticDecoder arithmeticDecoder;
         private ArithmeticIntegerDecoder integerDecoder;
@@ -245,45 +244,28 @@
         {
             if (!useRefinement)
             {
-                if (sbrTemplate != 0)
-                {
-                    sbrTemplate = 0;
-                }
+                sbrTemplate = 0;
             }
 
-            if (sbHuffFS == 2 || sbHuffRDWidth == 2 || sbHuffRDHeight == 2 || sbHuffRDX == 2
-                    || sbHuffRDY == 2)
+            if (sbHuffFS == 2 || sbHuffRDWidth == 2 || sbHuffRDHeight == 2 || sbHuffRDX == 2 || sbHuffRDY == 2)
             {
                 throw new InvalidHeaderValueException(
-                        "Huffman flag value of text region segment is not permitted");
+                    "Huffman flag value of text region segment is not permitted");
             }
 
-            if (!useRefinement)
+            if (useRefinement)
             {
-                if (sbHuffRSize != 0)
-                {
-                    sbHuffRSize = 0;
-                }
-                if (sbHuffRDY != 0)
-                {
-                    sbHuffRDY = 0;
-                }
-                if (sbHuffRDX != 0)
-                {
-                    sbHuffRDX = 0;
-                }
-                if (sbHuffRDWidth != 0)
-                {
-                    sbHuffRDWidth = 0;
-                }
-                if (sbHuffRDHeight != 0)
-                {
-                    sbHuffRDHeight = 0;
-                }
+                return;
             }
+
+            sbHuffRSize = 0;
+            sbHuffRDY = 0;
+            sbHuffRDX = 0;
+            sbHuffRDWidth = 0;
+            sbHuffRDHeight = 0;
         }
 
-        public Bitmap GetRegionBitmap()
+        public Jbig2Bitmap GetRegionBitmap()
         {
             if (!isHuffmanEncoded)
             {
@@ -299,62 +281,62 @@
 
         private void SetCodingStatistics()
         {
-            if (cxIADT == null)
+            if (cxIADT is null)
             {
                 cxIADT = new CX(512, 1);
             }
 
-            if (cxIAFS == null)
+            if (cxIAFS is null)
             {
                 cxIAFS = new CX(512, 1);
             }
 
-            if (cxIADS == null)
+            if (cxIADS is null)
             {
                 cxIADS = new CX(512, 1);
             }
 
-            if (cxIAIT == null)
+            if (cxIAIT is null)
             {
                 cxIAIT = new CX(512, 1);
             }
 
-            if (cxIARI == null)
+            if (cxIARI is null)
             {
                 cxIARI = new CX(512, 1);
             }
 
-            if (cxIARDW == null)
+            if (cxIARDW is null)
             {
                 cxIARDW = new CX(512, 1);
             }
 
-            if (cxIARDH == null)
+            if (cxIARDH is null)
             {
                 cxIARDH = new CX(512, 1);
             }
 
-            if (cxIAID == null)
+            if (cxIAID is null)
             {
                 cxIAID = new CX(1 << symbolCodeLength, 1);
             }
 
-            if (cxIARDX == null)
+            if (cxIARDX is null)
             {
                 cxIARDX = new CX(512, 1);
             }
 
-            if (cxIARDY == null)
+            if (cxIARDY is null)
             {
                 cxIARDY = new CX(512, 1);
             }
 
-            if (arithmeticDecoder == null)
+            if (arithmeticDecoder is null)
             {
                 arithmeticDecoder = new ArithmeticDecoder(subInputStream);
             }
 
-            if (integerDecoder == null)
+            if (integerDecoder is null)
             {
                 integerDecoder = new ArithmeticIntegerDecoder(arithmeticDecoder);
             }
@@ -363,12 +345,12 @@
         private void CreateRegionBitmap()
         {
             // 6.4.5
-            regionBitmap = new Bitmap(RegionInfo.BitmapWidth, RegionInfo.BitmapHeight);
+            regionBitmap = new Jbig2Bitmap(RegionInfo.BitmapWidth, RegionInfo.BitmapHeight);
 
             // 1)
             if (defaultPixel != 0)
             {
-                ArrayHelper.Fill(regionBitmap.GetByteArray(), (byte)0xff);
+                regionBitmap.GetByteArray().AsSpan().Fill(0xff);
             }
         }
 
@@ -381,7 +363,7 @@
                 // 6.4.6
                 if (sbHuffDT == 3)
                 {
-                    if (table == null)
+                    if (table is null)
                     {
                         int dtNr = 0;
 
@@ -459,7 +441,7 @@
                             break;
                         }
 
-                        currentS += (idS + sbdsOffset);
+                        currentS += idS + sbdsOffset;
                     }
 
                     // 3 c) iii)
@@ -472,7 +454,7 @@
                     // 3 c) v)
                     long r = DecodeRI();
                     // 6.4.11
-                    Bitmap ib = DecodeIb(r, id);
+                    Jbig2Bitmap ib = DecodeIb(r, id);
 
                     // vi)
                     Blit(ib, t);
@@ -512,21 +494,17 @@
             {
                 if (sbHuffFS == 3)
                 {
-                    if (fsTable == null)
+                    if (fsTable is null)
                     {
                         fsTable = getUserTable(0);
                     }
                     return fsTable.Decode(subInputStream);
                 }
-                else
-                {
-                    return StandardTables.getTable(6 + sbHuffFS).Decode(subInputStream);
-                }
+
+                return StandardTables.getTable(6 + sbHuffFS).Decode(subInputStream);
             }
-            else
-            {
-                return integerDecoder.Decode(cxIAFS);
-            }
+
+            return integerDecoder.Decode(cxIAFS);
         }
 
         private long DecodeIdS()
@@ -535,7 +513,7 @@
             {
                 if (sbHuffDS == 3)
                 {
-                    if (dsTable == null)
+                    if (dsTable is null)
                     {
                         int dsNr = 0;
                         if (sbHuffFS == 3)
@@ -548,15 +526,11 @@
                     return dsTable.Decode(subInputStream);
 
                 }
-                else
-                {
-                    return StandardTables.getTable(8 + sbHuffDS).Decode(subInputStream);
-                }
+
+                return StandardTables.getTable(8 + sbHuffDS).Decode(subInputStream);
             }
-            else
-            {
-                return integerDecoder.Decode(cxIADS);
-            }
+
+            return integerDecoder.Decode(cxIADS);
         }
 
         private long DecodeCurrentT()
@@ -567,10 +541,8 @@
                 {
                     return subInputStream.ReadBits(logSBStrips);
                 }
-                else
-                {
-                    return integerDecoder.Decode(cxIAIT);
-                }
+
+                return integerDecoder.Decode(cxIAIT);
             }
 
             return 0;
@@ -580,17 +552,15 @@
         {
             if (isHuffmanEncoded)
             {
-                if (symbolCodeTable == null)
+                if (symbolCodeTable is null)
                 {
                     return subInputStream.ReadBits(symbolCodeLength);
                 }
 
                 return symbolCodeTable.Decode(subInputStream);
             }
-            else
-            {
-                return integerDecoder.DecodeIAID(cxIAID, symbolCodeLength);
-            }
+
+            return integerDecoder.DecodeIAID(cxIAID, symbolCodeLength);
         }
 
         private long DecodeRI()
@@ -601,17 +571,16 @@
                 {
                     return subInputStream.ReadBit();
                 }
-                else
-                {
-                    return integerDecoder.Decode(cxIARI);
-                }
+
+                return integerDecoder.Decode(cxIARI);
             }
+
             return 0;
         }
 
-        private Bitmap DecodeIb(long r, long id)
+        private Jbig2Bitmap DecodeIb(long r, long id)
         {
-            Bitmap ib;
+            Jbig2Bitmap ib;
 
             if (r == 0)
             {
@@ -635,7 +604,7 @@
                 }
 
                 // 6)
-                Bitmap ibo = symbols[(int)id];
+                Jbig2Bitmap ibo = symbols[(int)id];
                 int wo = ibo.Width;
                 int ho = ibo.Height;
 
@@ -668,7 +637,7 @@
             {
                 if (sbHuffRDWidth == 3)
                 {
-                    if (rdwTable == null)
+                    if (rdwTable is null)
                     {
                         int rdwNr = 0;
                         if (sbHuffFS == 3)
@@ -691,15 +660,11 @@
                     return rdwTable.Decode(subInputStream);
 
                 }
-                else
-                {
-                    return StandardTables.getTable(14 + sbHuffRDWidth).Decode(subInputStream);
-                }
+
+                return StandardTables.getTable(14 + sbHuffRDWidth).Decode(subInputStream);
             }
-            else
-            {
-                return integerDecoder.Decode(cxIARDW);
-            }
+
+            return integerDecoder.Decode(cxIARDW);
         }
 
         private long DecodeRdh()
@@ -708,7 +673,7 @@
             {
                 if (sbHuffRDHeight == 3)
                 {
-                    if (rdhTable == null)
+                    if (rdhTable is null)
                     {
                         int rdhNr = 0;
 
@@ -736,15 +701,11 @@
                     }
                     return rdhTable.Decode(subInputStream);
                 }
-                else
-                {
-                    return StandardTables.getTable(14 + sbHuffRDHeight).Decode(subInputStream);
-                }
+
+                return StandardTables.getTable(14 + sbHuffRDHeight).Decode(subInputStream);
             }
-            else
-            {
-                return integerDecoder.Decode(cxIARDH);
-            }
+
+            return integerDecoder.Decode(cxIARDH);
         }
 
         private long DecodeRdx()
@@ -753,7 +714,7 @@
             {
                 if (sbHuffRDX == 3)
                 {
-                    if (rdxTable == null)
+                    if (rdxTable is null)
                     {
                         int rdxNr = 0;
                         if (sbHuffFS == 3)
@@ -783,17 +744,14 @@
 
                         rdxTable = getUserTable(rdxNr);
                     }
+
                     return rdxTable.Decode(subInputStream);
                 }
-                else
-                {
-                    return StandardTables.getTable(14 + sbHuffRDX).Decode(subInputStream);
-                }
+
+                return StandardTables.getTable(14 + sbHuffRDX).Decode(subInputStream);
             }
-            else
-            {
-                return integerDecoder.Decode(cxIARDX);
-            }
+
+            return integerDecoder.Decode(cxIARDX);
         }
 
         private long DecodeRdy()
@@ -802,7 +760,7 @@
             {
                 if (sbHuffRDY == 3)
                 {
-                    if (rdyTable == null)
+                    if (rdyTable is null)
                     {
                         int rdyNr = 0;
                         if (sbHuffFS == 3)
@@ -839,15 +797,11 @@
                     }
                     return rdyTable.Decode(subInputStream);
                 }
-                else
-                {
-                    return StandardTables.getTable(14 + sbHuffRDY).Decode(subInputStream);
-                }
+
+                return StandardTables.getTable(14 + sbHuffRDY).Decode(subInputStream);
             }
-            else
-            {
-                return integerDecoder.Decode(cxIARDY);
-            }
+
+            return integerDecoder.Decode(cxIARDY);
         }
 
         private long DecodeSymInRefSize()
@@ -856,55 +810,53 @@
             {
                 return StandardTables.getTable(1).Decode(subInputStream);
             }
-            else
+
+            if (rSizeTable is null)
             {
-                if (rSizeTable == null)
+                int rSizeNr = 0;
+
+                if (sbHuffFS == 3)
                 {
-                    int rSizeNr = 0;
-
-                    if (sbHuffFS == 3)
-                    {
-                        rSizeNr++;
-                    }
-
-                    if (sbHuffDS == 3)
-                    {
-                        rSizeNr++;
-                    }
-
-                    if (sbHuffDT == 3)
-                    {
-                        rSizeNr++;
-                    }
-
-                    if (sbHuffRDWidth == 3)
-                    {
-                        rSizeNr++;
-                    }
-
-                    if (sbHuffRDHeight == 3)
-                    {
-                        rSizeNr++;
-                    }
-
-                    if (sbHuffRDX == 3)
-                    {
-                        rSizeNr++;
-                    }
-
-                    if (sbHuffRDY == 3)
-                    {
-                        rSizeNr++;
-                    }
-
-                    rSizeTable = getUserTable(rSizeNr);
+                    rSizeNr++;
                 }
-                return rSizeTable.Decode(subInputStream);
+
+                if (sbHuffDS == 3)
+                {
+                    rSizeNr++;
+                }
+
+                if (sbHuffDT == 3)
+                {
+                    rSizeNr++;
+                }
+
+                if (sbHuffRDWidth == 3)
+                {
+                    rSizeNr++;
+                }
+
+                if (sbHuffRDHeight == 3)
+                {
+                    rSizeNr++;
+                }
+
+                if (sbHuffRDX == 3)
+                {
+                    rSizeNr++;
+                }
+
+                if (sbHuffRDY == 3)
+                {
+                    rSizeNr++;
+                }
+
+                rSizeTable = getUserTable(rSizeNr);
             }
 
+            return rSizeTable.Decode(subInputStream);
         }
 
-        private void Blit(Bitmap ib, long t)
+        private void Blit(Jbig2Bitmap ib, long t)
         {
             if (isTransposed == 0 && (referenceCorner == 2 || referenceCorner == 3))
             {
@@ -946,7 +898,7 @@
                 }
             }
 
-            Bitmaps.Blit(ib, regionBitmap, (int)s, (int)t, combinationOperator);
+            Jbig2Bitmaps.Blit(ib, regionBitmap, (int)s, (int)t, combinationOperator);
 
             // x)
             if (isTransposed == 0 && (referenceCorner == 0 || referenceCorner == 1))
@@ -989,10 +941,8 @@
                         Table t = (Table)referredToSegmentHeader.GetSegmentData();
                         return new EncodedTable(t);
                     }
-                    else
-                    {
-                        tableCounter++;
-                    }
+
+                    tableCounter++;
                 }
             }
             return null;
@@ -1105,7 +1055,7 @@
                 short sbCombinationOperator, short transposed, short refCorner, short sbdsOffset,
                 short sbHuffFS, short sbHuffDS, short sbHuffDT, short sbHuffRDWidth,
                 short sbHuffRDHeight, short sbHuffRDX, short sbHuffRDY, short sbHuffRSize,
-                short sbrTemplate, short[] sbrATX, short[] sbrATY, List<Bitmap> sbSyms,
+                short sbrTemplate, short[] sbrATX, short[] sbrATY, List<Jbig2Bitmap> sbSyms,
                 int sbSymCodeLen)
         {
 

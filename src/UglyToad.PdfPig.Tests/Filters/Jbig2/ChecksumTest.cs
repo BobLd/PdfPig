@@ -71,7 +71,7 @@
             var iis = new ImageInputStream(ImageHelpers.LoadFileBytes(filename));
             var doc = new Jbig2Document(iis);
 
-            Bitmap b = doc.GetPage(1).GetBitmap();
+            Jbig2Bitmap b = doc.GetPage(1).GetBitmap();
             byte[] digest = Hash(b.GetByteArray());
 
             var stringBuilder = new StringBuilder();

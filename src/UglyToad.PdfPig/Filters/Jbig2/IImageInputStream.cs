@@ -32,13 +32,13 @@
         /// If no bytes can be read because the end of the stream has been reached, -1 is returned.
         /// The bit offset within the stream is reset to zero before the read occurs.
         /// </summary>
-        int Read(byte[] b);
+        int Read(Span<byte> b);
 
         /// <summary>
         /// Reads up to len bytes from the stream, and stores them into b starting at index off. The number of bytes read is returned. If no bytes can be read because the end of the stream has been reached, -1 is returned.
         /// The bit offset within the stream is reset to zero before the read occurs.
         /// </summary>
-        int Read(byte[] b, int off, int len);
+        int Read(Span<byte> b, int off, int len);
 
         /// <summary>
         /// Reads a single bit from the stream and returns it as an int with the value 0 or 1. The bit offset is advanced by one and reduced modulo 8.
