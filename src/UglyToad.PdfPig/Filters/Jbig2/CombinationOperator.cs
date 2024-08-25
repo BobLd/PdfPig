@@ -5,7 +5,11 @@ namespace UglyToad.PdfPig.Filters.Jbig2
     /// </summary>
     internal enum CombinationOperator
     {
-        OR, AND, XOR, XNOR, REPLACE
+        OR,
+        AND,
+        XOR,
+        XNOR,
+        REPLACE
     }
 
     internal static class CombinationOperators

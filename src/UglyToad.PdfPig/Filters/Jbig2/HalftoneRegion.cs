@@ -8,7 +8,7 @@
     /// This class represents the data of segment type "Halftone region". Parsing is described in 7.4.5, page 67. Decoding
     /// procedure in 6.6.5 and 7.4.5.2.
     /// </summary>
-    internal class HalftoneRegion : IRegion
+    internal sealed class HalftoneRegion : IRegion
     {
         private SubInputStream subInputStream;
         private SegmentHeader segmentHeader;
@@ -18,10 +18,10 @@
         private long dataLength;
 
         // Decoded data
-        private Bitmap halftoneRegionBitmap;
+        private Jbig2Bitmap halftoneRegionBitmap;
 
         // Previously decoded data from other regions or dictionaries, stored to use as patterns in this region.
-        private List<Bitmap> patterns;
+        private List<Jbig2Bitmap> patterns;
 
         // Region segment information field, 7.4.1
         public RegionSegmentInformation RegionInfo { get; private set; }
@@ -114,14 +114,14 @@
         /// <summary>
         /// The procedure is described in JBIG2 ISO standard, 6.6.5.
         /// </summary>
-        /// <returns>The decoded <see cref="Bitmap"/></returns>
-        public Bitmap GetRegionBitmap()
+        /// <returns>The decoded <see cref="Jbig2Bitmap"/></returns>
+        public Jbig2Bitmap GetRegionBitmap()
         {
             if (null == halftoneRegionBitmap)
             {
                 // 6.6.5, page 40
                 // 1)
-                halftoneRegionBitmap = new Bitmap(RegionInfo.BitmapWidth,
+                halftoneRegionBitmap = new Jbig2Bitmap(RegionInfo.BitmapWidth,
                         RegionInfo.BitmapHeight);
 
                 if (patterns == null)
@@ -131,7 +131,7 @@
 
                 if (HDefaultPixel == 1)
                 {
-                    ArrayHelper.Fill(halftoneRegionBitmap.GetByteArray(), (byte)0xff);
+                    halftoneRegionBitmap.GetByteArray().AsSpan().Fill(0xff);
                 }
 
                 // 2)
@@ -163,8 +163,6 @@
         /// </summary>
         private void RenderPattern(int[][] grayScaleValues)
         {
-            int x, y;
-
             // 1)
             for (int m = 0; m < HGridHeight; m++)
             {
@@ -172,20 +170,20 @@
                 for (int n = 0; n < HGridWidth; n++)
                 {
                     // i)
-                    x = ComputeX(m, n);
-                    y = ComputeY(m, n);
+                    var x = ComputeX(m, n);
+                    var y = ComputeY(m, n);
 
                     // ii)
-                    Bitmap patternBitmap = patterns[grayScaleValues[m][n]];
-                    Bitmaps.Blit(patternBitmap, halftoneRegionBitmap, (x + HGridX), (y + HGridY),
+                    Jbig2Bitmap patternBitmap = patterns[grayScaleValues[m][n]];
+                    Jbig2Bitmaps.Blit(patternBitmap, halftoneRegionBitmap, (x + HGridX), (y + HGridY),
                             HCombinationOperator);
                 }
             }
         }
 
-        private List<Bitmap> GetPatterns()
+        private List<Jbig2Bitmap> GetPatterns()
         {
-            var patterns = new List<Bitmap>();
+            var patterns = new List<Jbig2Bitmap>();
 
             foreach (SegmentHeader s in segmentHeader.GetRtSegments())
             {
@@ -229,7 +227,7 @@
                 gbAtY[3] = -2;
             }
 
-            var grayScalePlanes = new Bitmap[bitsPerValue];
+            var grayScalePlanes = new Jbig2Bitmap[bitsPerValue];
 
             // 1)
             var genericRegion = new GenericRegion(subInputStream);
@@ -255,25 +253,24 @@
             return ComputeGrayScaleValues(grayScalePlanes, bitsPerValue);
         }
 
-        private Bitmap[] CombineGrayScalePlanes(Bitmap[] grayScalePlanes, int j)
+        private static Jbig2Bitmap[] CombineGrayScalePlanes(Jbig2Bitmap[] grayScalePlanes, int j)
         {
             int byteIndex = 0;
             for (int y = 0; y < grayScalePlanes[j].Height; y++)
             {
-
                 for (int x = 0; x < grayScalePlanes[j].Width; x += 8)
                 {
                     byte newValue = grayScalePlanes[j + 1].GetByte(byteIndex);
                     byte oldValue = grayScalePlanes[j].GetByte(byteIndex);
 
                     grayScalePlanes[j].SetByte(byteIndex++,
-                            Bitmaps.CombineBytes(oldValue, newValue, CombinationOperator.XOR));
+                            Jbig2Bitmaps.CombineBytes(oldValue, newValue, CombinationOperator.XOR));
                 }
             }
             return grayScalePlanes;
         }
 
-        private int[][] ComputeGrayScaleValues(Bitmap[] grayScalePlanes, int bitsPerValue)
+        private int[][] ComputeGrayScaleValues(Jbig2Bitmap[] grayScalePlanes, int bitsPerValue)
         {
             // Gray-scale decoding procedure, page 98
             int[][] grayScaleValues = new int[HGridHeight][];
@@ -303,20 +300,21 @@
                     }
                 }
             }
+
             return grayScaleValues;
         }
 
         private int ComputeX(int m, int n)
         {
-            return ShiftAndFill((HGridX + m * HRegionY + n * HRegionX));
+            return ShiftAndFill(HGridX + m * HRegionY + n * HRegionX);
         }
 
         private int ComputeY(int m, int n)
         {
-            return ShiftAndFill((HGridY + m * HRegionX - n * HRegionY));
+            return ShiftAndFill(HGridY + m * HRegionX - n * HRegionY);
         }
 
-        private int ShiftAndFill(int value)
+        private static int ShiftAndFill(int value)
         {
             // shift value by 8 and let the leftmost 8 bits be 0
             value >>= 8;

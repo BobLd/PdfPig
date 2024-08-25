@@ -5,17 +5,15 @@
     /// <summary>
     /// Represents a out of band node in a Huffman tree.
     /// </summary>
-    internal class OutOfBandNode : Node
+    internal sealed class OutOfBandNode : Node
     {
         public OutOfBandNode(Code c)
         {
         }
 
-        public override sealed long Decode(IImageInputStream iis)
+        public override long Decode(IImageInputStream iis)
         {
             return long.MaxValue;
         }
-
     }
-
 }

@@ -7,7 +7,7 @@
     /// Read accesses to the wrapped stream are synchronized, so that users of this stream need to deal with synchronization
     /// against other users of the same instance, but not against other users of the wrapped stream.
     /// </summary>
-    internal class SubInputStream : AbstractImageInputStream
+    internal sealed class SubInputStream : AbstractImageInputStream
     {
         private readonly IImageInputStream wrappedStream;
 
@@ -48,7 +48,7 @@
         }
 
         /// <inheritdoc />
-        public override sealed int Read()
+        public override int Read()
         {
             if (streamPosition >= length)
             {
@@ -71,7 +71,7 @@
         }
 
         /// <inheritdoc />
-        public override sealed int Read(byte[] b, int off, int len)
+        public override int Read(Span<byte> b, int off, int len)
         {
             if (streamPosition >= length)
             {
@@ -87,7 +87,7 @@
                 }
 
                 int toRead = (int)Math.Min(len, length - Position);
-                int read = wrappedStream.Read(b, off, toRead);
+                int read = wrappedStream.Read(b.Slice(off, toRead)); // wrappedStream.Read(b, off, toRead)
                 streamPosition += read;
 
                 return read;
@@ -95,13 +95,13 @@
         }
 
         /// <inheritdoc />
-        public override sealed void Seek(long pos)
+        public override void Seek(long pos)
         {
             streamPosition = pos;
         }
 
         /// <inheritdoc />
-        public override sealed void Dispose()
+        public override void Dispose()
         {
             wrappedStream.Dispose();
         }

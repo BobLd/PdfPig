@@ -7,7 +7,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
     /// <summary>
     /// This class represents the document structure with its pages and global segments.
     /// </summary>
-    internal class Jbig2Document : IDisposable
+    internal sealed class Jbig2Document : IDisposable
     {
         // ID string in file header, see ISO/IEC 14492:2001, D.4.1
         private static readonly int[] FILE_HEADER_ID = { 0x97, 0x4A, 0x42, 0x32, 0x0D, 0x0A, 0x1A, 0x0A };
@@ -143,7 +143,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                 offset += fileHeaderLength;
             }
 
-            if (globalSegments == null)
+            if (globalSegments is null)
             {
                 globalSegments = new Jbig2Globals();
             }
@@ -163,7 +163,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                 if (associatedPage != 0)
                 {
                     page = GetPage(associatedPage);
-                    if (page == null)
+                    if (page is null)
                     {
                         page = new Jbig2Page(this, associatedPage);
                         pages[associatedPage] = page;
@@ -257,7 +257,6 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                 NumberOfPages = (int)subInputStream.ReadUnsignedInt();
                 fileHeaderLength = 13;
             }
-
         }
 
         /// <summary>

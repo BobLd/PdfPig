@@ -24,10 +24,10 @@
         public abstract int Read();
 
         /// <inheritdoc />
-        public abstract int Read(byte[] b, int off, int len);
+        public abstract int Read(Span<byte> b, int off, int len);
 
         /// <inheritdoc />
-        public int Read(byte[] b)
+        public int Read(Span<byte> b)
         {
             return Read(b, 0, b.Length);
         }
@@ -86,10 +86,12 @@
         /// <inheritdoc />
         public uint ReadUnsignedInt()
         {
-            var buffer = new byte[4];
+            Span<byte> buffer = stackalloc byte[4];
             Read(buffer);
 
-            return BitConverter.ToUInt32(buffer.Reverse().ToArray(), 0);
+            buffer.Reverse();
+
+            return BitConverter.ToUInt32(buffer);
         }
 
         /// <inheritdoc />

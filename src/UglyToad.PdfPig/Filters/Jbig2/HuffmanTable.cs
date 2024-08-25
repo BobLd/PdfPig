@@ -33,7 +33,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
 
             public override sealed string ToString()
             {
-                return (Value != -1 ? ValueNode.bitPattern(Value, PrefixLength) : "?") + "/"
+                return (Value != -1 ? ValueNode.BitPattern(Value, PrefixLength) : "?") + "/"
                         + PrefixLength + "/" + RangeLength + "/" + RangeLow;
             }
         }
@@ -70,7 +70,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             return sb.ToString();
         }
 
-        private void PreprocessCodes(List<Code> codeTable)
+        private static void PreprocessCodes(List<Code> codeTable)
         {
             // Annex B.3 1) - build the histogram
             int maxPrefixLength = 0;
@@ -80,20 +80,20 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                 maxPrefixLength = Math.Max(maxPrefixLength, c.PrefixLength);
             }
 
-            var lenCount = new int[maxPrefixLength + 1];
+            var lenCount = new int[maxPrefixLength + 1]; // TODO - stackalloc? (max 32)
             foreach (Code c in codeTable)
             {
                 lenCount[c.PrefixLength]++;
             }
 
             int curCode;
-            var firstCode = new int[lenCount.Length + 1];
+            var firstCode = new int[lenCount.Length + 1]; // TODO - stackalloc? (max 32)
             lenCount[0] = 0;
 
             // Annex B.3 3)
             for (int curLen = 1; curLen <= lenCount.Length; curLen++)
             {
-                firstCode[curLen] = (firstCode[curLen - 1] + (lenCount[curLen - 1]) << 1);
+                firstCode[curLen] = firstCode[curLen - 1] + (lenCount[curLen - 1]) << 1;
                 curCode = firstCode[curLen];
                 foreach (var code in codeTable)
                 {

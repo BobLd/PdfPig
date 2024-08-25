@@ -7,7 +7,7 @@
     /// <summary>
     ///  This class represents an internal node of a Huffman tree. It contains two child nodes.
     /// </summary>
-    internal class InternalNode : Node
+    internal sealed class InternalNode : Node
     {
         private readonly int depth;
 
@@ -92,29 +92,33 @@
                 // the child will be an InternalNode
                 if (bit == 1)
                 {
-                    if (one == null)
+                    if (one is null)
                     {
                         one = new InternalNode(depth + 1);
-                    } ((InternalNode)one).Append(c);
+                    }
+                    
+                    ((InternalNode)one).Append(c);
                 }
                 else
                 {
-                    if (zero == null)
+                    if (zero is null)
                     {
                         zero = new InternalNode(depth + 1);
-                    } ((InternalNode)zero).Append(c);
+                    }
+                    
+                    ((InternalNode)zero).Append(c);
                 }
             }
         }
 
-        public override sealed long Decode(IImageInputStream iis)
+        public override long Decode(IImageInputStream iis)
         {
             int b = iis.ReadBit();
             Node n = b == 0 ? zero : one;
             return n.Decode(iis);
         }
 
-        public override sealed string ToString()
+        public override string ToString()
         {
             var sb = new StringBuilder("\n");
 

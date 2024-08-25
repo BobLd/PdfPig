@@ -8,14 +8,14 @@
     internal sealed class Jbig2DecodeFilter : IFilter
     {
         /// <inheritdoc />
-        public bool IsSupported { get; } = true;
+        public bool IsSupported => true;
 
         /// <inheritdoc />
         public ReadOnlyMemory<byte> Decode(ReadOnlySpan<byte> input, DictionaryToken streamDictionary, int filterIndex)
         {
-            var decodeParms = DecodeParameterResolver.GetFilterParameters(streamDictionary, filterIndex);
+            var decodeParams = DecodeParameterResolver.GetFilterParameters(streamDictionary, filterIndex);
             Jbig2Document globalDocument = null;
-            if (decodeParms.TryGet(NameToken.Jbig2Globals, out StreamToken tok))
+            if (decodeParams.TryGet(NameToken.Jbig2Globals, out StreamToken tok))
             {
                 globalDocument = new Jbig2Document(new ImageInputStream(tok.Data.ToArray()));
             }
@@ -26,22 +26,33 @@
                 var page = jbig2.GetPage(1);
                 var bitmap = page.GetBitmap();
 
-                var pageInfo =
-                    (PageInformation)page.GetPageInformationSegment().GetSegmentData();
+                var pageInfo = (PageInformation)page.GetPageInformationSegment().GetSegmentData();
 
-                if (globalDocument != null)
+                globalDocument?.Dispose();
+
+                if (pageInfo.DefaultPixelValue != 0 || IsImageMask(streamDictionary))
                 {
-                    globalDocument.Dispose();
+                    // Invert bits if the default pixel value is black
+                    return bitmap.GetByteArray().Select(x => (byte)~x).ToArray();
                 }
 
-                var isImageMask = streamDictionary.ContainsKey(NameToken.ImageMask) ||
-                    streamDictionary.ContainsKey(NameToken.Im);
-
-                // Invert bits if the default pixel value is black
-                return (pageInfo.DefaultPixelValue != 0 || isImageMask) ?
-                     bitmap.GetByteArray().Select(x => (byte)~x).ToArray() :
-                     bitmap.GetByteArray();
+                return bitmap.GetByteArray();
             }
+        }
+
+        private static bool IsImageMask(DictionaryToken streamDictionary)
+        {
+            if (streamDictionary.TryGet(NameToken.ImageMask, out BooleanToken isMaskToken) && isMaskToken != null)
+            {
+                return isMaskToken.Data;
+            }
+
+            if (streamDictionary.TryGet(NameToken.Im, out BooleanToken isMaskToken2) && isMaskToken2 != null)
+            {
+                return isMaskToken2.Data;
+            }
+
+            return false;
         }
     }
 }
