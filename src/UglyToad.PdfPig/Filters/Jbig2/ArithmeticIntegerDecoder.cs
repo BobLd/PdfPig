@@ -3,7 +3,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
     /// <summary>
     /// This class represents the arithmetic integer decoder, described in ISO/IEC 14492:2001 (Annex A).
     /// </summary>
-    internal class ArithmeticIntegerDecoder
+    internal sealed class ArithmeticIntegerDecoder
     {
         private readonly ArithmeticDecoder decoder;
 
@@ -27,7 +27,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             int bitsToRead;
             int offset;
 
-            if (cxIAx == null)
+            if (cxIAx is null)
             {
                 cxIAx = new CX(512, 1);
             }
@@ -115,7 +115,8 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             {
                 return v;
             }
-            else if (s == 1 && v > 0)
+
+            if (s == 1 && v > 0)
             {
                 return -v;
             }
@@ -142,7 +143,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             }
 
             // A.3 3) & 4)
-            return (prev - (1 << (int)symCodeLen));
+            return prev - (1 << (int)symCodeLen);
         }
 
         private void SetPrev(int bit)

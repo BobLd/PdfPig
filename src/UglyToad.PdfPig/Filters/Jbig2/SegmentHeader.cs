@@ -1,33 +1,69 @@
+#nullable disable
+
 namespace UglyToad.PdfPig.Filters.Jbig2
 {
     using System;
-    using System.Collections.Generic;
     using System.Text;
 
     /// <summary>
     /// The basic class for all JBIG2 segments.
     /// </summary>
-    internal class SegmentHeader
+    internal sealed class SegmentHeader
     {
-        private static readonly Dictionary<int, Type> SEGMENT_TYPE_MAP = new Dictionary<int, Type>
+        private static ISegmentData CreateSegmentData(int segmentType)
         {
-            { 0, typeof(SymbolDictionary) }, { 4, typeof(TextRegion) },
-            { 6, typeof(TextRegion) }, { 7, typeof(TextRegion) }, { 16, typeof(PatternDictionary) },
-            { 20, typeof(HalftoneRegion) }, { 22, typeof(HalftoneRegion) },
-            { 23, typeof(HalftoneRegion) }, { 36, typeof(GenericRegion) },
-            { 38, typeof(GenericRegion) }, { 39, typeof(GenericRegion) },
-            { 40, typeof(GenericRefinementRegion) }, { 42, typeof(GenericRefinementRegion) },
-            { 43, typeof(GenericRefinementRegion) }, { 48, typeof(PageInformation) },
-            { 50, typeof(EndOfStripe) }, { 52, typeof(Profiles) }, { 53, typeof(Table) }
-        };
+            switch (segmentType)
+            {
+                case 0:
+                    return new SymbolDictionary();
+
+                case 4:
+                case 6:
+                case 7:
+                    return new TextRegion();
+
+                case 16:
+                    return new PatternDictionary();
+
+                case 20:
+                case 22:
+                case 23:
+                    return new HalftoneRegion();
+
+                case 36:
+                case 38:
+                case 39:
+                    return new GenericRegion();
+
+                case 40:
+                case 42:
+                case 43:
+                    return new GenericRefinementRegion();
+
+                case 48:
+                    return new PageInformation();
+
+                case 50:
+                    return new EndOfStripe();
+
+                case 52:
+                    return new Profiles();
+
+                case 53:
+                    return new Table();
+
+                default:
+                    throw new InvalidOperationException($"No segment class for type {segmentType}.");
+            }
+        }
 
         private readonly SubInputStream subInputStream;
 
         private byte pageAssociationFieldSize;
 
-        private SegmentHeader[] referredToSegments;
-
         private WeakReference<ISegmentData> segmentData;
+
+        public SegmentHeader[] RtSegments { get; private set; }
 
         public int SegmentNumber { get; private set; }
 
@@ -49,62 +85,61 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             Parse(document, sis, offset, organisationType);
         }
 
-        private void Parse(Jbig2Document document, IImageInputStream subInputStream, long offset, int organisationType)
+        private void Parse(Jbig2Document document, IImageInputStream subInputStr, long offset, int organisationType)
         {
-            subInputStream.Seek(offset);
+            subInputStr.Seek(offset);
 
             // 7.2.2 Segment number
-            ReadSegmentNumber(subInputStream);
+            ReadSegmentNumber(subInputStr);
 
             // 7.2.3 Segment header flags
-            ReadSegmentHeaderFlag(subInputStream);
+            ReadSegmentHeaderFlag(subInputStr);
 
             // 7.2.4 Amount of referred-to segments
-            int countOfReferredToSegments = ReadAmountOfReferredToSegments(subInputStream);
+            int countOfReferredToSegments = ReadAmountOfReferredToSegments(subInputStr);
 
             // 7.2.5 Referred-to segments numbers
-            int[] referredToSegmentNumbers = ReadReferredToSegmentsNumbers(subInputStream, countOfReferredToSegments);
+            int[] referredToSegmentNumbers = ReadReferredToSegmentsNumbers(subInputStr, countOfReferredToSegments);
 
             // 7.2.6 Segment page association (Checks how big the page association field is.)
-            ReadSegmentPageAssociation(document, subInputStream, countOfReferredToSegments, referredToSegmentNumbers);
+            ReadSegmentPageAssociation(document, subInputStr, countOfReferredToSegments, referredToSegmentNumbers);
 
             // 7.2.7 Segment data length (Contains the length of the data part (in bytes).)
-            ReadSegmentDataLength(subInputStream);
+            ReadSegmentDataLength(subInputStr);
 
-            ReadDataStartOffset(subInputStream, organisationType);
-            ReadSegmentHeaderLength(subInputStream, offset);
+            ReadDataStartOffset(subInputStr, organisationType);
+            ReadSegmentHeaderLength(subInputStr, offset);
         }
 
         /// <summary>
         /// 7.2.2 Segment number
         /// </summary>
-        private void ReadSegmentNumber(IImageInputStream subInputStream)
+        private void ReadSegmentNumber(IImageInputStream subInputStr)
         {
-            SegmentNumber = (int)(subInputStream.ReadBits(32) & 0xffffffff);
+            SegmentNumber = (int)(subInputStr.ReadBits(32) & 0xffffffff);
         }
 
         /// <summary>
         /// 7.2.3 Segment header flags
         /// </summary>
-        /// <param name="subInputStream"></param>
-        private void ReadSegmentHeaderFlag(IImageInputStream subInputStream)
+        private void ReadSegmentHeaderFlag(IImageInputStream subInputStr)
         {
             // Bit 7: Retain Flag, if 1, this segment is flagged as retained;
-            IsRetained = subInputStream.ReadBit() == 1;
+            IsRetained = subInputStr.ReadBit() == 1;
 
             // Bit 6: Size of the page association field. One byte if 0, four bytes if 1;
-            pageAssociationFieldSize = (byte)subInputStream.ReadBit();
+            pageAssociationFieldSize = (byte)subInputStr.ReadBit();
 
             // Bit 5-0: Contains the values (between 0 and 62 with gaps) for segment types, specified in 7.3
-            SegmentType = (int)(subInputStream.ReadBits(6) & 0xff);
+            SegmentType = (int)(subInputStr.ReadBits(6) & 0xff);
         }
 
         /// <summary>
         /// 7.2.4 Amount of referred-to segments
         /// </summary>
-        private int ReadAmountOfReferredToSegments(IImageInputStream subInputStream)
+        private static int ReadAmountOfReferredToSegments(IImageInputStream subInputStr)
         {
-            int countOfRTS = (int)(subInputStream.ReadBits(3) & 0xf);
+            int countOfRTS = (int)(subInputStr.ReadBits(3) & 0xf);
 
             byte[] retainBit;
 
@@ -114,20 +149,20 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                 retainBit = new byte[5];
                 for (int i = 0; i <= 4; i++)
                 {
-                    retainBit[i] = (byte)subInputStream.ReadBit();
+                    retainBit[i] = (byte)subInputStr.ReadBit();
                 }
             }
             else
             {
                 // Long format
-                countOfRTS = (int)(subInputStream.ReadBits(29) & 0xffffffff);
+                countOfRTS = (int)(subInputStr.ReadBits(29) & 0xffffffff);
 
                 int arrayLength = (countOfRTS + 8) >> 3;
                 retainBit = new byte[arrayLength <<= 3];
 
                 for (int i = 0; i < arrayLength; i++)
                 {
-                    retainBit[i] = (byte)subInputStream.ReadBit();
+                    retainBit[i] = (byte)subInputStr.ReadBit();
                 }
             }
             return countOfRTS;
@@ -136,12 +171,12 @@ namespace UglyToad.PdfPig.Filters.Jbig2
         /// <summary>
         /// 7.2.5 Referred-to segments numbers
         /// Gathers all segment numbers of referred-to segments.The segments itself are stored in the
-        /// <see cref="referredToSegments"/> array.
+        /// <see cref="RtSegments"/> array.
         /// </summary>
-        /// <param name="subInputStream">Wrapped source data input stream.</param>
+        /// <param name="subInputStr">Wrapped source data input stream.</param>
         /// <param name="countOfReferredToSegments">The number of referred - to segments.</param>
         /// <returns>An array with the segment number of all referred - to segments.</returns>
-        private int[] ReadReferredToSegmentsNumbers(IImageInputStream subInputStream, int countOfReferredToSegments)
+        private int[] ReadReferredToSegmentsNumbers(IImageInputStream subInputStr, int countOfReferredToSegments)
         {
             int[] result = new int[countOfReferredToSegments];
 
@@ -157,11 +192,11 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                     }
                 }
 
-                referredToSegments = new SegmentHeader[countOfReferredToSegments];
+                RtSegments = new SegmentHeader[countOfReferredToSegments];
 
                 for (int i = 0; i < countOfReferredToSegments; i++)
                 {
-                    result[i] = (int)(subInputStream.ReadBits(rtsSize << 3) & 0xffffffff);
+                    result[i] = (int)(subInputStr.ReadBits(rtsSize << 3) & 0xffffffff);
                 }
             }
 
@@ -171,18 +206,18 @@ namespace UglyToad.PdfPig.Filters.Jbig2
         /// <summary>
         /// 7.2.6 Segment page association
         /// </summary>
-        private void ReadSegmentPageAssociation(Jbig2Document document, IImageInputStream subInputStream,
+        private void ReadSegmentPageAssociation(Jbig2Document document, IImageInputStream subInputStr,
                 int countOfReferredToSegments, int[] referredToSegmentNumbers)
         {
             if (pageAssociationFieldSize == 0)
             {
                 // Short format
-                PageAssociation = (short)(subInputStream.ReadBits(8) & 0xff);
+                PageAssociation = (short)(subInputStr.ReadBits(8) & 0xff);
             }
             else
             {
                 // Long format
-                PageAssociation = (int)(subInputStream.ReadBits(32) & 0xffffffff);
+                PageAssociation = (int)(subInputStr.ReadBits(32) & 0xffffffff);
             }
 
             if (countOfReferredToSegments > 0)
@@ -190,7 +225,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                 Jbig2Page page = document.GetPage(PageAssociation);
                 for (int i = 0; i < countOfReferredToSegments; i++)
                 {
-                    referredToSegments[i] = (null != page ? page.GetSegment(referredToSegmentNumbers[i])
+                    RtSegments[i] = (null != page ? page.GetSegment(referredToSegmentNumbers[i])
                             : document.GetGlobalSegment(referredToSegmentNumbers[i]));
                 }
             }
@@ -199,31 +234,26 @@ namespace UglyToad.PdfPig.Filters.Jbig2
         /// <summary>
         /// 7.2.7 Segment data length. Reads the length of the data part in bytes.
         /// </summary>
-        private void ReadSegmentDataLength(IImageInputStream subInputStream)
+        private void ReadSegmentDataLength(IImageInputStream subInputStr)
         {
-            SegmentDataLength = subInputStream.ReadBits(32) & 0xffffffff;
+            SegmentDataLength = subInputStr.ReadBits(32) & 0xffffffff;
         }
 
         /// <summary>
         /// Sets the offset only if organization type is SEQUENTIAL. If random, data starts after segment headers and can be
         /// determined when all segment headers are parsed and allocated.
         /// </summary>
-        private void ReadDataStartOffset(IImageInputStream subInputStream, int organisationType)
+        private void ReadDataStartOffset(IImageInputStream subInputStr, int organisationType)
         {
             if (organisationType == Jbig2Document.SEQUENTIAL)
             {
-                SegmentDataStartOffset = subInputStream.Position;
+                SegmentDataStartOffset = subInputStr.Position;
             }
         }
 
-        private void ReadSegmentHeaderLength(IImageInputStream subInputStream, long offset)
+        private void ReadSegmentHeaderLength(IImageInputStream subInputStr, long offset)
         {
-            SegmentHeaderLength = subInputStream.Position - offset;
-        }
-
-        public SegmentHeader[] GetRtSegments()
-        {
-            return referredToSegments;
+            SegmentHeaderLength = subInputStr.Position - offset;
         }
 
         /// <summary>
@@ -243,28 +273,20 @@ namespace UglyToad.PdfPig.Filters.Jbig2
         {
             ISegmentData segmentDataPart = null;
 
-            if (null != segmentData)
-            {
-                segmentData.TryGetTarget(out segmentDataPart);
-            }
+            segmentData?.TryGetTarget(out segmentDataPart);
 
-            if (null == segmentDataPart)
+            if (segmentDataPart is null)
             {
                 try
                 {
-                    if (!SEGMENT_TYPE_MAP.TryGetValue(SegmentType, out var segmentClassType))
-                    {
-                        throw new InvalidOperationException("No segment class for type " + SegmentType);
-                    }
-
-                    segmentDataPart = (ISegmentData)Activator.CreateInstance(segmentClassType);
+                    segmentDataPart = CreateSegmentData(SegmentType);
                     segmentDataPart.Init(this, GetDataInputStream());
 
                     segmentData = new WeakReference<ISegmentData>(segmentDataPart);
                 }
                 catch (Exception e)
                 {
-                    throw new InvalidOperationException("Can't instantiate segment class", e);
+                    throw new InvalidOperationException("Can't instantiate segment class.", e);
                 }
             }
 
@@ -273,19 +295,16 @@ namespace UglyToad.PdfPig.Filters.Jbig2
 
         public void CleanSegmentData()
         {
-            if (segmentData != null)
-            {
-                segmentData = null;
-            }
+            segmentData = null;
         }
 
         public override string ToString()
         {
             StringBuilder stringBuilder = new StringBuilder();
 
-            if (referredToSegments != null)
+            if (RtSegments != null)
             {
-                foreach (SegmentHeader s in referredToSegments)
+                foreach (SegmentHeader s in RtSegments)
                 {
                     stringBuilder.Append(s.SegmentNumber + " ");
                 }

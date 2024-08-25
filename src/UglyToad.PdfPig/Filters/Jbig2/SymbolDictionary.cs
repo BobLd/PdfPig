@@ -1,14 +1,15 @@
-﻿namespace UglyToad.PdfPig.Filters.Jbig2
+﻿#nullable disable
+
+namespace UglyToad.PdfPig.Filters.Jbig2
 {
     using System;
     using System.Collections.Generic;
-    using System.Drawing;
 
     /// <summary>
     /// This class represents the data of segment type "Symbol dictionary". Parsing is described in
     /// 7.4.2.1.1 - 7.4.1.1.5 and decoding procedure is described in 6.5.
     /// </summary>
-    internal class SymbolDictionary : IDictionary
+    internal sealed class SymbolDictionary : IJbigDictionary
     {
         private SubInputStream subInputStream;
 
@@ -41,9 +42,9 @@
         // Further parameters
         private SegmentHeader segmentHeader;
         private int amountOfImportedSymbolss;
-        private List<Bitmap> importSymbols;
+        private List<Jbig2Bitmap> importSymbols;
         private int amountOfDecodedSymbols;
-        private Bitmap[] newSymbols;
+        private Jbig2Bitmap[] newSymbols;
 
         // User-supplied tables
         private HuffmanTable dhTable;
@@ -52,8 +53,8 @@
         private HuffmanTable aggInstTable;
 
         // Return value of that segment
-        private List<Bitmap> exportSymbols;
-        private List<Bitmap> sbSymbols;
+        private List<Jbig2Bitmap> exportSymbols;
+        private List<Jbig2Bitmap> sbSymbols;
 
         private ArithmeticDecoder arithmeticDecoder;
         private ArithmeticIntegerDecoder iDecoder;
@@ -95,14 +96,13 @@
 
             if (isCodingContextUsed)
             {
-                SegmentHeader[] rtSegments = segmentHeader.GetRtSegments();
+                SegmentHeader[] rtSegments = segmentHeader.RtSegments;
 
                 for (int i = rtSegments.Length - 1; i >= 0; i--)
                 {
                     if (rtSegments[i].SegmentType == 0)
                     {
-                        SymbolDictionary symbolDictionary =
-                            (SymbolDictionary)rtSegments[i].GetSegmentData();
+                        SymbolDictionary symbolDictionary = (SymbolDictionary)rtSegments[i].GetSegmentData();
 
                         if (symbolDictionary.isCodingContextRetained)
                         {
@@ -167,17 +167,12 @@
 
         private void SetAtPixels()
         {
-            if (!isHuffmanEncoded)
+            if (isHuffmanEncoded)
             {
-                if (sdTemplate == 0)
-                {
-                    ReadAtPixels(4);
-                }
-                else
-                {
-                    ReadAtPixels(1);
-                }
+                return;
             }
+
+            ReadAtPixels(sdTemplate == 0 ? 4 : 1);
         }
 
         private void SetRefinementAtPixels()
@@ -224,13 +219,13 @@
 
         private void SetInSyms()
         {
-            if (segmentHeader.GetRtSegments() != null)
+            if (segmentHeader.RtSegments != null)
             {
                 RetrieveImportSymbols();
             }
             else
             {
-                importSymbols = new List<Bitmap>();
+                importSymbols = new List<Jbig2Bitmap>();
             }
         }
 
@@ -252,10 +247,7 @@
         {
             if (isHuffmanEncoded)
             {
-                if (sdTemplate != 0)
-                {
-                    sdTemplate = 0;
-                }
+                sdTemplate = 0;
 
                 if (!useRefinementAggregation)
                 {
@@ -272,36 +264,19 @@
             }
             else
             {
-                if (sdHuffBMSizeSelection != 0)
-                {
-                    sdHuffBMSizeSelection = 0;
-                }
-
-                if (sdHuffDecodeWidthSelection != 0)
-                {
-                    sdHuffDecodeWidthSelection = 0;
-                }
-
-                if (sdHuffDecodeHeightSelection != 0)
-                {
-                    sdHuffDecodeHeightSelection = 0;
-                }
+                sdHuffBMSizeSelection = 0;
+                sdHuffDecodeWidthSelection = 0;
+                sdHuffDecodeHeightSelection = 0;
             }
 
             if (!useRefinementAggregation)
             {
-                if (sdrTemplate != 0)
-                {
-                    sdrTemplate = 0;
-                }
+                sdrTemplate = 0;
             }
 
             if (!isHuffmanEncoded || !useRefinementAggregation)
             {
-                if (sdHuffAggInstanceSelection != 0)
-                {
-                    sdHuffAggInstanceSelection = 0;
-                }
+                sdHuffAggInstanceSelection = 0;
             }
         }
 
@@ -309,9 +284,9 @@
         /// 6.5.5 Decoding the symbol dictionary.
         /// </summary>
         /// <returns>List of decoded symbol bitmaps.</returns>
-        public List<Bitmap> GetDictionary()
+        public List<Jbig2Bitmap> GetDictionary()
         {
-            if (null == exportSymbols)
+            if (exportSymbols is null)
             {
                 if (useRefinementAggregation)
                 {
@@ -324,7 +299,7 @@
                 }
 
                 // 6.5.5 1)
-                newSymbols = new Bitmap[amountOfNewSymbols];
+                newSymbols = new Jbig2Bitmap[amountOfNewSymbols];
 
                 // 6.5.5 2)
                 int[] newSymbolsWidths = null;
@@ -361,8 +336,7 @@
                         // expected number of symbols have been decoded.
                         // The latter exit condition guards against pathological cases where
                         // a symbol's DW never contains OOB and thus never terminates.
-                        if (differenceWidth == long.MaxValue
-                                || amountOfDecodedSymbols >= amountOfNewSymbols)
+                        if (differenceWidth == long.MaxValue || amountOfDecodedSymbols >= amountOfNewSymbols)
                         {
                             break;
                         }
@@ -399,7 +373,7 @@
                         long bmSize;
                         if (sdHuffBMSizeSelection == 0)
                         {
-                            bmSize = StandardTables.getTable(1).Decode(subInputStream);
+                            bmSize = StandardTables.GetTable(1).Decode(subInputStream);
                         }
                         else
                         {
@@ -408,7 +382,7 @@
 
                         subInputStream.SkipBits();
 
-                        Bitmap heightClassCollectiveBitmap =
+                        Jbig2Bitmap heightClassCollectiveBitmap =
                             DecodeHeightClassCollectiveBitmap(bmSize, heightClassHeight, totalWidth);
 
                         subInputStream.SkipBits();
@@ -431,57 +405,56 @@
 
         private void SetCodingStatistics()
         {
-            if (cxIADT == null)
+            if (cxIADT is null)
             {
                 cxIADT = new CX(512, 1);
             }
 
-            if (cxIADH == null)
+            if (cxIADH is null)
             {
                 cxIADH = new CX(512, 1);
             }
 
-            if (cxIADW == null)
+            if (cxIADW is null)
             {
                 cxIADW = new CX(512, 1);
             }
 
-            if (cxIAAI == null)
+            if (cxIAAI is null)
             {
                 cxIAAI = new CX(512, 1);
             }
 
-            if (cxIAEX == null)
+            if (cxIAEX is null)
             {
                 cxIAEX = new CX(512, 1);
             }
 
-            if (useRefinementAggregation && cxIAID == null)
+            if (useRefinementAggregation && cxIAID is null)
             {
                 cxIAID = new CX(1 << sbSymCodeLen, 1);
                 cxIARDX = new CX(512, 1);
                 cxIARDY = new CX(512, 1);
             }
 
-            if (cx == null)
+            if (cx is null)
             {
                 cx = new CX(65536, 1);
             }
 
-            if (arithmeticDecoder == null)
+            if (arithmeticDecoder is null)
             {
                 arithmeticDecoder = new ArithmeticDecoder(subInputStream);
             }
 
-            if (iDecoder == null)
+            if (iDecoder is null)
             {
                 iDecoder = new ArithmeticIntegerDecoder(arithmeticDecoder);
             }
         }
 
-        private void DecodeHeightClassBitmap(Bitmap heightClassCollectiveBitmap,
-                int heightClassFirstSymbol, int heightClassHeight,
-                int[] newSymbolsWidths)
+        private void DecodeHeightClassBitmap(Jbig2Bitmap heightClassCollectiveBitmap,
+                int heightClassFirstSymbol, int heightClassHeight, int[] newSymbolsWidths)
         {
             for (int i = heightClassFirstSymbol; i < amountOfDecodedSymbols; i++)
             {
@@ -492,8 +465,8 @@
                     startColumn += newSymbolsWidths[j];
                 }
 
-                var roi = new Rectangle(startColumn, 0, newSymbolsWidths[i], heightClassHeight);
-                var symbolBitmap = Bitmaps.Extract(roi, heightClassCollectiveBitmap);
+                var roi = new Jbig2Rectangle(startColumn, 0, newSymbolsWidths[i], heightClassHeight);
+                var symbolBitmap = Jbig2Bitmaps.Extract(roi, heightClassCollectiveBitmap);
                 newSymbols[i] = symbolBitmap;
                 sbSymbols.Add(symbolBitmap);
             }
@@ -530,11 +503,12 @@
         {
             if (sdHuffAggInstanceSelection == 0)
             {
-                return StandardTables.getTable(1).Decode(subInputStream);
+                return StandardTables.GetTable(1).Decode(subInputStream);
             }
-            else if (sdHuffAggInstanceSelection == 1)
+
+            if (sdHuffAggInstanceSelection == 1)
             {
-                if (aggInstTable == null)
+                if (aggInstTable is null)
                 {
                     int aggregationInstanceNumber = 0;
 
@@ -561,7 +535,7 @@
         private void DecodeThroughTextRegion(int symbolWidth, int heightClassHeight,
                 long amountOfRefinementAggregationInstances)
         {
-            if (textRegion == null)
+            if (textRegion is null)
             {
                 textRegion = new TextRegion(subInputStream, null);
 
@@ -599,12 +573,12 @@
             {
                 // 2) - 4)
                 id = (int)subInputStream.ReadBits(sbSymCodeLen);
-                rdx = (int)StandardTables.getTable(15).Decode(subInputStream);
-                rdy = (int)StandardTables.getTable(15).Decode(subInputStream);
+                rdx = (int)StandardTables.GetTable(15).Decode(subInputStream);
+                rdy = (int)StandardTables.GetTable(15).Decode(subInputStream);
 
                 // 5) a)
                 /* symInRefSize = */
-                StandardTables.getTable(1).Decode(subInputStream);
+                StandardTables.GetTable(1).Decode(subInputStream);
 
                 // 5) b) - Skip over remaining bits
                 subInputStream.SkipBits();
@@ -619,7 +593,7 @@
 
             // 6)
             SetSymbolsArray();
-            Bitmap ibo = sbSymbols[id];
+            Jbig2Bitmap ibo = sbSymbols[id];
             DecodeNewSymbols(symbolWidth, heightClassHeight, ibo, rdx, rdy);
 
             // 7)
@@ -630,18 +604,18 @@
             }
         }
 
-        private void DecodeNewSymbols(int symWidth, int hcHeight, Bitmap ibo, int rdx, int rdy)
+        private void DecodeNewSymbols(int symWidth, int hcHeight, Jbig2Bitmap ibo, int rdx, int rdy)
         {
-            if (genericRefinementRegion == null)
+            if (genericRefinementRegion is null)
             {
                 genericRefinementRegion = new GenericRefinementRegion(subInputStream);
 
-                if (arithmeticDecoder == null)
+                if (arithmeticDecoder is null)
                 {
                     arithmeticDecoder = new ArithmeticDecoder(subInputStream);
                 }
 
-                if (cx == null)
+                if (cx is null)
                 {
                     cx = new CX(65536, 1);
                 }
@@ -656,7 +630,7 @@
 
         private void DecodeDirectlyThroughGenericRegion(int symWidth, int hcHeight)
         {
-            if (genericRegion == null)
+            if (genericRegion is null)
             {
                 genericRegion = new GenericRegion(subInputStream);
             }
@@ -670,7 +644,7 @@
 
         private void AddSymbol(IRegion region)
         {
-            Bitmap symbol = region.GetRegionBitmap();
+            Jbig2Bitmap symbol = region.GetRegionBitmap();
             newSymbols[amountOfDecodedSymbols] = symbol;
             sbSymbols.Add(symbol);
         }
@@ -682,13 +656,13 @@
                 switch (sdHuffDecodeWidthSelection)
                 {
                     case 0:
-                        return StandardTables.getTable(2).Decode(subInputStream);
+                        return StandardTables.GetTable(2).Decode(subInputStream);
 
                     case 1:
-                        return StandardTables.getTable(3).Decode(subInputStream);
+                        return StandardTables.GetTable(3).Decode(subInputStream);
 
                     case 3:
-                        if (dwTable == null)
+                        if (dwTable is null)
                         {
                             int dwNr = 0;
 
@@ -731,13 +705,13 @@
             switch (sdHuffDecodeHeightSelection)
             {
                 case 0:
-                    return StandardTables.getTable(4).Decode(subInputStream);
+                    return StandardTables.GetTable(4).Decode(subInputStream);
 
                 case 1:
-                    return StandardTables.getTable(5).Decode(subInputStream);
+                    return StandardTables.GetTable(5).Decode(subInputStream);
 
                 case 3:
-                    if (dhTable == null)
+                    if (dhTable is null)
                     {
                         dhTable = GetUserTable(0);
                     }
@@ -747,14 +721,14 @@
             return 0;
         }
 
-        private Bitmap DecodeHeightClassCollectiveBitmap(long bmSize,
+        private Jbig2Bitmap DecodeHeightClassCollectiveBitmap(long bmSize,
                 int heightClassHeight, int totalWidth)
         {
             if (bmSize == 0)
             {
-                Bitmap heightClassCollectiveBitmap = new Bitmap(totalWidth, heightClassHeight);
+                Jbig2Bitmap heightClassCollectiveBitmap = new Jbig2Bitmap(totalWidth, heightClassHeight);
 
-                for (int i = 0; i < heightClassCollectiveBitmap.GetByteArray().Length; i++)
+                for (int i = 0; i < heightClassCollectiveBitmap.ByteArray.Length; i++)
                 {
                     heightClassCollectiveBitmap.SetByte(i, subInputStream.ReadByte());
                 }
@@ -763,7 +737,7 @@
             }
             else
             {
-                if (genericRegion == null)
+                if (genericRegion is null)
                 {
                     genericRegion = new GenericRegion(subInputStream);
                 }
@@ -777,7 +751,7 @@
 
         private void SetExportedSymbols(int[] toExportFlags)
         {
-            exportSymbols = new List<Bitmap>(amountOfExportSymbolss);
+            exportSymbols = new List<Jbig2Bitmap>(amountOfExportSymbolss);
 
             for (int i = 0; i < amountOfImportedSymbolss + amountOfNewSymbols; i++)
             {
@@ -806,7 +780,7 @@
             {
                 if (isHuffmanEncoded)
                 {
-                    exRunLength = StandardTables.getTable(1).Decode(subInputStream);
+                    exRunLength = StandardTables.GetTable(1).Decode(subInputStream);
                 }
                 else
                 {
@@ -821,7 +795,7 @@
                     }
                 }
 
-                currentExportFlag = (currentExportFlag == 0) ? 1 : 0;
+                currentExportFlag = currentExportFlag == 0 ? 1 : 0;
             }
 
             return exportFlags;
@@ -829,7 +803,7 @@
 
         private long HuffDecodeBmSize()
         {
-            if (bmSizeTable == null)
+            if (bmSizeTable is null)
             {
                 int bmNr = 0;
 
@@ -857,15 +831,11 @@
             if (isHuffmanEncoded)
             {
                 return Math.Max(
-                        (int)(Math.Ceiling(
-                                Math.Log(amountOfImportedSymbolss + amountOfNewSymbols) / Math.Log(2))),
+                        (int)Math.Ceiling(
+                                Math.Log(amountOfImportedSymbolss + amountOfNewSymbols) / Math.Log(2)),
                         1);
             }
-            else
-            {
-                return (int)(Math
-                        .Ceiling(Math.Log(amountOfImportedSymbolss + amountOfNewSymbols) / Math.Log(2)));
-            }
+            return (int)Math.Ceiling(Math.Log(amountOfImportedSymbolss + amountOfNewSymbols) / Math.Log(2));
         }
 
 
@@ -874,15 +844,14 @@
         /// </summary>
         private void SetSymbolsArray()
         {
-            if (importSymbols == null)
+            if (importSymbols is null)
             {
                 RetrieveImportSymbols();
             }
 
-            if (sbSymbols == null)
+            if (sbSymbols is null)
             {
-                sbSymbols = new List<Bitmap>();
-                sbSymbols.AddRange(importSymbols);
+                sbSymbols = new List<Jbig2Bitmap>(importSymbols);
             }
         }
 
@@ -891,13 +860,12 @@
         /// </summary>
         private void RetrieveImportSymbols()
         {
-            importSymbols = new List<Bitmap>();
-            foreach (SegmentHeader referredToSegmentHeader in segmentHeader.GetRtSegments())
+            importSymbols = new List<Jbig2Bitmap>();
+            foreach (SegmentHeader referredToSegmentHeader in segmentHeader.RtSegments)
             {
                 if (referredToSegmentHeader.SegmentType == 0)
                 {
-                    SymbolDictionary sd = (SymbolDictionary)referredToSegmentHeader
-                            .GetSegmentData();
+                    var sd = (SymbolDictionary)referredToSegmentHeader.GetSegmentData();
                     importSymbols.AddRange(sd.GetDictionary());
                     amountOfImportedSymbolss += sd.amountOfExportSymbolss;
                 }
@@ -908,7 +876,7 @@
         {
             int tableCounter = 0;
 
-            foreach (SegmentHeader referredToSegmentHeader in segmentHeader.GetRtSegments())
+            foreach (SegmentHeader referredToSegmentHeader in segmentHeader.RtSegments)
             {
                 if (referredToSegmentHeader.SegmentType == 53)
                 {
@@ -917,10 +885,8 @@
                         Table t = (Table)referredToSegmentHeader.GetSegmentData();
                         return new EncodedTable(t);
                     }
-                    else
-                    {
-                        tableCounter++;
-                    }
+
+                    tableCounter++;
                 }
             }
             return null;

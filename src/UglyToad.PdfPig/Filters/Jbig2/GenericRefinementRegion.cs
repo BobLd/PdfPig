@@ -1,4 +1,6 @@
-﻿namespace UglyToad.PdfPig.Filters.Jbig2
+﻿#nullable disable
+
+namespace UglyToad.PdfPig.Filters.Jbig2
 {
     using System;
 
@@ -6,7 +8,7 @@
     /// This class represents a generic refinement region and implements the procedure described in JBIG2 ISO standard, 6.3
     /// and 7.4.7.
     /// </summary>
-    internal class GenericRefinementRegion : IRegion
+    internal sealed class GenericRefinementRegion : IRegion
     {
         public abstract class Template
         {
@@ -15,28 +17,28 @@
             internal abstract void SetIndex(CX cx);
         }
 
-        private class Template0 : Template
+        private sealed class Template0 : Template
         {
-            internal override sealed short Form(short c1, short c2, short c3, short c4, short c5)
+            internal override short Form(short c1, short c2, short c3, short c4, short c5)
             {
                 return (short)((c1 << 10) | (c2 << 7) | (c3 << 4) | (c4 << 1) | (int)c5);
             }
 
-            internal override sealed void SetIndex(CX cx)
+            internal override void SetIndex(CX cx)
             {
                 // Figure 14, page 22
                 cx.Index = 0x100;
             }
         }
 
-        private class Template1 : Template
+        private sealed class Template1 : Template
         {
-            internal override sealed short Form(short c1, short c2, short c3, short c4, short c5)
+            internal override short Form(short c1, short c2, short c3, short c4, short c5)
             {
                 return (short)(((c1 & 0x02) << 8) | (c2 << 6) | ((c3 & 0x03) << 4) | (c4 << 1) | (int)c5);
             }
 
-            internal override sealed void SetIndex(CX cx)
+            internal override void SetIndex(CX cx)
             {
                 // Figure 15, page 22
                 cx.Index = 0x080;
@@ -63,10 +65,10 @@
         private short[] grAtY;
 
         // Decoded data as pixel values (use row stride/width to wrap line)
-        private Bitmap regionBitmap;
+        private Jbig2Bitmap regionBitmap;
 
         // Variables for decoding
-        private Bitmap referenceBitmap;
+        private Jbig2Bitmap referenceBitmap;
         private int referenceDX;
         private int referenceDY;
 
@@ -74,7 +76,7 @@
         private CX cx;
 
         // If true, AT pixels are not on their nominal location and have to be overridden.
-        private bool @override;
+        private bool isOverride;
         private bool[] grAtOverride;
 
         public GenericRefinementRegion()
@@ -98,7 +100,7 @@
         /// <summary>
         /// Parses the flags described in JBIG2 ISO standard:
         /// 7.4.7.2 Generic refinement region segment flags.
-        /// 7.4.7.3 Generic refinement refion segment AT flags.
+        /// 7.4.7.3 Generic refinement region segment AT flags.
         /// </summary>
         private void ParseHeader()
         {
@@ -147,35 +149,26 @@
         /// <summary>
         /// Decode using a template and arithmetic coding, as described in 6.3.5.6
         /// </summary>
-        /// <returns>The decoded <see cref="Bitmap"/>.</returns>
+        /// <returns>The decoded <see cref="Jbig2Bitmap"/>.</returns>
         /// <exception cref="System.IO.IOException">if an underlying IO operation fails</exception>
         /// <exception cref="InvalidHeaderValueException">if a segment header value is invalid</exception>
         /// <exception cref="IntegerMaxValueException"> if the maximum value limit of an integer is exceeded</exception>
-        public Bitmap GetRegionBitmap()
+        public Jbig2Bitmap GetRegionBitmap()
         {
-            if (null == regionBitmap)
+            if (regionBitmap is null)
             {
                 // 6.3.5.6 - 1)
                 int isLineTypicalPredicted = 0;
 
-                if (referenceBitmap == null)
-                {
-                    // Get the reference bitmap, which is the base of refinement process
-                    referenceBitmap = GetGrReference();
-                }
+                // Get the reference bitmap, which is the base of refinement process
+                referenceBitmap ??= GetGrReference();
 
-                if (arithDecoder == null)
-                {
-                    arithDecoder = new ArithmeticDecoder(subInputStream);
-                }
+                arithDecoder ??= new ArithmeticDecoder(subInputStream);
 
-                if (cx == null)
-                {
-                    cx = new CX(8192, 1);
-                }
+                cx ??= new CX(8192, 1);
 
                 // 6.3.5.6 - 2)
-                regionBitmap = new Bitmap(RegionInfo.BitmapWidth, RegionInfo.BitmapHeight);
+                regionBitmap = new Jbig2Bitmap(RegionInfo.BitmapWidth, RegionInfo.BitmapHeight);
 
                 if (templateID == 0)
                 {
@@ -211,6 +204,7 @@
                     }
                 }
             }
+
             // 6.3.5.6 - 4)
             return regionBitmap;
         }
@@ -221,9 +215,9 @@
             return arithDecoder.Decode(cx);
         }
 
-        private Bitmap GetGrReference()
+        private Jbig2Bitmap GetGrReference()
         {
-            SegmentHeader[] segments = segmentHeader.GetRtSegments();
+            SegmentHeader[] segments = segmentHeader.RtSegments;
             IRegion region = (IRegion)segments[0].GetSegmentData();
 
             return region.GetRegionBitmap();
@@ -233,7 +227,6 @@
                 int refRowStride, int paddedWidth, int deltaRefStride,
                 int lineOffset)
         {
-
             // Offset of the reference bitmap with respect to the bitmap being decoded
             // For example: if referenceDY = -1, y is 1 HIGHER that currY
             int currentLine = lineNumber - referenceDY;
@@ -253,7 +246,6 @@
                             lineOffset, byteIndex, currentLine, referenceByteIndex, T1);
                     break;
             }
-
         }
 
         private void DecodeTemplate(int lineNumber, int width, int rowStride,
@@ -267,17 +259,17 @@
             w1 = w2 = w3 = w4 = 0;
 
             if (currentLine >= 1 && (currentLine - 1) < referenceBitmap.Height)
-            { 
+            {
                 w1 = referenceBitmap.GetByteAsInteger(refByteIndex - refRowStride);
             }
 
             if (currentLine >= 0 && currentLine < referenceBitmap.Height)
-            { 
+            {
                 w2 = referenceBitmap.GetByteAsInteger(refByteIndex);
             }
 
             if (currentLine >= -1 && currentLine + 1 < referenceBitmap.Height)
-            { 
+            {
                 w3 = referenceBitmap.GetByteAsInteger(refByteIndex + refRowStride);
             }
 
@@ -296,41 +288,45 @@
 
             if (shiftOffset >= 0)
             {
-                c1 = (short)((shiftOffset >= 8 ? 0 : ((int)((uint)w1 >> shiftOffset))) & 0x07);
-                c2 = (short)((shiftOffset >= 8 ? 0 : ((int)((uint)w2 >> shiftOffset))) & 0x07);
-                c3 = (short)((shiftOffset >= 8 ? 0 : ((int)((uint)w3 >> shiftOffset))) & 0x07);
+                c1 = (short)((shiftOffset >= 8 ? 0 : (int)((uint)w1 >> shiftOffset)) & 0x07);
+                c2 = (short)((shiftOffset >= 8 ? 0 : (int)((uint)w2 >> shiftOffset)) & 0x07);
+                c3 = (short)((shiftOffset >= 8 ? 0 : (int)((uint)w3 >> shiftOffset)) & 0x07);
+
                 if (shiftOffset == 6 && modRefByteIdx > 1)
                 {
                     if (currentLine >= 1 && (currentLine - 1) < referenceBitmap.Height)
                     {
                         c1 = (short)((int)c1 | (referenceBitmap.GetByteAsInteger(refByteIndex - refRowStride - 2) << 2) & 0x04);
                     }
+
                     if (currentLine >= 0 && currentLine < referenceBitmap.Height)
                     {
                         c2 = (short)((int)c2 | (referenceBitmap.GetByteAsInteger(refByteIndex - 2) << 2) & 0x04);
                     }
+
                     if (currentLine >= -1 && currentLine + 1 < referenceBitmap.Height)
                     {
                         c3 = (short)((int)c3 | (referenceBitmap.GetByteAsInteger(refByteIndex + refRowStride - 2) << 2) & 0x04);
                     }
                 }
+
                 if (shiftOffset == 0)
                 {
                     w1 = w2 = w3 = 0;
                     if (modRefByteIdx < refRowStride - 1)
                     {
                         if (currentLine >= 1 && (currentLine - 1) < referenceBitmap.Height)
-                        { 
+                        {
                             w1 = referenceBitmap.GetByteAsInteger(refByteIndex - refRowStride);
                         }
 
                         if (currentLine >= 0 && currentLine < referenceBitmap.Height)
-                        { 
+                        {
                             w2 = referenceBitmap.GetByteAsInteger(refByteIndex);
                         }
 
                         if (currentLine >= -1 && currentLine + 1 < referenceBitmap.Height)
-                        { 
+                        {
                             w3 = referenceBitmap.GetByteAsInteger(refByteIndex + refRowStride);
                         }
                     }
@@ -346,17 +342,17 @@
                 if (modRefByteIdx < refRowStride - 1)
                 {
                     if (currentLine >= 1 && (currentLine - 1) < referenceBitmap.Height)
-                    { 
+                    {
                         w1 = referenceBitmap.GetByteAsInteger(refByteIndex - refRowStride);
                     }
 
                     if (currentLine >= 0 && currentLine < referenceBitmap.Height)
-                    { 
+                    {
                         w2 = referenceBitmap.GetByteAsInteger(refByteIndex);
                     }
 
                     if (currentLine >= -1 && currentLine + 1 < referenceBitmap.Height)
-                    { 
+                    {
                         w3 = referenceBitmap.GetByteAsInteger(refByteIndex + refRowStride);
                     }
 
@@ -383,7 +379,7 @@
 
                 short tval = templateFormation.Form(c1, c2, c3, c4, c5);
 
-                if (@override)
+                if (isOverride)
                 {
                     cx.Index = OverrideAtTemplate0(tval, x, lineNumber,
                             regionBitmap.GetByte(regionBitmap.GetByteIndex(x, lineNumber)), minorX);
@@ -395,10 +391,10 @@
                 int bit = arithDecoder.Decode(cx);
                 regionBitmap.SetPixel(x, lineNumber, (byte)bit);
 
-                c1 = (short)(((c1 << 1) | 0x01 & ((int)((uint)w1 >> 7))) & 0x07);
-                c2 = (short)(((c2 << 1) | 0x01 & ((int)((uint)w2 >> 7))) & 0x07);
-                c3 = (short)(((c3 << 1) | 0x01 & ((int)((uint)w3 >> 7))) & 0x07);
-                c4 = (short)(((c4 << 1) | 0x01 & ((int)((uint)w4 >> 7))) & 0x07);
+                c1 = (short)(((c1 << 1) | 0x01 & (int)((uint)w1 >> 7)) & 0x07);
+                c2 = (short)(((c2 << 1) | 0x01 & (int)((uint)w2 >> 7)) & 0x07);
+                c3 = (short)(((c3 << 1) | 0x01 & (int)((uint)w3 >> 7)) & 0x07);
+                c4 = (short)(((c4 << 1) | 0x01 & (int)((uint)w4 >> 7)) & 0x07);
                 c5 = (short)bit;
 
                 if ((x - referenceDX) % 8 == 5)
@@ -464,7 +460,7 @@
 
         private void UpdateOverride()
         {
-            if (grAtX == null || grAtY == null)
+            if (grAtX is null || grAtY is null)
             {
                 return;
             }
@@ -482,17 +478,17 @@
                     if (grAtX[0] != -1 && grAtY[0] != -1)
                     {
                         grAtOverride[0] = true;
-                        @override = true;
+                        isOverride = true;
                     }
 
                     if (grAtX[1] != -1 && grAtY[1] != -1)
                     {
                         grAtOverride[1] = true;
-                        @override = true;
+                        isOverride = true;
                     }
                     break;
                 case 1:
-                    @override = false;
+                    isOverride = false;
                     break;
             }
         }
@@ -526,9 +522,6 @@
                 int rowStride, int refRowStride, int paddedWidth,
                 int deltaRefStride, int byteIndex, int currentLine, int refByteIndex)
         {
-            int context;
-            int overriddenContext;
-
             int previousLine;
             int previousReferenceLine;
             int currentReferenceLine;
@@ -573,8 +566,8 @@
                 nextReferenceLine = 0;
             }
 
-            context = ((previousLine >> 5) & 0x6) | ((nextReferenceLine >> 2) & 0x30)
-                    | (currentReferenceLine & 0x180) | (previousReferenceLine & 0xc00);
+            var context = ((previousLine >> 5) & 0x6) | ((nextReferenceLine >> 2) & 0x30)
+                                                      | (currentReferenceLine & 0x180) | (previousReferenceLine & 0xc00);
 
             int nextByte;
             for (int x = 0; x < paddedWidth; x = nextByte)
@@ -635,11 +628,9 @@
                     if (!isPixelTypicalPredicted)
                     {
                         // iii) - is like 3 c) but for one pixel only
-                        if (@override)
+                        if (isOverride)
                         {
-                            overriddenContext = OverrideAtTemplate0(context, x + minorX, lineNumber,
-                                    result, minorX);
-                            cx.Index = overriddenContext;
+                            cx.Index = OverrideAtTemplate0(context, x + minorX, lineNumber, result, minorX); // overriddenContext
                         }
                         else
                         {
@@ -701,7 +692,7 @@
                 currentReferenceLine = 0;
             }
 
-            if (currentLine > -2 && currentLine < (referenceBitmap.Height - 1))
+            if (currentLine > -2 && currentLine < referenceBitmap.Height - 1)
             {
                 nextReferenceLine = referenceBitmap
                         .GetByteAsInteger(byteIndex + refRowStride + deltaRefStride);
@@ -756,11 +747,10 @@
 
                 for (int minorX = 0; minorX < minorWidth; minorX++)
                 {
-                    int bit;
-
                     // i)
                     int bitmapValue = (grReferenceValue >> 4) & 0x1ff;
 
+                    int bit;
                     if (bitmapValue == 0x1ff)
                     {
                         bit = 1;
@@ -824,12 +814,13 @@
             return context;
         }
 
-        private static byte GetPixel(Bitmap b, int x, int y)
+        private static byte GetPixel(Jbig2Bitmap b, int x, int y)
         {
             if (x < 0 || x >= b.Width)
             {
                 return 0;
             }
+
             if (y < 0 || y >= b.Height)
             {
                 return 0;
@@ -848,16 +839,16 @@
 
         internal void SetParameters(CX cx, ArithmeticDecoder arithmeticDecoder,
                 short grTemplate, int regionWidth, int regionHeight,
-                Bitmap grReference, int grReferenceDX, int grReferenceDY,
+                Jbig2Bitmap grReference, int grReferenceDX, int grReferenceDY,
                 bool isTPGRon, short[] grAtX, short[] grAtY)
         {
 
-            if (null != cx)
+            if (cx != null)
             {
                 this.cx = cx;
             }
 
-            if (null != arithmeticDecoder)
+            if (arithmeticDecoder != null)
             {
                 arithDecoder = arithmeticDecoder;
             }
