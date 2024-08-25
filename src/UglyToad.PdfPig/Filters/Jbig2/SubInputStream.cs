@@ -7,32 +7,40 @@
     /// Read accesses to the wrapped stream are synchronized, so that users of this stream need to deal with synchronization
     /// against other users of the same instance, but not against other users of the wrapped stream.
     /// </summary>
-    internal class SubInputStream : AbstractImageInputStream
+    internal sealed class SubInputStream : AbstractImageInputStream
     {
         private readonly IImageInputStream wrappedStream;
 
-        // The position in the wrapped stream at which the window starts. Offset is an absolut value.
+        /// <summary>
+        /// The position in the wrapped stream at which the window starts. Offset is an absolut value.
+        /// </summary>
         private readonly long offset;
 
-        // The length of the window. Length is an relative value.
-        private readonly long length;
-
-        // A buffer which is used to improve read performance.
+        /// <summary>
+        /// A buffer which is used to improve read performance.
+        /// </summary>
         private readonly byte[] buffer = new byte[4096];
 
-        //Location of the first byte in the buffer with respect to the start of the stream.
+        /// <summary>
+        /// Location of the first byte in the buffer with respect to the start of the stream.
+        /// </summary>
         private long bufferBase;
 
-        // Location of the last byte in the buffer with respect to the start of the stream.
+        /// <summary>
+        /// Location of the last byte in the buffer with respect to the start of the stream.
+        /// </summary>
         private long bufferTop;
 
         private long streamPosition;
 
+        /// <summary>
         /// <inheritdoc />
-        public override sealed long Length => length;
+        /// The length of the window. Length is a relative value.
+        /// </summary>
+        public override long Length { get; }
 
         /// <inheritdoc />
-        public override sealed long Position => streamPosition;
+        public override long Position => streamPosition;
 
         /// <summary>
         /// Constructs a new SubInputStream which provides a view of the wrapped stream.
@@ -44,13 +52,13 @@
         {
             this.wrappedStream = iis;
             this.offset = offset;
-            this.length = length;
+            this.Length = length;
         }
 
         /// <inheritdoc />
-        public override sealed int Read()
+        public override int Read()
         {
-            if (streamPosition >= length)
+            if (streamPosition >= Length)
             {
                 return -1;
             }
@@ -71,9 +79,9 @@
         }
 
         /// <inheritdoc />
-        public override sealed int Read(byte[] b, int off, int len)
+        public override int Read(Span<byte> b, int off, int len)
         {
-            if (streamPosition >= length)
+            if (streamPosition >= Length)
             {
                 return -1;
             }
@@ -86,8 +94,8 @@
                     wrappedStream.Seek(desiredPosition);
                 }
 
-                int toRead = (int)Math.Min(len, length - Position);
-                int read = wrappedStream.Read(b, off, toRead);
+                int toRead = (int)Math.Min(len, Length - Position);
+                int read = wrappedStream.Read(b.Slice(off, toRead));
                 streamPosition += read;
 
                 return read;
@@ -95,13 +103,13 @@
         }
 
         /// <inheritdoc />
-        public override sealed void Seek(long pos)
+        public override void Seek(long pos)
         {
             streamPosition = pos;
         }
 
         /// <inheritdoc />
-        public override sealed void Dispose()
+        public override void Dispose()
         {
             wrappedStream.Dispose();
         }
@@ -121,7 +129,7 @@
                 }
 
                 bufferBase = streamPosition;
-                int toRead = (int)Math.Min(buffer.Length, length - streamPosition);
+                int toRead = (int)Math.Min(buffer.Length, Length - streamPosition);
                 int read = wrappedStream.Read(buffer, 0, toRead);
                 bufferTop = bufferBase + read;
 

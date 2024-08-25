@@ -1,19 +1,18 @@
 namespace UglyToad.PdfPig.Filters.Jbig2
 {
     using System;
-    using System.Drawing;
 
-    internal static class Bitmaps
+    internal static class Jbig2Bitmaps
     {
         /// <summary>
         /// Returns the specified rectangle area of the bitmap.
         /// </summary>
-        /// <param name="roi">A <see cref="System.Drawing.Rectangle"/> that specifies the requested image section.</param>
+        /// <param name="roi">A <see cref="Jbig2Rectangle"/> that specifies the requested image section.</param>
         /// <param name="src">src the given bitmap</param>
-        /// <returns>A <see cref="Bitmap"/> that represents the requested image section.</returns>
-        public static Bitmap Extract(Rectangle roi, Bitmap src)
+        /// <returns>A <see cref="Jbig2Bitmap"/> that represents the requested image section.</returns>
+        public static Jbig2Bitmap Extract(Jbig2Rectangle roi, Jbig2Bitmap src)
         {
-            var dst = new Bitmap(roi.Width, roi.Height);
+            var dst = new Jbig2Bitmap(roi.Width, roi.Height);
 
             int upShift = roi.X & 0x07;
             int downShift = 8 - upShift;
@@ -24,7 +23,8 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             int srcLineEndIdx = src.GetByteIndex(roi.X + roi.Width - 1, roi.Y);
             bool usePadding = dst.RowStride == srcLineEndIdx + 1 - srcLineStartIdx;
 
-            for (int y = roi.Y; y < roi.GetMaxY(); y++)
+            int maxY = roi.GetMaxY();
+            for (int y = roi.Y; y < maxY; y++)
             {
                 int srcIdx = srcLineStartIdx;
                 int dstIdx = dstLineStartIdx;
@@ -63,7 +63,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
         }
 
         /// <summary>
-        /// The method combines two given bytes with an logical operator.
+        /// The method combines two given bytes with a logical operator.
         /// The JBIG2 Standard specifies 5 possible combinations of bytes.
         /// Hint: Please take a look at ISO/IEC 14492:2001 (E) for detailed definition
         /// and description of the operators.
@@ -104,11 +104,11 @@ namespace UglyToad.PdfPig.Filters.Jbig2
         /// <param name="x">The x coordinate where the upper left corner of the bitmap to blit should be positioned.</param>
         /// <param name="y">The y coordinate where the upper left corner of the bitmap to blit should be positioned.</param>
         /// <param name="combinationOperator">The combination operator for combining two pixels.</param>
-        public static void Blit(Bitmap src, Bitmap dst, int x, int y, CombinationOperator combinationOperator)
+        public static void Blit(Jbig2Bitmap src, Jbig2Bitmap dst, int x, int y, CombinationOperator combinationOperator)
         {
             int startLine = 0;
             int srcStartIdx = 0;
-            int srcEndIdx = (src.RowStride - 1);
+            int srcEndIdx = src.RowStride - 1;
 
             // Ignore those parts of the source bitmap which would be placed outside the target bitmap.
             if (x < 0)
@@ -163,14 +163,13 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             }
         }
 
-        private static void CopyLine(Bitmap src, Bitmap dst, int sourceUpShift, int sourceDownShift,
+        private static void CopyLine(Jbig2Bitmap src, Jbig2Bitmap dst, int sourceUpShift, int sourceDownShift,
                 int padding, int firstSourceByteOfLine, int lastSourceByteOfLine, bool usePadding,
                 int sourceOffset, int targetOffset)
         {
             for (int x = firstSourceByteOfLine; x < lastSourceByteOfLine; x++)
             {
-
-                if (sourceOffset + 1 < src.GetByteArray().Length)
+                if (sourceOffset + 1 < src.ByteArray.Length)
                 {
                     bool isLastByte = x + 1 == lastSourceByteOfLine;
                     var value = (byte)(src.GetByte(sourceOffset++) << sourceUpShift
@@ -185,11 +184,9 @@ namespace UglyToad.PdfPig.Filters.Jbig2
 
                     if (isLastByte && usePadding)
                     {
-                        value = Unpad(padding,
-                                (byte)((src.GetByte(sourceOffset) & 0xff) << sourceUpShift));
+                        value = Unpad(padding, (byte)((src.GetByte(sourceOffset) & 0xff) << sourceUpShift));
                         dst.SetByte(targetOffset, value);
                     }
-
                 }
                 else
                 {
@@ -210,10 +207,9 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             return (byte)(value >> padding << padding);
         }
 
-        private static void BlitUnshifted(Bitmap src, Bitmap dst, int startLine, int lastLine,
+        private static void BlitUnshifted(Jbig2Bitmap src, Jbig2Bitmap dst, int startLine, int lastLine,
                 int dstStartIdx, int srcStartIdx, int srcEndIdx, CombinationOperator op)
         {
-
             for (int dstLine = startLine; dstLine < lastLine; dstLine++, dstStartIdx += dst
                     .RowStride, srcStartIdx += src.RowStride, srcEndIdx += src.RowStride)
             {
@@ -229,13 +225,12 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             }
         }
 
-        private static void BlitSpecialShifted(Bitmap src, Bitmap dst, int startLine, int lastLine,
+        private static void BlitSpecialShifted(Jbig2Bitmap src, Jbig2Bitmap dst, int startLine, int lastLine,
                 int dstStartIdx, int srcStartIdx, int srcEndIdx, int toShift, int shiftVal1,
                 int shiftVal2, CombinationOperator op)
         {
-
-            for (int dstLine = startLine; dstLine < lastLine; dstLine++, dstStartIdx += dst
-                    .RowStride, srcStartIdx += src.RowStride, srcEndIdx += src.RowStride)
+            for (int dstLine = startLine; dstLine < lastLine; dstLine++, dstStartIdx += dst.RowStride,
+                 srcStartIdx += src.RowStride, srcEndIdx += src.RowStride)
             {
                 short register = 0;
                 int dstIdx = dstStartIdx;
@@ -258,13 +253,12 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             }
         }
 
-        private static void BlitShifted(Bitmap src, Bitmap dst, int startLine, int lastLine,
+        private static void BlitShifted(Jbig2Bitmap src, Jbig2Bitmap dst, int startLine, int lastLine,
                 int dstStartIdx, int srcStartIdx, int srcEndIdx, int toShift, int shiftVal1,
                 int shiftVal2, CombinationOperator op, int padding)
         {
-
-            for (int dstLine = startLine; dstLine < lastLine; dstLine++, dstStartIdx += dst
-                    .RowStride, srcStartIdx += src.RowStride, srcEndIdx += src.RowStride)
+            for (int dstLine = startLine; dstLine < lastLine; dstLine++, dstStartIdx += dst.RowStride,
+                 srcStartIdx += src.RowStride, srcEndIdx += src.RowStride)
             {
                 short register = 0;
                 int dstIdx = dstStartIdx;
