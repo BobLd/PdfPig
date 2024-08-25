@@ -1,3 +1,5 @@
+#nullable disable
+
 namespace UglyToad.PdfPig.Filters.Jbig2
 {
     using System;
@@ -7,10 +9,10 @@ namespace UglyToad.PdfPig.Filters.Jbig2
     /// <summary>
     /// This class represents the document structure with its pages and global segments.
     /// </summary>
-    internal class Jbig2Document : IDisposable
+    internal sealed class Jbig2Document : IDisposable
     {
         // ID string in file header, see ISO/IEC 14492:2001, D.4.1
-        private static readonly int[] FILE_HEADER_ID = { 0x97, 0x4A, 0x42, 0x32, 0x0D, 0x0A, 0x1A, 0x0A };
+        private static readonly int[] FILE_HEADER_ID = [0x97, 0x4A, 0x42, 0x32, 0x0D, 0x0A, 0x1A, 0x0A];
 
         // This map contains all pages of this document. The key is the number of the page.
         private readonly Dictionary<int, Jbig2Page> pages = new Dictionary<int, Jbig2Page>();
@@ -43,14 +45,18 @@ namespace UglyToad.PdfPig.Filters.Jbig2
         /// </summary>
         public int NumberOfPages { get; private set; }
 
-        // Defines whether extended Template is used.
-        private bool gbUseExtTemplate;
+        /// <summary>
+        /// Defines whether extended Template is used.
+        /// </summary>
+        public bool IsGbUseExtTemplate { get; private set; }
 
         // This is the source data stream wrapped into a SubInputStream.
         private readonly SubInputStream subInputStream;
 
-        // Holds a load of segments, that aren't associated with a page.
-        private Jbig2Globals globalSegments;
+        /// <summary>
+        /// Holds a load of segments, that aren't associated with a page.
+        /// </summary>
+        public Jbig2Globals GlobalSegments { get; private set; }
 
         public Jbig2Document(IImageInputStream input)
             : this(input, null)
@@ -65,7 +71,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             }
 
             subInputStream = new SubInputStream(input, 0, long.MaxValue);
-            globalSegments = globals;
+            GlobalSegments = globals;
 
             MapStream();
         }
@@ -78,11 +84,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
         /// <returns>The requested <see cref="SegmentHeader"/>.</returns>
         internal SegmentHeader GetGlobalSegment(int segmentNumber)
         {
-            if (null != globalSegments)
-            {
-                return globalSegments.GetSegment(segmentNumber);
-            }
-            return null;
+            return GlobalSegments?.GetSegment(segmentNumber);
         }
 
         /// <summary>
@@ -92,11 +94,11 @@ namespace UglyToad.PdfPig.Filters.Jbig2
         /// <returns>The requested <see cref="Jbig2Page"/>.</returns>
         public Jbig2Page GetPage(int pageNumber)
         {
-            return pages.ContainsKey(pageNumber) ? pages[pageNumber] : null;
+            return pages.GetValueOrDefault(pageNumber);
         }
 
         /// <summary>
-        /// Diposes the supplied <see cref="IImageInputStream"/>.
+        /// Disposes the supplied <see cref="IImageInputStream"/>.
         /// </summary>
         public void Dispose()
         {
@@ -110,21 +112,18 @@ namespace UglyToad.PdfPig.Filters.Jbig2
         /// <returns>The amount of pages in this JBIG2 document.</returns>
         internal int GetAmountOfPages()
         {
-            if (IsNumberOfPageUnknown || NumberOfPages == 0)
-            {
-                if (pages.Count == 0)
-                {
-                    MapStream();
-                }
-
-                return pages.Count;
-            }
-            else
+            if (!IsNumberOfPageUnknown && NumberOfPages != 0)
             {
                 return NumberOfPages;
             }
-        }
 
+            if (pages.Count == 0)
+            {
+                MapStream();
+            }
+
+            return pages.Count;
+        }
 
         /// <summary>
         /// This method maps the stream and stores all segments.
@@ -143,12 +142,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                 offset += fileHeaderLength;
             }
 
-            if (globalSegments == null)
-            {
-                globalSegments = new Jbig2Globals();
-            }
-
-            Jbig2Page page;
+            GlobalSegments ??= new Jbig2Globals();
 
             // If organisation type is random-access: walk through the segment headers until EOF segment
             // appears (specified with segment number 51)
@@ -162,8 +156,8 @@ namespace UglyToad.PdfPig.Filters.Jbig2
 
                 if (associatedPage != 0)
                 {
-                    page = GetPage(associatedPage);
-                    if (page == null)
+                    Jbig2Page page = GetPage(associatedPage);
+                    if (page is null)
                     {
                         page = new Jbig2Page(this, associatedPage);
                         pages[associatedPage] = page;
@@ -172,7 +166,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                 }
                 else
                 {
-                    globalSegments.AddSegment(segment.SegmentNumber, segment);
+                    GlobalSegments.AddSegment(segment.SegmentNumber, segment);
                 }
                 segments.Add(segment);
 
@@ -211,13 +205,15 @@ namespace UglyToad.PdfPig.Filters.Jbig2
         /// </summary>
         private void DetermineRandomDataOffsets(List<SegmentHeader> segments, long offset)
         {
-            if (organisationType == RANDOM)
+            if (organisationType != RANDOM)
             {
-                foreach (SegmentHeader s in segments)
-                {
-                    s.SegmentDataStartOffset = offset;
-                    offset += s.SegmentDataLength;
-                }
+                return;
+            }
+
+            foreach (SegmentHeader s in segments)
+            {
+                s.SegmentDataStartOffset = offset;
+                offset += s.SegmentDataLength;
             }
         }
 
@@ -239,7 +235,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             // Bit 2 - Indicates if extended templates are used
             if (subInputStream.ReadBit() == 1)
             {
-                gbUseExtTemplate = true;
+                IsGbUseExtTemplate = true;
             }
 
             // Bit 1 - Indicates if amount of pages are unknown
@@ -257,15 +253,13 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                 NumberOfPages = (int)subInputStream.ReadUnsignedInt();
                 fileHeaderLength = 13;
             }
-
         }
 
         /// <summary>
         /// This method checks, if the stream is at its end to avoid
         /// <see cref="EndOfStreamException"/>s and reads 32 bits.
         /// </summary>
-        /// <param name="offset"></param>
-        /// <returns>true, if if end of stream reached. false, if there are more bytes to read</returns>
+        /// <returns>true, if end of stream reached. false, if there are more bytes to read</returns>
         private bool ReachedEndOfStream(long offset)
         {
             try
@@ -278,21 +272,6 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             {
                 return true;
             }
-        }
-
-        internal Jbig2Globals GetGlobalSegments()
-        {
-            return globalSegments;
-        }
-
-        internal bool IsAmountOfPagesUnknown()
-        {
-            return IsNumberOfPageUnknown;
-        }
-
-        internal bool IsGbUseExtTemplate()
-        {
-            return gbUseExtTemplate;
         }
     }
 }

@@ -20,8 +20,8 @@
             // Sixth Segment (number 5)
             var sis = new SubInputStream(iis, 252, 38);
             var mmrd = new MMRDecompressor(16 * 4, 4, sis);
-            Bitmap b = mmrd.Uncompress();
-            byte[] actual = b.GetByteArray();
+            Jbig2Bitmap b = mmrd.Uncompress();
+            byte[] actual = b.ByteArray;
 
             Assert.Equal(expected, actual);
         }

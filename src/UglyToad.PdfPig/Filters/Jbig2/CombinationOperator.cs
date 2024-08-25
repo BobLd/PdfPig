@@ -3,9 +3,13 @@ namespace UglyToad.PdfPig.Filters.Jbig2
     /// <summary>
     /// This enumeration keeps the available logical operator defined in the JBIG2 ISO standard.
     /// </summary>
-    internal enum CombinationOperator
+    internal enum CombinationOperator : byte
     {
-        OR, AND, XOR, XNOR, REPLACE
+        OR,
+        AND,
+        XOR,
+        XNOR,
+        REPLACE
     }
 
     internal static class CombinationOperators
