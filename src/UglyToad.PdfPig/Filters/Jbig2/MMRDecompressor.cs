@@ -1,14 +1,15 @@
+#nullable disable
+
 namespace UglyToad.PdfPig.Filters.Jbig2
 {
     using System;
     using System.IO;
     using System.Text;
-    using UglyToad.PdfPig.Util;
 
     /// <summary>
     /// A decompressor for MMR compression.
     /// </summary>
-    internal class MMRDecompressor
+    internal sealed class MMRDecompressor
     {
         private readonly int width;
         private readonly int height;
@@ -59,7 +60,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                 return UncompressGetCodeLittleEndian(table);
             }
 
-            internal Code UncompressGetCodeLittleEndian(Code[] table)
+            private Code UncompressGetCodeLittleEndian(Code[] table)
             {
                 int code = UncompressGetNextCodeLittleEndian() & 0xffffff;
                 Code result = table[code >> CODE_OFFSET - FIRST_LEVEL_TABLE_SIZE];
@@ -101,8 +102,8 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                         }
 
                         lastCode = (buffer[byteOffset] & 0xff) << 16
-                                | (buffer[byteOffset + 1] & 0xff) << 8
-                                | (buffer[byteOffset + 2] & 0xff);
+                                   | (buffer[byteOffset + 1] & 0xff) << 8
+                                   | (buffer[byteOffset + 2] & 0xff);
 
                         int bitOffset = Offset & 7; // equivalent to offset % 8
                         lastCode <<= bitOffset;
@@ -142,15 +143,15 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                             lastCode <<= bitsToFill; // shift the rest
                         }
                     }
+
                     lastOffset = Offset;
 
                     return lastCode;
                 }
                 catch (IOException e)
                 {
-                    throw new IndexOutOfRangeException(
-                            "Corrupted RLE data caused by an IOException while reading raw data: "
-                                    + e.ToString());
+                    throw new IndexOutOfRangeException("Corrupted RLE data caused by an IOException while reading raw data: "
+                                                       + e.ToString());
                 }
             }
 
@@ -195,9 +196,8 @@ namespace UglyToad.PdfPig.Filters.Jbig2
 
                 if (bufferTop < 0)
                 {
-
                     // if we're at EOF, just supply zero-bytes
-                    ArrayHelper.Fill(buffer, (byte)0);
+                    buffer.AsSpan().Fill(0);
                     bufferTop = buffer.Length - 3;
                 }
             }
@@ -211,7 +211,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             }
         }
 
-        private class Code
+        private sealed class Code
         {
             internal Code[] SubTable { get; set; }
 
@@ -226,20 +226,20 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                 RunLength = codeData[2];
             }
 
-            public override sealed string ToString()
+            public override string ToString()
             {
                 return BitLength + "/" + CodeWord + "/" + RunLength;
             }
 
-            public override sealed bool Equals(object obj)
+            public override bool Equals(object obj)
             {
-                return (obj is Code) &&
-                        ((Code)obj).BitLength == BitLength &&
-                        ((Code)obj).CodeWord == CodeWord &&
-                        ((Code)obj).RunLength == RunLength;
+                return (obj is Code code) &&
+                        code.BitLength == BitLength &&
+                        code.CodeWord == CodeWord &&
+                        code.RunLength == RunLength;
             }
 
-            public override sealed int GetHashCode()
+            public override int GetHashCode()
             {
                 return (BitLength, CodeWord, RunLength).GetHashCode();
             }
@@ -258,7 +258,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
 
         private static void InitTables()
         {
-            if (null == WhiteTable)
+            if (WhiteTable is null)
             {
                 WhiteTable = CreateLittleEndianTable(MMRConstants.WhiteCodes);
                 BlackTable = CreateLittleEndianTable(MMRConstants.BlackCodes);
@@ -267,9 +267,8 @@ namespace UglyToad.PdfPig.Filters.Jbig2
         }
 
         private static int Uncompress2D(RunData runData, int[] referenceOffsets, int refRunLength,
-                int[] runOffsets, int width)
+            int[] runOffsets, int width)
         {
-
             int referenceBufferOffset = 0;
             int currentBufferOffset = 0;
             int currentLineBitPosition = 0;
@@ -282,7 +281,8 @@ namespace UglyToad.PdfPig.Filters.Jbig2
 
             try
             {
-            decodeLoop: while (currentLineBitPosition < width)
+                decodeLoop:
+                while (currentLineBitPosition < width)
                 {
                     // Get the mode code
                     code = runData.UncompressGetCode(ModeTable);
@@ -315,7 +315,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                             {
                                 code = runData.UncompressGetCode(whiteRun == true ? WhiteTable : BlackTable);
 
-                                if (code == null)
+                                if (code is null)
                                 {
                                     goto endDecodeLoop;
                                 }
@@ -330,10 +330,12 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                                         goto endDecodeLoop;
 
                                     }
+
                                     currentLineBitPosition += code.RunLength;
                                     runOffsets[currentBufferOffset++] = currentLineBitPosition;
                                     break;
                                 }
+
                                 currentLineBitPosition += code.RunLength;
                             }
 
@@ -341,7 +343,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                             for (int ever1 = 1; ever1 > 0;)
                             {
                                 code = runData.UncompressGetCode(whiteRun != true ? WhiteTable : BlackTable);
-                                if (code == null)
+                                if (code is null)
                                 {
                                     goto endDecodeLoop;
                                 }
@@ -354,21 +356,23 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                                         runOffsets[currentBufferOffset++] = currentLineBitPosition;
                                         goto endDecodeLoop;
                                     }
+
                                     currentLineBitPosition += code.RunLength;
                                     // don't generate 0-length run at EOL for cases where the line ends in an H-run.
                                     if (currentLineBitPosition < width
-                                            || currentLineBitPosition != firstHalfBitPos)
+                                        || currentLineBitPosition != firstHalfBitPos)
                                     {
                                         runOffsets[currentBufferOffset++] = currentLineBitPosition;
                                     }
 
                                     break;
                                 }
+
                                 currentLineBitPosition += code.RunLength;
                             }
 
                             while (currentLineBitPosition < width
-                                    && referenceOffsets[referenceBufferOffset] <= currentLineBitPosition)
+                                   && referenceOffsets[referenceBufferOffset] <= currentLineBitPosition)
                             {
                                 referenceBufferOffset += 2;
                             }
@@ -409,6 +413,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                                 runData.Offset++;
                                 return retCode;
                             }
+
                             currentLineBitPosition = width;
                             goto decodeLoop;
                     }
@@ -430,7 +435,7 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                         }
 
                         while (currentLineBitPosition < width
-                                && referenceOffsets[referenceBufferOffset] <= currentLineBitPosition)
+                               && referenceOffsets[referenceBufferOffset] <= currentLineBitPosition)
                         {
                             referenceBufferOffset += 2;
                         }
@@ -466,17 +471,18 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                 return MMRConstants.EOF;
             }
 
-        endDecodeLoop:
+            endDecodeLoop:
 
             if (runOffsets[currentBufferOffset] != width)
             {
                 runOffsets[currentBufferOffset] = width;
             }
 
-            if (code == null)
+            if (code is null)
             {
                 return MMRConstants.EOL;
             }
+
             return currentBufferOffset;
         }
 
@@ -490,9 +496,9 @@ namespace UglyToad.PdfPig.Filters.Jbig2
             InitTables();
         }
 
-        public Bitmap Uncompress()
+        public Jbig2Bitmap Uncompress()
         {
-            Bitmap result = new Bitmap(width, height);
+            Jbig2Bitmap result = new Jbig2Bitmap(width, height);
 
             int[] currentOffsets = new int[width + 5];
             int[] referenceOffsets = new int[width + 5];
@@ -539,13 +545,13 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                     data.Offset += code.BitLength;
                 }
                 else
-                { 
+                {
                     break;
                 }
             }
         }
 
-        private void FillBitmap(Bitmap result, int line, int[] currentOffsets, int count)
+        private static void FillBitmap(Jbig2Bitmap result, int line, int[] currentOffsets, int count)
         {
             int x = 0;
             int targetByte = result.GetByteIndex(0, line);
@@ -623,12 +629,9 @@ namespace UglyToad.PdfPig.Filters.Jbig2
                 }
             }
 
-        endloop:
+            endloop:
 
-            if (runOffsets[refOffset] != width)
-            {
-                runOffsets[refOffset] = width;
-            }
+            runOffsets[refOffset] = width;
 
             return code != null && code.RunLength != MMRConstants.EOL ? refOffset : MMRConstants.EOL;
         }

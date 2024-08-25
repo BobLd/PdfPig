@@ -27,6 +27,22 @@
             Assert.Equal(1024, hr.HRegionX);
             Assert.Equal(0, hr.HRegionY);
         }
-    }
 
+        [Fact]
+        public void HighestOneBitTest()
+        {
+            for (int i = -65_536; i <= 65_536; ++i)
+            {
+                int h = i.HighestOneBit();
+                int hExpected = HighestOneBitLocal(i);
+                Assert.Equal(hExpected, h);
+            }
+        }
+
+        public static int HighestOneBitLocal(int number)
+        {
+            // This is the original implementation
+            return (int)Math.Pow(2, Convert.ToString(number, 2).Length - 1);
+        }
+    }
 }
