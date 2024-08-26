@@ -1,8 +1,10 @@
 ﻿namespace UglyToad.PdfPig.Util
 {
+    using System.Collections;
     using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
     using System.Linq;
+    using System.Xml.Linq;
     using Content;
     using Filters;
     using Graphics.Colors;
@@ -10,6 +12,7 @@
     using Tokenization.Scanner;
     using Tokens;
     using UglyToad.PdfPig.Functions;
+    using UglyToad.PdfPig.Graphics.Colors.DeviceN;
 
     internal static class ColorSpaceMapper
     {
@@ -532,32 +535,36 @@
                             // Optionnal
 
                             // Subtype - NameToken - Optional - Default value: DeviceN.
-                            NameToken subtype = NameToken.Devicen;
-                            if (deviceNAttributesToken.ContainsKey(NameToken.Subtype))
+                            if (!deviceNAttributesToken.TryGet(NameToken.Subtype, scanner, out NameToken subtype))
                             {
-                                subtype = deviceNAttributesToken.Get<NameToken>(NameToken.Subtype, scanner);
+                                subtype = NameToken.Devicen;
                             }
 
                             // Colorants - dictionary - Required if Subtype is NChannel and the colour space includes spot colorants; otherwise optional
-                            DictionaryToken? colorants = null;
-                            if (deviceNAttributesToken.ContainsKey(NameToken.Colorants))
+                            var colorants = GetColorants(deviceNAttributesToken, scanner, resourceStore,  filterProvider);
+                            if (colorants.Count == 0)
                             {
-                                colorants = deviceNAttributesToken.Get<DictionaryToken>(NameToken.Colorants, scanner);
+                                if (colorSpaceArray[1] is ArrayToken cols)
+                                {
+                                    for (int c = 0; c < cols.Length; ++c)
+                                    {
+                                        if (cols[c] is NameToken col)
+                                        {
+                                            colorants.Add(col, null);
+                                        }
+                                        else
+                                        {
+                                            
+                                        }
+                                    }
+                                }
                             }
 
                             // Process - dictionary - Required if Subtype is NChannel and the colour space includes components of a process colour space, otherwise optional; PDF 1.6
-                            DictionaryToken? process = null;
-                            if (deviceNAttributesToken.ContainsKey(NameToken.Process))
-                            {
-                                process = deviceNAttributesToken.Get<DictionaryToken>(NameToken.Process, scanner);
-                            }
-
+                            var process = GetDeviceNProcess(deviceNAttributesToken, scanner, resourceStore, filterProvider);
+     
                             // MixingHints - dictionary - Optional
-                            DictionaryToken? mixingHints = null;
-                            if (deviceNAttributesToken.ContainsKey(NameToken.MixingHints))
-                            {
-                                mixingHints = deviceNAttributesToken.Get<DictionaryToken>(NameToken.MixingHints, scanner);
-                            }
+                            deviceNAttributesToken.TryGet(NameToken.Subtype, scanner, out DictionaryToken? mixingHints);
 
                             var attributes = new DeviceNColorSpaceDetails.DeviceNColorSpaceAttributes(subtype, colorants, process, mixingHints);
 
@@ -569,6 +576,89 @@
                 default:
                     return UnsupportedColorSpaceDetails.Instance;
             }
+        }
+
+        private static DeviceNProcess? GetDeviceNProcess(DictionaryToken deviceNAttributesToken,
+            IPdfTokenScanner scanner,
+            IResourceStore resourceStore,
+            ILookupFilterProvider filterProvider)
+        {
+            if (!deviceNAttributesToken.TryGet(NameToken.Process, scanner, out DictionaryToken process))
+            {
+                return null;
+            }
+
+            ColorSpaceDetails? cs = null;
+            if (process.TryGet(NameToken.ColorSpace, scanner, out NameToken csToken) && csToken.TryMapToColorSpace(out var csName))
+            {
+                cs = GetColorSpaceDetails(csName, process, scanner, resourceStore, filterProvider);
+            }
+            else if (process.TryGet(NameToken.ColorSpace, scanner, out ArrayToken csArrToken))
+            {
+                if (csArrToken[0] is NameToken name && name.TryMapToColorSpace(out var csName2))
+                {
+                    cs = GetColorSpaceDetails(csName2, process, scanner, resourceStore, filterProvider);
+                }
+                else
+                {
+                    // Error?
+
+                }
+            }
+            else if (process.TryGet(NameToken.ColorSpace, scanner, out DictionaryToken csDicToken))
+            {
+                //cs = GetColorSpaceDetails(csName, process, scanner, resourceStore, filterProvider);
+            }
+
+            NameToken[]? components = null;
+            if (process.TryGet(NameToken.Components, scanner, out ArrayToken cosComponents))
+            {
+                components = cosComponents.Data.OfType<NameToken>().ToArray();
+            }
+
+            return new DeviceNProcess(cs, components);
+        }
+
+        private static Dictionary<NameToken, SeparationColorSpaceDetails>? GetColorants(DictionaryToken deviceNAttributesToken,
+            IPdfTokenScanner scanner,
+            IResourceStore resourceStore,
+            ILookupFilterProvider filterProvider)
+        {
+            // https://github.com/apache/pdfbox/blob/40576c49fad343379ca4a6673df666098017d57f/pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/color/PDDeviceNAttributes.java#L78
+            var actuals = new Dictionary<NameToken, SeparationColorSpaceDetails?>();
+            if (deviceNAttributesToken.TryGet(NameToken.Colorants, scanner, out DictionaryToken colorants))
+            {
+                foreach (var name in colorants.Data.Keys.Select(NameToken.Create))
+                {
+                    if (!colorants.TryGet(name, scanner, out DictionaryToken value))
+                    {
+                        if (colorants.TryGet(name, scanner, out ArrayToken array))
+                        {
+                            value = new DictionaryToken(new Dictionary<NameToken, IToken>()
+                            {
+                                { NameToken.ColorSpace, array }
+                            });
+                        }
+                        else
+                        {
+                            // Error?
+                            continue;
+                        }
+                    }
+    
+                    var separation = (SeparationColorSpaceDetails)GetColorSpaceDetails(ColorSpace.Separation,
+                        value, scanner, resourceStore, filterProvider);
+
+                    actuals.Add(name, separation);
+                }
+            }
+            else
+            {
+                //colorants = new COSDictionary();
+                //dictionary.setItem(COSName.COLORANTS, colorants);
+            }
+
+            return actuals;
         }
 
         private static bool TryGetColorSpaceArray(DictionaryToken imageDictionary, IResourceStore resourceStore,

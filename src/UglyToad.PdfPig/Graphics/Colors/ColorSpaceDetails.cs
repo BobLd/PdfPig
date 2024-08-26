@@ -1,5 +1,6 @@
 ﻿namespace UglyToad.PdfPig.Graphics.Colors
 {
+    using DeviceN;
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
@@ -367,63 +368,63 @@
                 case ColorSpace.DeviceRGB:
                 case ColorSpace.CalRGB:
                 case ColorSpace.Lab:
-                {
-                    Span<byte> result = new byte[input.Length * 3];
-                    var i = 0;
-                    foreach (var x in input)
                     {
-                        for (var j = 0; j < 3; ++j)
+                        Span<byte> result = new byte[input.Length * 3];
+                        var i = 0;
+                        foreach (var x in input)
                         {
-                            result[i++] = ColorTable[x * 3 + j];
+                            for (var j = 0; j < 3; ++j)
+                            {
+                                result[i++] = ColorTable[x * 3 + j];
+                            }
                         }
-                    }
 
-                    return result;
-                }
+                        return result;
+                    }
 
                 case ColorSpace.DeviceCMYK:
-                {
-                    Span<byte> result = new byte[input.Length * 4];
-                    var i = 0;
-                    foreach (var x in input)
                     {
-                        for (var j = 0; j < 4; ++j)
+                        Span<byte> result = new byte[input.Length * 4];
+                        var i = 0;
+                        foreach (var x in input)
                         {
-                            result[i++] = ColorTable[x * 4 + j];
+                            for (var j = 0; j < 4; ++j)
+                            {
+                                result[i++] = ColorTable[x * 4 + j];
+                            }
                         }
-                    }
 
-                    return result;
-                }
+                        return result;
+                    }
 
                 case ColorSpace.DeviceGray:
                 case ColorSpace.CalGray:
                 case ColorSpace.Separation:
-                {
-                    for (var i = 0; i < input.Length; ++i)
                     {
-                        ref byte b = ref input[i];
-                        b = ColorTable[b];
-                    }
+                        for (var i = 0; i < input.Length; ++i)
+                        {
+                            ref byte b = ref input[i];
+                            b = ColorTable[b];
+                        }
 
-                    return input;
-                }
+                        return input;
+                    }
 
                 case ColorSpace.DeviceN:
                 case ColorSpace.ICCBased:
-                {
-                    Span<byte> result = new byte[input.Length * BaseColorSpace.NumberOfColorComponents];
-                    var i = 0;
-                    foreach (var x in input)
                     {
-                        for (var j = 0; j < BaseColorSpace.NumberOfColorComponents; ++j)
+                        Span<byte> result = new byte[input.Length * BaseColorSpace.NumberOfColorComponents];
+                        var i = 0;
+                        foreach (var x in input)
                         {
-                            result[i++] = ColorTable[x * BaseColorSpace.NumberOfColorComponents + j];
+                            for (var j = 0; j < BaseColorSpace.NumberOfColorComponents; ++j)
+                            {
+                                result[i++] = ColorTable[x * BaseColorSpace.NumberOfColorComponents + j];
+                            }
                         }
-                    }
 
-                    return result;
-                }
+                        return result;
+                    }
             }
 
             return input;
@@ -501,6 +502,14 @@
         /// </summary>
         public PdfFunction TintFunction { get; }
 
+        public bool IsNChannel { get; }
+
+        private ColorSpaceDetails? processColorSpace;
+
+        private int[] colorantToComponent;
+
+        private bool useAttribute;
+
         /// <summary>
         /// Create a new <see cref="DeviceNColorSpaceDetails"/>.
         /// </summary>
@@ -514,10 +523,196 @@
             Attributes = attributes;
             TintFunction = tintFunction;
             BaseType = AlternateColorSpace.Type;
+            IsNChannel = Attributes is not null && Attributes.IsNChannel;
+            InitColorConversionCache();
         }
 
+        private SeparationColorSpaceDetails[] spotColorSpaces;
+
+        /// <summary>
+        /// initializes the color conversion cache
+        /// </summary>
+        private void InitColorConversionCache()
+        {
+            // https://github.com/apache/pdfbox/blob/trunk/pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/color/PDDeviceN.java
+
+            try
+            {
+                // there's nothing to cache for non-attribute spaces
+                if (Attributes is null)
+                {
+                    useAttribute = false;
+                    return;
+                }
+
+                // process components
+                colorantToComponent = new int[NumberOfColorComponents];
+                if (Attributes.Process != null)
+                {
+                    var components = Attributes.Process.Components;
+
+                    // map each colorant to the corresponding process component (if any)
+                    for (int c = 0; c < NumberOfColorComponents; c++)
+                    {
+                        colorantToComponent[c] = Array.IndexOf(components, Names[c]);
+                    }
+
+                    // process color space
+                    processColorSpace = Attributes.Process.ColorSpace;
+                }
+                else
+                {
+                    for (int c = 0; c < NumberOfColorComponents; c++)
+                    {
+                        colorantToComponent[c] = -1;
+                    }
+                }
+
+                // spot colorants
+                spotColorSpaces = new SeparationColorSpaceDetails[NumberOfColorComponents];
+
+                // spot color spaces
+                var spotColorants = Attributes.Colorants;
+
+                // map each colorant to the corresponding spot color space
+                for (int c = 0; c < NumberOfColorComponents; c++)
+                {
+                    NameToken name = Names[c];
+
+                    if (spotColorants.TryGetValue(name, out var spot))
+                    {
+                        // spot colorant
+                        spotColorSpaces[c] = spot;
+
+                        // spot colors may replace process colors with same name
+                        // providing that the subtype is not NChannel.
+                        if (!IsNChannel)
+                        {
+                            colorantToComponent[c] = -1;
+                        }
+                    }
+                    else
+                    {
+                        // process colorant
+                        spotColorSpaces[c] = null;
+                    }
+                }
+
+                useAttribute = true;
+            }
+            catch (Exception e)
+            {
+                useAttribute = false;
+                Console.WriteLine(e);
+                throw;
+            }
+        }
+        
         /// <inheritdoc/>
         internal override double[] Process(params double[] values)
+        {
+            if (useAttribute)
+            {
+                return ProcessWithAttributes(values);
+            }
+
+            return ProcessWithTintTransform(values);
+        }
+
+        private double[] ProcessWithAttributes(double[] values)
+        {
+            double[] rgbValueArr = new double[BaseNumberOfColorComponents]; // Not sure about count // { 1, 1, 1 };
+
+            Span<double> rgbValue = rgbValueArr.AsSpan();
+            rgbValue.Fill(1);
+
+            // look up each colorant
+            for (int c = 0; c < NumberOfColorComponents; c++)
+            {
+                ColorSpaceDetails componentColorSpace;
+                bool isProcessColorant = colorantToComponent[c] >= 0;
+                if (isProcessColorant)
+                {
+                    // process color
+                    componentColorSpace = processColorSpace;
+                }
+                else if (spotColorSpaces[c] == null)
+                {
+                    // TODO this happens in the Altona Visual test, is there a better workaround?
+                    // missing spot color, fallback to using tintTransform
+                    return ProcessWithTintTransform(values);
+                }
+                else
+                {
+                    // spot color
+                    componentColorSpace = spotColorSpaces[c];
+                }
+
+                // get the single component
+                double[] componentSamples = new double[componentColorSpace.NumberOfColorComponents];
+
+                if (isProcessColorant)
+                {
+                    // process color
+                    int componentIndex = colorantToComponent[c];
+                    componentSamples[componentIndex] = values[c];
+                }
+                else
+                {
+                    // spot color
+                    componentSamples[0] = values[c];
+                }
+
+                // convert single component to RGB
+                double[] rgbComponent = componentColorSpace.Process(componentSamples);
+
+                // combine the RGB component value with the RGB composite value
+
+                // multiply (blend mode)
+                if (rgbComponent.Length == 1)
+                {
+                    rgbValue[c] *= rgbComponent[0];
+
+                    if (isProcessColorant)
+                    {
+
+                    }
+                    else
+                    {
+
+                    }
+
+                    for (int i = 0; i < rgbValue.Length; ++i)
+                    {
+                        //rgbValue[i] *= rgbComponent[0];
+                    }
+                }
+                else if (rgbValue.Length == rgbComponent.Length)
+                {
+                    System.Diagnostics.Debug.Assert(rgbValue.Length == rgbComponent.Length);
+
+                    if (isProcessColorant)
+                    {
+                        rgbValue[colorantToComponent[c]] *= rgbComponent[colorantToComponent[c]];
+                    }
+                    else
+                    {
+                        rgbValue[c] *= rgbComponent[c];
+                    }
+                }
+                else
+                {
+                    throw new Exception("DeviceN: rgbValue.Length == rgbComponent.Length");
+                }
+                //rgbValue[0] *= rgbComponent[0];
+                //rgbValue[1] *= rgbComponent[1];
+                //rgbValue[2] *= rgbComponent[2];
+            }
+
+            return rgbValueArr;
+        }
+
+        private double[] ProcessWithTintTransform(double[] values)
         {
             var evaled = TintFunction.Eval(values);
             return AlternateColorSpace.Process(evaled);
@@ -585,8 +780,10 @@
         /// <summary>
         /// DeviceN Color Space Attributes.
         /// </summary>
-        public readonly struct DeviceNColorSpaceAttributes
+        public sealed class DeviceNColorSpaceAttributes
         {
+            private const string NChannel = "NChannel";
+
             /// <summary>
             /// A name specifying the preferred treatment for the colour space. Values shall be <c>DeviceN</c> or <c>NChannel</c>. Default value: <c>DeviceN</c>.
             /// </summary>
@@ -595,17 +792,19 @@
             /// <summary>
             /// Colorants - dictionary - Required if Subtype is NChannel and the colour space includes spot colorants; otherwise optional.
             /// </summary>
-            public DictionaryToken? Colorants { get; }
+            public Dictionary<NameToken, SeparationColorSpaceDetails>? Colorants { get; }
 
             /// <summary>
             /// Process - dictionary - Required if Subtype is NChannel and the colour space includes components of a process colour space, otherwise optional.
             /// </summary>
-            public DictionaryToken? Process { get; }
+            public DeviceNProcess? Process { get; }
 
             /// <summary>
             /// MixingHints - dictionary - Optional
             /// </summary>
             public DictionaryToken? MixingHints { get; }
+
+            public bool IsNChannel { get; }
 
             /// <summary>
             /// Create a new <see cref="DeviceNColorSpaceAttributes"/>.
@@ -621,12 +820,13 @@
             /// <summary>
             /// Create a new <see cref="DeviceNColorSpaceAttributes"/>.
             /// </summary>
-            public DeviceNColorSpaceAttributes(NameToken subtype, DictionaryToken? colorants, DictionaryToken? process, DictionaryToken? mixingHints)
+            public DeviceNColorSpaceAttributes(NameToken subtype, Dictionary<NameToken, SeparationColorSpaceDetails>? colorants, DeviceNProcess? process, DictionaryToken? mixingHints)
             {
                 Subtype = subtype;
                 Colorants = colorants;
                 Process = process;
                 MixingHints = mixingHints;
+                IsNChannel = NChannel.Equals(Subtype.Data);
             }
         }
     }
@@ -718,18 +918,19 @@
         /// <inheritdoc/>
         internal override Span<byte> Transform(Span<byte> values)
         {
-            var cache = new Dictionary<int, double[]>(values.Length * 3);
-            var transformed = new List<byte>(values.Length * 3);
-            for (var i = 0; i < values.Length; i += 3)
+            var cache = new Dictionary<int, double[]>(values.Length);
+            var transformed = new List<byte>(values.Length);
+
+            for (var i = 0; i < values.Length; ++i)
             {
-                byte b = values[i++];
+                byte b = values[i];
                 if (!cache.TryGetValue(b, out double[]? colors))
                 {
                     colors = Process(b / 255.0);
                     cache[b] = colors;
                 }
 
-                for (int c = 0; c < colors.Length; c++)
+                for (int c = 0; c < colors.Length; ++c)
                 {
                     transformed.Add(ConvertToByte(colors[c]));
                 }
