@@ -1,7 +1,6 @@
 ﻿namespace UglyToad.PdfPig.Parser.FileStructure
 {
     using System;
-    using System.Collections.Generic;
     using Core;
     using Tokenization.Scanner;
     using Tokens;
@@ -78,7 +77,8 @@
 
         private static long GetStartXrefPosition(IInputBytes bytes, int offsetFromEnd)
         {
-            var startXrefs = new List<int>();
+            int startXref = 0;
+            int startXrefsCount = 0;
 
             var index = 0;
 
@@ -107,7 +107,8 @@
                     if (index == StartXRefBytes.Length)
                     {
                         // Add this "startxref" (position from the start of the document to the first 's').
-                        startXrefs.Add((int)bytes.CurrentOffset - StartXRefBytes.Length);
+                        startXref = (int)bytes.CurrentOffset - StartXRefBytes.Length;
+                        startXrefsCount++;
 
                         // Continue scanning in case there are further "startxref"s. Not sure if this ever happens.
                         index = 0;
@@ -115,14 +116,14 @@
                 }
 
                 actualStartOffset = Math.Max(0, fileLength - (offsetFromEnd * multiple));
-            } while (startXrefs.Count == 0 && actualStartOffset > 0);
-            
-            if (startXrefs.Count == 0)
+            } while (startXrefsCount == 0 && actualStartOffset > 0);//startXrefs.Count == 0 && actualStartOffset > 0);
+
+            if (startXrefsCount == 0)
             {
                 throw new PdfDocumentFormatException($"Could not find the startxref within the last {offsetFromEnd} characters.");
             }
 
-            return startXrefs[startXrefs.Count - 1];
+            return startXref;
         }
     }
 }
