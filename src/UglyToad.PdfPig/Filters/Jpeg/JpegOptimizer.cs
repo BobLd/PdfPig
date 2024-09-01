@@ -209,7 +209,7 @@ namespace JpegLibrary
             return scanHeader;
         }
 
-        [SkipLocalsInit]
+        //[SkipLocalsInit]
         private void ProcessDefineRestartInterval(ref JpegReader reader)
         {
             if (!reader.TryReadLength(out ushort length))

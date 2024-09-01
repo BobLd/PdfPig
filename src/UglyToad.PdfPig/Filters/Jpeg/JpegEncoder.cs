@@ -463,7 +463,7 @@ namespace JpegLibrary
                                 ref JpegBlock8x8 blockRef = ref allocator.GetBlockReference(index, offsetX + x, blockOffsetY);
 
                                 // Read Block
-                                ReadBlock(inputReader, out blockRef, component.Index, (offsetX + x) * 8 * hs, blockOffsetY * 8 * vs, hs, vs);
+                                ReadBlock(inputReader, ref blockRef, component.Index, (offsetX + x) * 8 * hs, blockOffsetY * 8 * vs, hs, vs);
 
                                 // Level shift
                                 ShiftDataLevel(ref blockRef, ref inputFBuffer, levelShift);
@@ -714,8 +714,10 @@ namespace JpegLibrary
                             int blockOffsetY = (offsetY + y) * 8;
                             for (int x = 0; x < h; x++)
                             {
+                                JpegBlock8x8 inputBuffer = new JpegBlock8x8();
+
                                 // Read Block
-                                ReadBlock(inputReader, out JpegBlock8x8 inputBuffer, component.Index, (offsetX + x) * 8, blockOffsetY, hs, vs);
+                                ReadBlock(inputReader, ref inputBuffer, component.Index, (offsetX + x) * 8, blockOffsetY, hs, vs);
 
                                 // Level shift
                                 ShiftDataLevel(ref inputBuffer, ref inputFBuffer, levelShift);
@@ -738,7 +740,7 @@ namespace JpegLibrary
             writer.ExitBitMode();
         }
 
-        private static void ReadBlock(JpegBlockInputReader inputReader, out JpegBlock8x8 block, int componentIndex, int x, int y, int h, int v)
+        private static void ReadBlock(JpegBlockInputReader inputReader, ref JpegBlock8x8 block, int componentIndex, int x, int y, int h, int v)
         {
             ref short blockRef = ref Unsafe.As<JpegBlock8x8, short>(ref block);
 
