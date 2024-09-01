@@ -1,7 +1,6 @@
 ﻿#nullable enable
 
 using System.Buffers;
-using System.Runtime.CompilerServices;
 
 namespace JpegLibrary
 {
@@ -65,7 +64,7 @@ namespace JpegLibrary
         /// <param name="frameHeader">The frame header parsed.</param>
         /// <param name="bytesConsumed">The count of bytes consumed by the parser.</param>
         /// <returns>True is the frame header is successfully parsed.</returns>
-        [SkipLocalsInit]
+        //[SkipLocalsInit]
         public static bool TryParse(ReadOnlySequence<byte> buffer, bool metadataOnly, out JpegFrameHeader frameHeader, out int bytesConsumed)
         {
             if (buffer.IsSingleSegment)
@@ -88,7 +87,7 @@ namespace JpegLibrary
             Span<byte> local = stackalloc byte[6];
             buffer.Slice(0, 6).CopyTo(local);
 
-            byte numberOfComponenets = local[5];
+            byte numberOfComponents = local[5];
             ushort samplesPerLine = (ushort)(local[4] | (local[3] << 8));
             ushort numberOfLines = (ushort)(local[2] | (local[1] << 8));
             byte precision = local[0];
@@ -96,7 +95,7 @@ namespace JpegLibrary
             buffer = buffer.Slice(6);
             bytesConsumed += 6;
 
-            if (buffer.Length < 3 * numberOfComponenets)
+            if (buffer.Length < 3 * numberOfComponents)
             {
                 frameHeader = default;
                 return false;
@@ -104,15 +103,15 @@ namespace JpegLibrary
 
             if (metadataOnly)
             {
-                bytesConsumed += 3 * numberOfComponenets;
-                frameHeader = new JpegFrameHeader(precision, numberOfLines, samplesPerLine, numberOfComponenets, null);
+                bytesConsumed += 3 * numberOfComponents;
+                frameHeader = new JpegFrameHeader(precision, numberOfLines, samplesPerLine, numberOfComponents, null);
                 return true;
             }
 
-            JpegFrameComponentSpecificationParameters[] components = new JpegFrameComponentSpecificationParameters[numberOfComponenets];
+            JpegFrameComponentSpecificationParameters[] components = new JpegFrameComponentSpecificationParameters[numberOfComponents];
             for (int i = 0; i < components.Length; i++)
             {
-                if (!JpegFrameComponentSpecificationParameters.TryParse(buffer, out components[i]))
+                if (!JpegFrameComponentSpecificationParameters.TryParse(buffer, numberOfComponents, out components[i]))
                 {
                     frameHeader = default;
                     return false;
@@ -121,7 +120,7 @@ namespace JpegLibrary
                 bytesConsumed += 3;
             }
 
-            frameHeader = new JpegFrameHeader(precision, numberOfLines, samplesPerLine, numberOfComponenets, components);
+            frameHeader = new JpegFrameHeader(precision, numberOfLines, samplesPerLine, numberOfComponents, components);
             return true;
         }
 
@@ -143,7 +142,7 @@ namespace JpegLibrary
                 return false;
             }
 
-            byte numberOfComponenets = buffer[5];
+            byte numberOfComponents = buffer[5];
             ushort samplesPerLine = (ushort)(buffer[4] | (buffer[3] << 8));
             ushort numberOfLines = (ushort)(buffer[2] | (buffer[1] << 8));
             byte precision = buffer[0];
@@ -151,7 +150,7 @@ namespace JpegLibrary
             buffer = buffer.Slice(6);
             bytesConsumed += 6;
 
-            if (buffer.Length < 3 * numberOfComponenets)
+            if (buffer.Length < 3 * numberOfComponents)
             {
                 frameHeader = default;
                 return false;
@@ -159,15 +158,15 @@ namespace JpegLibrary
 
             if (metadataOnly)
             {
-                bytesConsumed += 3 * numberOfComponenets;
-                frameHeader = new JpegFrameHeader(precision, numberOfLines, samplesPerLine, numberOfComponenets, null);
+                bytesConsumed += 3 * numberOfComponents;
+                frameHeader = new JpegFrameHeader(precision, numberOfLines, samplesPerLine, numberOfComponents, null);
                 return true;
             }
 
-            JpegFrameComponentSpecificationParameters[] components = new JpegFrameComponentSpecificationParameters[numberOfComponenets];
+            JpegFrameComponentSpecificationParameters[] components = new JpegFrameComponentSpecificationParameters[numberOfComponents];
             for (int i = 0; i < components.Length; i++)
             {
-                if (!JpegFrameComponentSpecificationParameters.TryParse(buffer, out components[i]))
+                if (!JpegFrameComponentSpecificationParameters.TryParse(buffer, numberOfComponents, out components[i]))
                 {
                     frameHeader = default;
                     return false;
@@ -176,7 +175,7 @@ namespace JpegLibrary
                 bytesConsumed += 3;
             }
 
-            frameHeader = new JpegFrameHeader(precision, numberOfLines, samplesPerLine, numberOfComponenets, components);
+            frameHeader = new JpegFrameHeader(precision, numberOfLines, samplesPerLine, numberOfComponents, components);
             return true;
         }
 
@@ -271,17 +270,18 @@ namespace JpegLibrary
         /// Parse the frame component from the buffer.
         /// </summary>
         /// <param name="buffer">The buffer to read from.</param>
+        /// <param name="numberOfComponents">Number of components.</param>
         /// <param name="component">The frame component parsed.</param>
         /// <returns>True is the frame component is successfully parsed.</returns>
-        [SkipLocalsInit]
-        public static bool TryParse(ReadOnlySequence<byte> buffer, out JpegFrameComponentSpecificationParameters component)
+        //[SkipLocalsInit]
+        public static bool TryParse(ReadOnlySequence<byte> buffer, byte numberOfComponents, out JpegFrameComponentSpecificationParameters component)
         {
             if (buffer.IsSingleSegment)
             {
 #if NO_READONLYSEQUENCE_FISTSPAN
                 return TryParse(buffer.First.Span, out component);
 #else
-                return TryParse(buffer.FirstSpan, out component);
+                return TryParse(buffer.FirstSpan, numberOfComponents, out component);
 #endif
             }
 
@@ -306,9 +306,10 @@ namespace JpegLibrary
         /// Parse the frame component from the buffer.
         /// </summary>
         /// <param name="buffer">The buffer to read from.</param>
+        /// <param name="numberOfComponents">Number of components.</param>
         /// <param name="component">The frame component parsed.</param>
         /// <returns>True is the frame component is successfully parsed.</returns>
-        public static bool TryParse(ReadOnlySpan<byte> buffer, out JpegFrameComponentSpecificationParameters component)
+        public static bool TryParse(ReadOnlySpan<byte> buffer, byte numberOfComponents, out JpegFrameComponentSpecificationParameters component)
         {
             if (buffer.Length < 3)
             {
@@ -316,9 +317,10 @@ namespace JpegLibrary
                 return false;
             }
 
-            byte quantizationTableSelector = buffer[2];
-            byte samplingFactor = buffer[1];
             byte identifier = buffer[0];
+            byte samplingFactor = numberOfComponents == 1 ? (byte)17 : buffer[1]; // See issue #3
+            // For totalComponents == 1, see Indexed-DeviceRGB-JPXDecode-0-.0.0.255.0.-Font-F1_1_missing_char_255-1.pdf
+            byte quantizationTableSelector = buffer[2];
 
             component = new JpegFrameComponentSpecificationParameters(identifier, (byte)(samplingFactor >> 4), (byte)(samplingFactor & 0xf), quantizationTableSelector);
             return true;
