@@ -93,7 +93,7 @@ namespace JpegLibrary
         /// Read the StartOfImage marker.
         /// </summary>
         /// <returns>True if the immediately following bytes in the stream is StartOfImage marker.</returns>
-        [SkipLocalsInit]
+        //[SkipLocalsInit]
         public bool TryReadStartOfImageMarker()
         {
             Span<byte> buffer = stackalloc byte[2];
@@ -115,7 +115,7 @@ namespace JpegLibrary
         /// </summary>
         /// <param name="marker">The next marker in the stream.</param>
         /// <returns>True if the immediately following bytes in the stream is a marker.</returns>
-        [SkipLocalsInit]
+        //[SkipLocalsInit]
         public bool TryReadMarker(out JpegMarker marker)
         {
             Span<byte> buffer = stackalloc byte[2];
@@ -161,7 +161,7 @@ namespace JpegLibrary
         /// </summary>
         /// <param name="length">The length represented by the next two bytes.</param>
         /// <returns>True if the remaining stream contains at least two bytes.</returns>
-        [SkipLocalsInit]
+        //[SkipLocalsInit]
         public bool TryReadLength(out ushort length)
         {
             Span<byte> buffer = stackalloc byte[2];
@@ -180,7 +180,7 @@ namespace JpegLibrary
         /// </summary>
         /// <param name="length">The length represented by the next two bytes.</param>
         /// <returns>True if the remaining stream contains at least two bytes.</returns>
-        [SkipLocalsInit]
+        //[SkipLocalsInit]
         public bool TryPeekLength(out ushort length)
         {
             Span<byte> buffer = stackalloc byte[2];
