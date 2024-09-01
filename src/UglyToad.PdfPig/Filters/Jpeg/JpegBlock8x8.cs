@@ -7,13 +7,14 @@ namespace JpegLibrary
     /// <summary>
     /// Represents a 8x8 spatial block.
     /// </summary>
-    public unsafe struct JpegBlock8x8
+    [InlineArray(64)]
+    public struct JpegBlock8x8
     {
-        private fixed short _data[64];
+        private short _firstElement;
 
         internal void CopyTo(ref JpegBlock8x8F block)
         {
-            ref short srcRef = ref _data[0];
+            ref short srcRef = ref _firstElement;
             ref float destRef = ref Unsafe.As<JpegBlock8x8F, float>(ref block);
             for (int i = 0; i < 64; i++)
             {
@@ -23,7 +24,7 @@ namespace JpegLibrary
 
         internal void LoadFrom(ref JpegBlock8x8F block)
         {
-            ref short destRef = ref _data[0];
+            ref short destRef = ref _firstElement;
             ref float srcRef = ref Unsafe.As<JpegBlock8x8F, float>(ref block);
             for (int i = 0; i < 64; i++)
             {
