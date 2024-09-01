@@ -3,9 +3,9 @@
     using JpegLibrary;
     using JpegLibrary.Utils;
     using System;
-    using System.Collections.Generic;
-    using System.Linq;
     using UglyToad.PdfPig.Tokens;
+
+    // based on https://github.com/yigolden/JpegLibrary/blob/main/apps/JpegDecode/DecodeAction.cs
 
     /// <summary>
     /// DST (Discrete Cosine Transform) Filter indicates data is encoded in JPEG format.
@@ -14,12 +14,13 @@
     public sealed class DctDecodeFilter : IFilter
     {
         /// <inheritdoc />
-        public bool IsSupported { get; } = true;
+        public bool IsSupported => true;
 
         /// <inheritdoc />
         public ReadOnlyMemory<byte> Decode(ReadOnlySpan<byte> input, DictionaryToken streamDictionary, int filterIndex)
         {
             var decoder = new JpegDecoder();
+
             decoder.SetInput(input.ToArray().AsMemory());
             decoder.Identify();
 
