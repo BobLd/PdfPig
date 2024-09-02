@@ -1,5 +1,7 @@
 ﻿namespace UglyToad.PdfPig.Tests.Integration
 {
+    using UglyToad.PdfPig.Tokens;
+
     public class IntegrationDocumentTests
     {
         private static readonly Lazy<string> DocumentFolder = new Lazy<string>(() => Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "Integration", "Documents")));
@@ -24,6 +26,66 @@
                     var page = document.GetPage(i + 1);
 
                     Assert.NotNull(page.ExperimentalAccess.GetAnnotations().ToList());
+                }
+            }
+        }
+
+        [Theory]
+        [MemberData(nameof(GetAllDocuments))]
+        public void CanExtractDctImages(string documentName)
+        {
+            // Add the full path back on, we removed it so we could see it in the test explorer.
+            documentName = Path.Combine(DocumentFolder.Value, documentName);
+
+            using (var document = PdfDocument.Open(documentName, new ParsingOptions { UseLenientParsing = false }))
+            {
+                for (var i = 0; i < document.NumberOfPages; i++)
+                {
+                    var page = document.GetPage(i + 1);
+
+                    foreach (var image in page.GetImages())
+                    {
+                        if (image.ImageDictionary.TryGet(NameToken.Filter, out NameToken filter) &&
+                            (filter.Data.Equals(NameToken.DctDecode.Data) || filter.Data.Equals(NameToken.DctDecodeAbbreviation.Data)))
+                        {
+                            Assert.True(image.TryGetPng(out var png));
+                        }
+                        else if (image.ImageDictionary.TryGet(NameToken.F, out NameToken filter2) &&
+                            (filter2.Data.Equals(NameToken.DctDecode.Data) || filter2.Data.Equals(NameToken.DctDecodeAbbreviation.Data)))
+                        {
+                            Assert.True(image.TryGetPng(out var png));
+                        }
+                    }
+                }
+            }
+        }
+
+        [Theory]
+        [MemberData(nameof(GetAllDocuments))]
+        public void CanExtractJbigImages(string documentName)
+        {
+            // Add the full path back on, we removed it so we could see it in the test explorer.
+            documentName = Path.Combine(DocumentFolder.Value, documentName);
+
+            using (var document = PdfDocument.Open(documentName, new ParsingOptions { UseLenientParsing = false }))
+            {
+                for (var i = 0; i < document.NumberOfPages; i++)
+                {
+                    var page = document.GetPage(i + 1);
+
+                    foreach (var image in page.GetImages())
+                    {
+                        if (image.ImageDictionary.TryGet(NameToken.Filter, out NameToken filter) &&
+                            filter.Data.Equals(NameToken.Jbig2Decode.Data))
+                        {
+                            Assert.True(image.TryGetPng(out var png));
+                        }
+                        else if (image.ImageDictionary.TryGet(NameToken.F, out NameToken filter2) &&
+                            filter2.Data.Equals(NameToken.Jbig2Decode.Data))
+                        {
+                            Assert.True(image.TryGetPng(out var png));
+                        }
+                    }
                 }
             }
         }
