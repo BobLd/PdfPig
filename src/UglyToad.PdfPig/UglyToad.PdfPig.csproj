@@ -39,6 +39,7 @@
     <PackageReference Include="System.Memory" Version="4.5.5" />
   </ItemGroup>	
   <ItemGroup>
+    <ProjectReference Include="..\..\..\OpenJpegDotNet\src\OpenJpegDotNet\OpenJpegDotNet.csproj" />
     <ProjectReference Include="..\UglyToad.PdfPig.Core\UglyToad.PdfPig.Core.csproj" />
     <ProjectReference Include="..\UglyToad.PdfPig.Fonts\UglyToad.PdfPig.Fonts.csproj" />
     <ProjectReference Include="..\UglyToad.PdfPig.Tokenization\UglyToad.PdfPig.Tokenization.csproj" />

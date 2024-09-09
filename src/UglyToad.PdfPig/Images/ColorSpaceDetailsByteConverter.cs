@@ -27,6 +27,11 @@
                 return decoded;
             }
 
+            if (bitsPerComponent == 0)
+            {
+                bitsPerComponent = 8;
+            }
+
             // TODO - We should aim at removing this alloc.
             // The decoded input variable needs to become a Span<byte>
             Span<byte> data = decoded.ToArray();
