@@ -368,6 +368,7 @@
         public static readonly NameToken NonFullScreenPageMode = new NameToken("NonFullScreenPageMode");
         public static readonly NameToken None = new NameToken("None");
         public static readonly NameToken Normal = new NameToken("Normal");
+        public static readonly NameToken Linearized = new NameToken("Linearized");
         public static readonly NameToken Nums = new NameToken("Nums");
         // O
         public static readonly NameToken O = new NameToken("O");

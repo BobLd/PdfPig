@@ -26,6 +26,8 @@
         private bool isDisposed;
         private readonly Lazy<AcroForm> documentForm;
 
+        private readonly LinearizationParameter? linearizationParameter;
+
         private readonly HeaderVersion version;
         private readonly IInputBytes inputBytes;
         private readonly EncryptionDictionary? encryptionDictionary;
@@ -62,6 +64,11 @@
         public int NumberOfPages => pages.Count;
 
         /// <summary>
+        /// TODO
+        /// </summary>
+        public bool IsLinearised => linearizationParameter != null;
+
+        /// <summary>
         /// Whether the document content is encrypted.
         /// </summary>
         [MemberNotNullWhen(true, nameof(encryptionDictionary))]
@@ -78,6 +85,7 @@
             ILookupFilterProvider filterProvider,
             AcroFormFactory acroFormFactory,
             BookmarksProvider bookmarksProvider,
+            LinearizationParameter? linearizationParameter,
             ParsingOptions parsingOptions)
         {
             this.inputBytes = inputBytes;
@@ -86,6 +94,7 @@
             this.pdfScanner = pdfScanner ?? throw new ArgumentNullException(nameof(pdfScanner));
             this.filterProvider = filterProvider ?? throw new ArgumentNullException(nameof(filterProvider));
             this.bookmarksProvider = bookmarksProvider ?? throw new ArgumentNullException(nameof(bookmarksProvider));
+            this.linearizationParameter = linearizationParameter;
             this.parsingOptions = parsingOptions;
 
             Information = information ?? throw new ArgumentNullException(nameof(information));
