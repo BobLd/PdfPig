@@ -24,7 +24,7 @@
 
             currentOffset = -1;
         }
-
+        
         private int currentOffset;
         /// <inheritdoc />
         public long CurrentOffset => currentOffset + 1;

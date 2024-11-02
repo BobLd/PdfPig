@@ -122,6 +122,8 @@
 
             var version = FileHeaderParser.Parse(scanner, inputBytes, parsingOptions.UseLenientParsing, parsingOptions.Logger);
 
+            var test = LinearisationParameterParser.Parse(pdfScanner, parsingOptions);
+
             var crossReferenceOffset = FileTrailerParser.GetFirstCrossReferenceOffset(
                 inputBytes,
                 scanner,

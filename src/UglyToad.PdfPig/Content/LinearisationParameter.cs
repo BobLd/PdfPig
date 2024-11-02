@@ -4,7 +4,7 @@
     /// Linearisation of PDF is an optional feature available beginning in PDF 1.2
     /// that enables efficient incremental access of the file in a network environment.
     /// </summary>
-    public sealed class LinearisationParameter
+    internal sealed class LinearisationParameter
     {
         /// <summary>
         /// A version identification for the linearised format.
