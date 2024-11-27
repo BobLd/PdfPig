@@ -23,6 +23,7 @@
         private readonly Encoding encoding;
         private readonly TrueTypeFont font;
         private readonly MetricOverrides overrides;
+        private readonly bool isZapfDingbats;
 
         public NameToken? Name { get; }
 
@@ -42,6 +43,7 @@
                 fontMetrics.Weight == "Bold",
                 fontMetrics.Weight == "Bold" ? 700 : FontDetails.DefaultWeight,
                 fontMetrics.ItalicAngle != 0);
+            isZapfDingbats = encoding is ZapfDingbatsEncoding || Details.Name.Contains("ZapfDingbats");
         }
 
         public int ReadCharacterCode(IInputBytes bytes, out int codeLength)
@@ -57,19 +59,28 @@
             // If the font is a simple font that uses one of the predefined encodings MacRomanEncoding, MacExpertEncoding, or WinAnsiEncoding...
 
             //  Map the character code to a character name.
-            var encodedCharacterName = encoding.GetName(characterCode);
+            var name = encoding.GetName(characterCode);
 
             // Look up the character name in the Adobe Glyph List.
             try
             {
-                value = GlyphList.AdobeGlyphList.NameToUnicode(encodedCharacterName);
+                if (isZapfDingbats)
+                {
+                    value = GlyphList.ZapfDingbats.NameToUnicode(name);
+                    if (value is not null)
+                    {
+                        return true;
+                    }
+                }
+
+                value = GlyphList.AdobeGlyphList.NameToUnicode(name);
             }
             catch
             {
                 return false;
             }
 
-            return true;
+            return value is not null;
         }
 
         public CharacterBoundingBox GetBoundingBox(int characterCode)
