@@ -3,7 +3,6 @@ namespace UglyToad.PdfPig.PdfFonts.Simple
 {
     using System;
     using System.Collections.Generic;
-    using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using Core;
     using Fonts;
@@ -18,6 +17,7 @@ namespace UglyToad.PdfPig.PdfFonts.Simple
     {
         private readonly AdobeFontMetrics standardFontMetrics;
         private readonly Encoding encoding;
+        private readonly bool isZapfDingbats;
 
         public NameToken Name { get; }
 
@@ -39,6 +39,11 @@ namespace UglyToad.PdfPig.PdfFonts.Simple
                 standardFontMetrics.Weight == "Bold",
                 standardFontMetrics.Weight == "Bold" ? 700 : FontDetails.DefaultWeight,
                 standardFontMetrics.ItalicAngle != 0);
+            isZapfDingbats = encoding is ZapfDingbatsEncoding || Details.Name.Contains("ZapfDingbats");
+            // See below for docs where encoding is not ZD, but name is:
+            // TIKA-469-0.pdf
+            // TIKA-973-1.tgz-2.pdf
+            // PDFBOX-481-0.pdf
         }
 
         public int ReadCharacterCode(IInputBytes bytes, out int codeLength)
@@ -49,39 +54,35 @@ namespace UglyToad.PdfPig.PdfFonts.Simple
 
         public bool TryGetUnicode(int characterCode, [NotNullWhen(true)] out string? value)
         {
+            value = null;
+
             var name = encoding.GetName(characterCode);
+            
             if (string.Equals(name, GlyphList.NotDefined, StringComparison.OrdinalIgnoreCase))
             {
-                value = null;
                 return false;
             }
 
-            if (encoding is ZapfDingbatsEncoding)
+            try
             {
-                var listed = GlyphList.ZapfDingbats.NameToUnicode(name);
+                if (isZapfDingbats)
+                {
+                    value = GlyphList.ZapfDingbats.NameToUnicode(name);
 
-                value = listed;
+                    if (value is not null)
+                    {
+                        return true;
+                    }
+                }
 
-                return true;
+                value = GlyphList.AdobeGlyphList.NameToUnicode(name);
+            }
+            catch
+            {
+                return false;
             }
 
-            if (encoding is StandardEncoding || encoding is SymbolEncoding)
-            {
-                var listed = GlyphList.AdobeGlyphList.NameToUnicode(name);
-
-                value = listed;
-
-                return true;
-            }
-            else
-            {
-                Debug.WriteLine($"Warning: Type1Standard14Font with unexpected encoding: '{encoding.EncodingName}' Expected: 'ZapfDingbatsEncoding','SymbolEncoding' or 'StandardEncoding' . Font: '{standardFontMetrics.FontName}'");
-                var listed = GlyphList.AdobeGlyphList.NameToUnicode(name);
-
-                value = listed;
-
-                return true;
-            }
+            return value is not null;
         }
 
         public CharacterBoundingBox GetBoundingBox(int characterCode)
