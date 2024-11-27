@@ -86,7 +86,7 @@
         /// Get the unicode value for the glyph name.
         /// See <see href="https://github.com/adobe-type-tools/agl-specification"/>.
         /// </summary>
-        public string NameToUnicode(string name)
+        public string? NameToUnicode(string name)
         {
             if (name == null)
             {
@@ -103,7 +103,12 @@
                 return result;
             }
 
-            string unicode;
+            if (AdditionalGlyphList.nameToUnicode.TryGetValue(name, out var addUnicodeValue))
+            {
+                return addUnicodeValue;
+            }
+
+            string? unicode;
             // 1. Drop all the characters from the glyph name starting with the first occurrence of a period (U+002E FULL STOP), if any.
             if (name.IndexOf('.') > 0)
             {
@@ -184,7 +189,7 @@
                 return null;
             }
 
-            oddNameToUnicodeCache[name] = unicode;
+            oddNameToUnicodeCache[name] = unicode!;
 
             return unicode;
         }

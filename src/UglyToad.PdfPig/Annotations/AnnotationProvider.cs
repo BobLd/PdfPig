@@ -92,8 +92,9 @@
                     var width = borderArray.GetNumeric(2).Data;
                     var dashes = default(IReadOnlyList<double>);
 
-                    if (borderArray.Length == 4 && borderArray.Data[4] is ArrayToken dashArray)
+                    if (borderArray.Length == 4 && borderArray.Data[3] is ArrayToken dashArray)
                     {
+                        // PDFBOX-624-2.pdf
                         dashes = dashArray.Data.OfType<NumericToken>().Select(x => x.Data).ToList();
                     }
 
