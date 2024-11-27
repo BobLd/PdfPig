@@ -18,6 +18,7 @@
         private readonly int lastChar;
         private readonly double[] widths;
         private readonly ToUnicodeCMap toUnicodeCMap;
+        private readonly bool isZapfDingbats;
 
         /// <summary>
         /// Type 3 fonts are usually unnamed.
@@ -42,6 +43,7 @@
             this.widths = widths;
             this.toUnicodeCMap = new ToUnicodeCMap(toUnicodeCMap);
             Details = FontDetails.GetDefault(name?.Data);
+            isZapfDingbats = encoding is ZapfDingbatsEncoding || Details.Name.Contains("ZapfDingbats");
         }
 
         public int ReadCharacterCode(IInputBytes bytes, out int codeLength)
@@ -67,6 +69,16 @@
             try
             {
                 var name = encoding.GetName(characterCode);
+
+                if (isZapfDingbats)
+                {
+                    value = GlyphList.ZapfDingbats.NameToUnicode(name);
+                    if (value is not null)
+                    {
+                        return true;
+                    }
+                }
+
                 value = GlyphList.AdobeGlyphList.NameToUnicode(name);
             }
             catch
