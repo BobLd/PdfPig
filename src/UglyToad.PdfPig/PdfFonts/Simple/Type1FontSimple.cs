@@ -37,6 +37,8 @@
 
         private readonly TransformationMatrix fontMatrix;
 
+        private readonly bool isZapfDingbats = false;
+
         public NameToken Name { get; }
 
         public bool IsVertical { get; } = false;
@@ -80,6 +82,7 @@
             Name = name;
             Details = fontDescriptor?.ToDetails(name?.Data)
                       ?? FontDetails.GetDefault(name?.Data);
+            isZapfDingbats = encoding is ZapfDingbatsEncoding || Details.Name.Contains("ZapfDingbats"); // MOZILLA-2775-1.pdf PDFBOX-492-4.jar-8.pdf
         }
 
         public int ReadCharacterCode(IInputBytes bytes, out int codeLength)
@@ -124,6 +127,14 @@
 
             try
             {
+                if (isZapfDingbats)
+                {
+                    value = GlyphList.ZapfDingbats.NameToUnicode(name);
+                    if (value is not null)
+                    {
+                        return true;
+                    }
+                }
                 value = GlyphList.AdobeGlyphList.NameToUnicode(name);
             }
             catch
