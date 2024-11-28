@@ -14,6 +14,7 @@
 
     internal class Type3FontHandler : IFontHandler
     {
+        // TODO - check https://github.com/apache/pdfbox/blob/3007890b9545f412845bd7f94e32be5de5c55666/pdfbox/src/main/java/org/apache/pdfbox/contentstream/PDFStreamEngine.java#L269
         private readonly ILookupFilterProvider filterProvider;
         private readonly IEncodingReader encodingReader;
         private readonly IPdfTokenScanner scanner;
