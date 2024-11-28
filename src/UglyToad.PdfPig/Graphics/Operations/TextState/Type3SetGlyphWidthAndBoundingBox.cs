@@ -1,6 +1,7 @@
 ﻿namespace UglyToad.PdfPig.Graphics.Operations.TextState
 {
     using System.IO;
+    using UglyToad.PdfPig.Core;
 
     /// <summary>
     /// Set width information for the glyph and declare that the glyph description specifies both its shape and its color for a Type 3 font.
@@ -72,6 +73,16 @@
         /// <inheritdoc />
         public void Run(IOperationContext operationContext)
         {
+            var currentTextLineMatrix = operationContext.GetCurrentState().CurrentTransformationMatrix;
+
+            var matrix = TransformationMatrix.FromValues(1, 0, 0, 1, HorizontalDisplacement, VerticalDisplacement);
+
+            matrix = TransformationMatrix.GetTranslationMatrix(HorizontalDisplacement, VerticalDisplacement);
+
+            var transformed = matrix; //.Multiply(currentTextLineMatrix); //currentTextLineMatrix.Multiply(matrix);
+
+            //operationContext.TextMatrices.TextMatrix = transformed;
+            operationContext.GetCurrentState().CurrentTransformationMatrix = transformed;
         }
 
         /// <inheritdoc />

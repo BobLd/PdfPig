@@ -177,12 +177,14 @@
                 SystemFontFinder.Instance,
                 type1Handler);
 
+            var pageContentParser = new PageContentParser(new ReflectionGraphicsStateOperationFactory(), parsingOptions.UseLenientParsing);
+
             var fontFactory = new FontFactory(
                 parsingOptions.Logger,
                 type0Handler,
                 trueTypeHandler,
                 type1Handler,
-                new Type3FontHandler(pdfScanner, filterProvider, encodingReader));
+                new Type3FontHandler(pdfScanner, filterProvider, encodingReader, pageContentParser));
 
             var resourceContainer = new ResourceStore(pdfScanner, fontFactory, filterProvider, parsingOptions);
 
@@ -191,8 +193,7 @@
                 crossReferenceTable.Trailer,
                 parsingOptions.UseLenientParsing);
 
-            var pageFactory = new PageFactory(pdfScanner, resourceContainer, filterProvider,
-                new PageContentParser(new ReflectionGraphicsStateOperationFactory(), parsingOptions.UseLenientParsing), parsingOptions);
+            var pageFactory = new PageFactory(pdfScanner, resourceContainer, filterProvider, pageContentParser, parsingOptions);
 
             var catalog = CatalogFactory.Create(
                 rootReference,

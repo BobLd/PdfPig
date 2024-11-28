@@ -7,9 +7,12 @@
     using Core;
     using Fonts;
     using Fonts.Encodings;
+    using Graphics;
+    using Graphics.Operations.TextState;
     using Tokens;
+    using UglyToad.PdfPig.Graphics.Operations;
 
-    internal class Type3Font : IFont
+    internal class Type3Font : IType3Font
     {
         private readonly PdfRectangle boundingBox;
         private readonly TransformationMatrix fontMatrix;
@@ -19,6 +22,7 @@
         private readonly double[] widths;
         private readonly ToUnicodeCMap toUnicodeCMap;
         private readonly bool isZapfDingbats;
+        private readonly IReadOnlyDictionary<string, IReadOnlyList<IGraphicsStateOperation>> charProcs;
 
         /// <summary>
         /// Type 3 fonts are usually unnamed.
@@ -31,7 +35,7 @@
 
         public Type3Font(NameToken name, PdfRectangle boundingBox, TransformationMatrix fontMatrix,
             Encoding encoding, int firstChar, int lastChar, double[] widths,
-            CMap toUnicodeCMap)
+            CMap toUnicodeCMap, IReadOnlyDictionary<string, IReadOnlyList<IGraphicsStateOperation>> charProcs)
         {
             Name = name;
 
@@ -42,6 +46,7 @@
             this.lastChar = lastChar;
             this.widths = widths;
             this.toUnicodeCMap = new ToUnicodeCMap(toUnicodeCMap);
+            this.charProcs = charProcs;
             Details = FontDetails.GetDefault(name?.Data);
             isZapfDingbats = encoding is ZapfDingbatsEncoding || Details.Name.Contains("ZapfDingbats");
         }
@@ -107,6 +112,26 @@
                 throw new InvalidFontFormatException($"The character code was not contained in the widths array: {characterCode}.");
             }
 
+            var name = encoding.GetName(characterCode);
+            if (charProcs.TryGetValue(name, out var operations))
+            {
+                // https://github.com/apache/pdfbox/blob/trunk/pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDType3CharProc.java
+                foreach (var operation in operations)
+                {
+                    /*
+                    if (operation is Type3SetGlyphWidthAndBoundingBox bbox)
+                    {
+                        return new PdfRectangle(bbox.LowerLeftX,
+                            bbox.LowerLeftX,
+                            bbox.UpperRightX - bbox.LowerLeftX,
+                            bbox.UpperRightY - bbox.LowerLeftX);
+                    }
+                    */
+                }
+                // See also https://github.com/apache/pdfbox/blob/trunk/debugger/src/main/java/org/apache/pdfbox/debugger/fontencodingpane/Type3Font.java 
+                // for more details
+            }
+
             return new PdfRectangle(0, 0, widths[characterCode - firstChar], boundingBox.Height);
         }
 
@@ -132,6 +157,31 @@
         public bool TryGetNormalisedPath(int characterCode, [NotNullWhen(true)] out IReadOnlyList<PdfSubpath>? path)
         {
             return TryGetPath(characterCode, out path);
+        }
+
+        public bool TryRender(int characterCode, IOperationContext operationContext)
+        {
+            var name = encoding.GetName(characterCode);
+            if (charProcs.TryGetValue(name, out var operations))
+            {
+                // https://github.com/apache/pdfbox/blob/3007890b9545f412845bd7f94e32be5de5c55666/debugger/src/main/java/org/apache/pdfbox/debugger/fontencodingpane/Type3Font.java#L155
+                operationContext.PushState();
+
+                //             page.setResources(resources);
+
+                //var matrix = operationContext.GetCurrentState().CurrentTransformationMatrix;
+                //operationContext.GetCurrentState().CurrentTransformationMatrix = TransformationMatrix.Identity;
+
+                foreach (var operation in operations)
+                {
+                    operation.Run(operationContext);
+                }
+
+                operationContext.PopState();
+                return true;
+            }
+
+            return false;
         }
     }
 }
