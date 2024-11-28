@@ -362,8 +362,6 @@
 
         internal Span<byte> UnwrapIndexedColorSpaceBytes(Span<byte> input)
         {
-            var multiplier = 1;
-            Func<byte, ReadOnlyMemory<byte>>? transformer = null;
             switch (BaseType)
             {
                 case ColorSpace.DeviceRGB:
@@ -414,8 +412,20 @@
                 case ColorSpace.DeviceN:
                 case ColorSpace.ICCBased:
                 {
+                    int i = 0;
+                    if (BaseColorSpace.NumberOfColorComponents == 1)
+                    {
+                        // In place
+                        for (i = 0; i < input.Length; ++i)
+                        {
+                            ref byte b = ref input[i];
+                            b = ColorTable[b];
+                        }
+
+                        return input;
+                    }
+
                     Span<byte> result = new byte[input.Length * BaseColorSpace.NumberOfColorComponents];
-                    var i = 0;
                     foreach (var x in input)
                     {
                         for (var j = 0; j < BaseColorSpace.NumberOfColorComponents; ++j)
@@ -427,7 +437,7 @@
                     return result;
                 }
             }
-            
+
             return input;
         }
 
