@@ -46,9 +46,10 @@
 
             var result = defaultDictionaryCapacity.HasValue ? new Dictionary<string, string>(defaultDictionaryCapacity.Value) : [];
 
-
             using (var reader = new StreamReader(stream))
             {
+                Span<Range> parts = stackalloc Range[2];
+
                 while (!reader.EndOfStream)
                 {
                     var line = reader.ReadLine();
@@ -63,17 +64,18 @@
                         continue;
                     }
 
-                    var parts = line.Split(Semicolon, StringSplitOptions.RemoveEmptyEntries);
+                    var lineSpan = line.AsSpan();
+                    var length = lineSpan.Split(parts, Semicolon, StringSplitOptions.RemoveEmptyEntries);
 
-                    if (parts.Length != 2)
+                    if (length != 2)
                     {
                         throw new InvalidOperationException(
                             $"The line in the glyph list did not match the expected format. Line was: {line}");
                     }
 
-                    var key = parts[0];
+                    var key = lineSpan[parts[0]];
 
-                    var valueReader = new StringSplitter(parts[1].AsSpan(), ' ');
+                    var valueReader = new StringSplitter(lineSpan[parts[1]], ' ');
                     var value = string.Empty;
 
                     while (valueReader.TryRead(out var s))
@@ -86,7 +88,7 @@
                         value += char.ConvertFromUtf32(code);
                     }
 
-                    result[key] = value;
+                    result[key.ToString()] = value;
                 }
             }
 

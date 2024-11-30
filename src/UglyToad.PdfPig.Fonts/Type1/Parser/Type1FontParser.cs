@@ -50,10 +50,12 @@
             }
 
             string name;
-            var parts = comment.Data.Split(new[] { " " }, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length == 3)
+            Span<Range> parts = stackalloc Range[4];
+            var commentSpan = comment.Data.AsSpan();
+            var length = commentSpan.Split(parts, " ", StringSplitOptions.RemoveEmptyEntries);
+            if (length == 3)
             {
-                name = parts[1];
+                name = commentSpan[parts[1]].ToString();
             }
             else
             {

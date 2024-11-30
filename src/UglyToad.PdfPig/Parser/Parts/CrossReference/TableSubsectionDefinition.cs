@@ -53,17 +53,18 @@
 
             var line = ReadHelper.ReadLine(bytes);
 
-            var parts = line.Split(Splitters, StringSplitOptions.RemoveEmptyEntries);
+            var span = line.AsSpan();
+            Span<Range> parts = stackalloc Range[2];
 
-            if (parts.Length != 2)
+            if (span.Split(parts, Splitters, StringSplitOptions.RemoveEmptyEntries) != 2)
             {
                 return false;
             }
 
             try
             {
-                var firstObjectId = long.Parse(parts[0], CultureInfo.InvariantCulture);
-                var objectCount = int.Parse(parts[1], CultureInfo.InvariantCulture);
+                var firstObjectId = long.Parse(span[parts[0]], CultureInfo.InvariantCulture);
+                var objectCount = int.Parse(span[parts[1]], CultureInfo.InvariantCulture);
 
                 definition = new TableSubsectionDefinition(firstObjectId, objectCount);
 

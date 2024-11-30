@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace UglyToad.PdfPig.Fonts.AdobeFontMetrics
+﻿namespace UglyToad.PdfPig.Fonts.AdobeFontMetrics
 {
     using System;
     using System.Globalization;
@@ -518,117 +516,128 @@ namespace UglyToad.PdfPig.Fonts.AdobeFontMetrics
             return stringBuilder.ToString();
         }
 
-        private static AdobeFontMetricsIndividualCharacterMetric ReadCharacterMetric(IInputBytes bytes, StringBuilder stringBuilder)
+        private static AdobeFontMetricsIndividualCharacterMetric ReadCharacterMetric(IInputBytes bytes,
+            StringBuilder stringBuilder)
         {
-            var line = ReadLine(bytes, stringBuilder);
+            var line = ReadLine(bytes, stringBuilder).AsSpan();
 
-            var split = line.Split(IndividualCharmetricsSplit, StringSplitOptions.RemoveEmptyEntries);
+            Span<Range> charmetricsSplit = stackalloc Range[6];
+            Span<Range> charmetricsKeySplit = stackalloc Range[5];
+
+            int length = line.Split(charmetricsSplit, IndividualCharmetricsSplit, StringSplitOptions.RemoveEmptyEntries);
 
             var metric = new AdobeFontMetricsIndividualCharacterMetricBuilder();
 
-            foreach (var s in split)
+            for (int s = 0; s < length; ++s)
             {
-                var parts = s.Split(CharmetricsKeySplit, StringSplitOptions.RemoveEmptyEntries);
+                var linePart = line[charmetricsSplit[s]];
+                linePart.Split(charmetricsKeySplit, CharmetricsKeySplit, StringSplitOptions.RemoveEmptyEntries);
 
-                switch (parts[0])
+                switch (linePart[charmetricsKeySplit[0]])
                 {
                     case CharmetricsC:
-                        {
-                            var code = int.Parse(parts[1], CultureInfo.InvariantCulture);
-                            metric.CharacterCode = code;
-                            break;
-                        }
+                    {
+                        var code = int.Parse(linePart[charmetricsKeySplit[1]], CultureInfo.InvariantCulture);
+                        metric.CharacterCode = code;
+                        break;
+                    }
                     case CharmetricsCh:
-                        {
-                            var code = int.Parse(parts[1], NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-                            metric.CharacterCode = code;
-                            break;
-                        }
+                    {
+                        var code = int.Parse(linePart[charmetricsKeySplit[1]], NumberStyles.HexNumber,
+                            CultureInfo.InvariantCulture);
+                        metric.CharacterCode = code;
+                        break;
+                    }
                     case CharmetricsWx:
-                        {
-                            metric.WidthX = double.Parse(parts[1], CultureInfo.InvariantCulture);
-                            break;
-                        }
+                    {
+                        metric.WidthX = double.Parse(linePart[charmetricsKeySplit[1]], CultureInfo.InvariantCulture);
+                        break;
+                    }
                     case CharmetricsW0X:
-                        {
-                            metric.WidthXDirection0 = double.Parse(parts[1], CultureInfo.InvariantCulture);
-                            break;
-                        }
+                    {
+                        metric.WidthXDirection0 =
+                            double.Parse(linePart[charmetricsKeySplit[1]], CultureInfo.InvariantCulture);
+                        break;
+                    }
                     case CharmetricsW1X:
-                        {
-                            metric.WidthXDirection1 = double.Parse(parts[1], CultureInfo.InvariantCulture);
-                            break;
-                        }
+                    {
+                        metric.WidthXDirection1 =
+                            double.Parse(linePart[charmetricsKeySplit[1]], CultureInfo.InvariantCulture);
+                        break;
+                    }
                     case CharmetricsWy:
-                        {
-                            metric.WidthY = double.Parse(parts[1], CultureInfo.InvariantCulture);
-                            break;
-                        }
+                    {
+                        metric.WidthY = double.Parse(linePart[charmetricsKeySplit[1]], CultureInfo.InvariantCulture);
+                        break;
+                    }
                     case CharmetricsW0Y:
-                        {
-                            metric.WidthYDirection0 = double.Parse(parts[1], CultureInfo.InvariantCulture);
-                            break;
-                        }
+                    {
+                        metric.WidthYDirection0 = double.Parse(linePart[charmetricsKeySplit[1]], CultureInfo.InvariantCulture);
+                        break;
+                    }
                     case CharmetricsW1Y:
-                        {
-                            metric.WidthYDirection1 = double.Parse(parts[1], CultureInfo.InvariantCulture);
-                            break;
-                        }
+                    {
+                        metric.WidthYDirection1 = double.Parse(linePart[charmetricsKeySplit[1]], CultureInfo.InvariantCulture);
+                        break;
+                    }
                     case CharmetricsW:
-                        {
-                            metric.WidthX = double.Parse(parts[1], CultureInfo.InvariantCulture);
-                            metric.WidthY = double.Parse(parts[2], CultureInfo.InvariantCulture);
-                            break;
-                        }
+                    {
+                        metric.WidthX = double.Parse(linePart[charmetricsKeySplit[1]], CultureInfo.InvariantCulture);
+                        metric.WidthY = double.Parse(linePart[charmetricsKeySplit[2]], CultureInfo.InvariantCulture);
+                        break;
+                    }
                     case CharmetricsW0:
-                        {
-                            metric.WidthXDirection0 = double.Parse(parts[1], CultureInfo.InvariantCulture);
-                            metric.WidthYDirection0 = double.Parse(parts[2], CultureInfo.InvariantCulture);
-                            break;
-                        }
+                    {
+                        metric.WidthXDirection0 = double.Parse(linePart[charmetricsKeySplit[1]], CultureInfo.InvariantCulture);
+                        metric.WidthYDirection0 = double.Parse(linePart[charmetricsKeySplit[2]], CultureInfo.InvariantCulture);
+                        break;
+                    }
                     case CharmetricsW1:
-                        {
-                            metric.WidthXDirection1 = double.Parse(parts[1], CultureInfo.InvariantCulture);
-                            metric.WidthYDirection1 = double.Parse(parts[2], CultureInfo.InvariantCulture);
-                            break;
-                        }
+                    {
+                        metric.WidthXDirection1 = double.Parse(linePart[charmetricsKeySplit[1]], CultureInfo.InvariantCulture);
+                        metric.WidthYDirection1 = double.Parse(linePart[charmetricsKeySplit[2]], CultureInfo.InvariantCulture);
+                        break;
+                    }
                     case CharmetricsVv:
-                        {
-                            metric.VVector = new AdobeFontMetricsVector(double.Parse(parts[1], CultureInfo.InvariantCulture), 
-                                double.Parse(parts[2], CultureInfo.InvariantCulture));
-                            break;
-                        }
+                    {
+                        metric.VVector = new AdobeFontMetricsVector(
+                            double.Parse(linePart[charmetricsKeySplit[1]], CultureInfo.InvariantCulture),
+                            double.Parse(linePart[charmetricsKeySplit[2]], CultureInfo.InvariantCulture));
+                        break;
+                    }
                     case CharmetricsN:
+                    {
+                        lock (Locker)
                         {
-                            lock (Locker)
+                            var name = linePart[charmetricsKeySplit[1]].ToString();
+
+                            if (!CharacterNames.TryGetValue(name, out var cached))
                             {
-                                var name = parts[1];
-
-                                if (!CharacterNames.TryGetValue(name, out var cached))
-                                {
-                                    cached = name;
-                                    CharacterNames[name] = cached;
-                                }
-
-                                metric.Name = cached;
+                                cached = name;
+                                CharacterNames[name] = cached;
                             }
-                            break;
+
+                            metric.Name = cached;
                         }
+                        break;
+                    }
                     case CharmetricsB:
-                        {
-                            metric.BoundingBox = new PdfRectangle(double.Parse(parts[1], CultureInfo.InvariantCulture),
-                                double.Parse(parts[2], CultureInfo.InvariantCulture),
-                                double.Parse(parts[3], CultureInfo.InvariantCulture),
-                                double.Parse(parts[4], CultureInfo.InvariantCulture));
-                            break;
-                        }
+                    {
+                        metric.BoundingBox = new PdfRectangle(
+                            double.Parse(linePart[charmetricsKeySplit[1]], CultureInfo.InvariantCulture),
+                            double.Parse(linePart[charmetricsKeySplit[2]], CultureInfo.InvariantCulture),
+                            double.Parse(linePart[charmetricsKeySplit[3]], CultureInfo.InvariantCulture),
+                            double.Parse(linePart[charmetricsKeySplit[4]], CultureInfo.InvariantCulture));
+                        break;
+                    }
                     case CharmetricsL:
-                        {
-                            metric.Ligature = new AdobeFontMetricsLigature(parts[1], parts[2]);
-                            break;
-                        }
+                    {
+                        metric.Ligature = new AdobeFontMetricsLigature(linePart[charmetricsKeySplit[1]].ToString(),
+                            linePart[charmetricsKeySplit[2]].ToString());
+                        break;
+                    }
                     default:
-                        throw new InvalidFontFormatException($"Unknown CharMetrics command '{parts[0]}'.");
+                        throw new InvalidFontFormatException($"Unknown CharMetrics command '{charmetricsKeySplit[0]}'.");
                 }
             }
 
