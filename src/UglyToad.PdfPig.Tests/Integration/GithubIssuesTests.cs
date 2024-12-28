@@ -8,6 +8,24 @@
     public class GithubIssuesTests
     {
         [Fact]
+        public void Issue940()
+        {
+            // Lenient parsing ON
+            var path = IntegrationHelpers.GetDocumentPath("repro_p1.pdf");
+            using (var document = PdfDocument.Open(path, new ParsingOptions() { UseLenientParsing = true }))
+            {
+                var page = document.GetPage(1);
+                var images = page.GetImages().ToArray();
+                Assert.Single(images);
+
+                if (images[0].TryGetPng(out var png))
+                {
+                    File.WriteAllBytes("tilling_pattern_image.png", png);
+                }
+            }
+        }
+
+        [Fact]
         public void Issue959()
         {
             // Lenient parsing ON

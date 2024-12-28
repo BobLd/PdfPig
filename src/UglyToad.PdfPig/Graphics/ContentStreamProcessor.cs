@@ -15,6 +15,7 @@ namespace UglyToad.PdfPig.Graphics
     using Tokenization.Scanner;
     using Tokens;
     using Util;
+    using XObjects;
     using static PdfPig.Core.PdfSubpath;
 
     internal class ContentStreamProcessor : BaseStreamProcessor<PageContent>
@@ -382,11 +383,64 @@ namespace UglyToad.PdfPig.Graphics
                 CurrentPath.LineWidth = currentState.LineWidth;
                 CurrentPath.LineCapStyle = currentState.CapStyle;
                 CurrentPath.LineJoinStyle = currentState.JoinStyle;
+
+                if (currentState.CurrentStrokingColor is TilingPatternColor patternColor)
+                {
+                    // Might be possible too - same approach as non-stroking
+                }
             }
 
             if (CurrentPath.IsFilled)
             {
                 CurrentPath.FillColor = currentState.CurrentNonStrokingColor;
+
+                if (currentState.CurrentNonStrokingColor is TilingPatternColor pattern)
+                {
+                    var operations = PageContentParser.Parse(PageNumber, new MemoryInputBytes(pattern.Data), ParsingOptions.Logger);
+
+                    bool hasResources = pattern.PatternStream.StreamDictionary.TryGet(NameToken.Resources, PdfScanner, out DictionaryToken resourcesDictionary);
+
+                    if (hasResources)
+                    {
+                        ResourceStore.LoadResourceDictionary(resourcesDictionary);
+                    }
+
+                    var m = pattern.Matrix;
+                    var bbox = m.Transform(pattern.BBox);
+
+                    var processor = new ContentStreamProcessor(PageNumber, ResourceStore, PdfScanner, PageContentParser,
+                        FilterProvider, new CropBox(bbox), UserSpaceUnit, Rotation,
+                        CurrentTransformationMatrix, // TODO - Not sure about the matrix
+                        ParsingOptions);
+
+                    var pageContent = processor.Process(PageNumber, operations);
+
+                    if (pageContent.NumberOfImages > 0)
+                    {
+                        // TODO - we should access image raw collection instead of re-creating them
+                        foreach (var im in pageContent.GetImages())
+                        {
+                            if (im is InlineImage inlineImage)
+                            {
+                                images.Add(Union<XObjectContentRecord, InlineImage>.Two(inlineImage));
+                            }
+                            else if (im is XObjectImage xObjectImage)
+                            {
+                                images.Add(Union<XObjectContentRecord, InlineImage>.One(new XObjectContentRecord(
+                                    XObjectType.Image,
+                                    new StreamToken(xObjectImage.ImageDictionary, xObjectImage.RawMemory),
+                                    new TransformationMatrix(xObjectImage.Bounds.Width, 0, 0, 0, xObjectImage.Bounds.Height, 0, 0, 0, 1),
+                                    xObjectImage.RenderingIntent,
+                                    xObjectImage.ColorSpaceDetails)));
+                            }
+                        }
+                    }
+
+                    if (hasResources)
+                    {
+                        ResourceStore.UnloadResourceDictionary();
+                    }
+                }
             }
 
             if (ParsingOptions.ClipPaths)
