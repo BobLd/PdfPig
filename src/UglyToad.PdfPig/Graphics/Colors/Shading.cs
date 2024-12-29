@@ -80,13 +80,14 @@
         /// <summary>
         /// Convert the input values using the functions of the shading.
         /// </summary>
-        public double[] Eval(params double[] input)
+        public Span<double> Eval(Span<double> input)
         {
             if (Functions is null || Functions.Length == 0)
             {
                 return input;
             }
-            else if (Functions.Length == 1)
+            
+            if (Functions.Length == 1)
             {
                 return Clamp(Functions[0].Eval(input));
             }
@@ -94,13 +95,13 @@
             double[] returnValues = new double[Functions.Length];
             for (int i = 0; i < Functions.Length; i++)
             {
-                double[] newValue = Functions[i].Eval(input);
+                Span<double> newValue = Functions[i].Eval(input);
                 returnValues[i] = newValue[0]; // 1-out functions
             }
             return Clamp(returnValues);
         }
 
-        private static double[] Clamp(double[] input)
+        private static Span<double> Clamp(Span<double> input)
         {
             // From the PDF spec:
             // "If the value returned by the function for a given colour component 

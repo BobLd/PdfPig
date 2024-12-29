@@ -4,6 +4,7 @@
     using System.Collections;
     using System.IO;
     using System.Linq;
+    using System.Runtime.InteropServices;
     using UglyToad.PdfPig.Core;
     using UglyToad.PdfPig.Tokens;
 
@@ -20,39 +21,35 @@
         internal PdfFunctionType0(DictionaryToken function, ArrayToken domain, ArrayToken range, ArrayToken size, int bitsPerSample, int order, ArrayToken encode, ArrayToken decode)
             : base(function, domain, range)
         {
-            Size = size;
             BitsPerSample = bitsPerSample;
             Order = order;
-            EncodeValues = encode;
-            DecodeValues = decode;
+
+            Size = size.Data.OfType<NumericToken>().Select(t => t.Double).ToArray();
+            EncodeValues = encode?.Data.OfType<NumericToken>().Select(t => t.Double).ToArray();
+            DecodeValues = decode?.Data.OfType<NumericToken>().Select(t => t.Double).ToArray();
         }
 
         /// <summary>
         /// Stitching function
         /// </summary>
-        internal PdfFunctionType0(StreamToken function, ArrayToken domain, ArrayToken range, ArrayToken size, int bitsPerSample, int order, ArrayToken encode, ArrayToken decode)
+        internal PdfFunctionType0(StreamToken function, ArrayToken domain, ArrayToken range, ArrayToken size, int bitsPerSample, int order, ArrayToken? encode, ArrayToken? decode)
             : base(function, domain, range)
         {
-            Size = size;
             BitsPerSample = bitsPerSample;
             Order = order;
-            EncodeValues = encode;
-            DecodeValues = decode;
+
+            Size = size.Data.OfType<NumericToken>().Select(t => t.Double).ToArray();
+            EncodeValues = encode?.Data.OfType<NumericToken>().Select(t => t.Double).ToArray();
+            DecodeValues = decode?.Data.OfType<NumericToken>().Select(t => t.Double).ToArray();
         }
 
-        public override FunctionTypes FunctionType
-        {
-            get
-            {
-                return FunctionTypes.Sampled;
-            }
-        }
+        public override FunctionTypes FunctionType => FunctionTypes.Sampled;
 
         /// <summary>
         /// The "Size" entry, which is the number of samples in each input dimension of the sample table.
         /// <para>An array of m positive integers specifying the number of samples in each input dimension of the sample table.</para>
         /// </summary>
-        public ArrayToken Size { get; }
+        public double[] Size { get; }
 
         /// <summary>
         /// Get the number of bits that the output value will take up.
@@ -74,14 +71,14 @@
         /// into the domain of the function's sample table. Default value: [ 0 (Size0
         /// - 1) 0 (Size1 - 1) ...].
         /// </summary>
-        private ArrayToken EncodeValues { get; }
+        private double[]? EncodeValues { get; }
 
         /// <summary>
         /// An array of 2 x n numbers specifying the linear mapping of sample values
         /// into the range appropriate for the function's output values. Default
         /// value: same as the value of Range.
         /// </summary>
-        private ArrayToken DecodeValues { get; }
+        private double[]? DecodeValues { get; }
 
         /// <summary>
         /// Get the encode for the input parameter.
@@ -90,10 +87,9 @@
         /// <returns>The encode parameter range or null if none is set.</returns>
         public PdfRange? GetEncodeForParameter(int paramNum)
         {
-            ArrayToken encodeValues = EncodeValues;
-            if (encodeValues != null && encodeValues.Length >= paramNum * 2 + 1)
+            if (EncodeValues != null && EncodeValues.Length >= paramNum * 2 + 1)
             {
-                return new PdfRange(encodeValues.Data.OfType<NumericToken>().Select(t => t.Double), paramNum);
+                return new PdfRange(EncodeValues, paramNum);
             }
             return null;
         }
@@ -105,10 +101,9 @@
         /// <returns>The decode parameter range or null if none is set.</returns>
         public PdfRange? GetDecodeForParameter(int paramNum)
         {
-            ArrayToken decodeValues = DecodeValues;
-            if (decodeValues != null && decodeValues.Length >= paramNum * 2 + 1)
+            if (DecodeValues != null && DecodeValues.Length >= paramNum * 2 + 1)
             {
-                return new PdfRange(decodeValues.Data.OfType<NumericToken>().Select(t => t.Double), paramNum);
+                return new PdfRange(DecodeValues, paramNum);
             }
             return null;
         }
@@ -121,17 +116,17 @@
         /// and <see href="https://en.wikipedia.org/wiki/Trilinear_interpolation"/> for trilinear interpolation.
         /// </para>
         /// </summary>
-        internal class RInterpol
+        internal sealed class RInterpol
         {
             // coordinate that is to be interpolated
-            private readonly double[] in_;
+            private readonly double[] _in;
             // coordinate of the "ceil" point
             private readonly int[] inPrev;
             // coordinate of the "floor" point
             private readonly int[] inNext;
             private readonly int numberOfInputValues;
             private readonly int numberOfOutputValues;
-            private readonly ArrayToken size;
+            private readonly double[] size;
 
             private readonly int[][] samples;
 
@@ -144,9 +139,9 @@
             /// <param name="numberOfOutputValues"></param>
             /// <param name="size"></param>
             /// <param name="samples"></param>
-            internal RInterpol(double[] input, int[] inputPrev, int[] inputNext, int numberOfOutputValues, ArrayToken size, int[][] samples)
+            internal RInterpol(double[] input, int[] inputPrev, int[] inputNext, int numberOfOutputValues, double[] size, int[][] samples)
             {
-                in_ = input;
+                _in = input;
                 inPrev = inputPrev;
                 inNext = inputNext;
                 numberOfInputValues = input.Length;
@@ -176,7 +171,7 @@
             private double[] InternalRInterpol(int[] coord, int step)
             {
                 double[] resultSample = new double[numberOfOutputValues];
-                if (step == in_.Length - 1)
+                if (step == _in.Length - 1)
                 {
                     // leaf
                     if (inPrev[step] == inNext[step])
@@ -195,7 +190,7 @@
                     int[] sample2 = samples[CalcSampleIndex(coord)];
                     for (int i = 0; i < numberOfOutputValues; ++i)
                     {
-                        resultSample[i] = Interpolate(in_[step], inPrev[step], inNext[step], sample1[i], sample2[i]);
+                        resultSample[i] = Interpolate(_in[step], inPrev[step], inNext[step], sample1[i], sample2[i]);
                     }
                     return resultSample;
                 }
@@ -213,7 +208,7 @@
                     double[] sample2 = InternalRInterpol(coord, step + 1);
                     for (int i = 0; i < numberOfOutputValues; ++i)
                     {
-                        resultSample[i] = Interpolate(in_[step], inPrev[step], inNext[step], sample1[i], sample2[i]);
+                        resultSample[i] = Interpolate(_in[step], inPrev[step], inNext[step], sample1[i], sample2[i]);
                     }
                     return resultSample;
                 }
@@ -228,20 +223,21 @@
             {
                 // inspiration: http://stackoverflow.com/a/12113479/535646
                 // but used in reverse
-                double[] sizeValues = size.Data.OfType<NumericToken>().Select(t => t.Double).ToArray();
                 int index = 0;
                 int sizeProduct = 1;
                 int dimension = vector.Length;
+
                 for (int i = dimension - 2; i >= 0; --i)
                 {
-                    sizeProduct = (int)(sizeProduct * sizeValues[i]);
+                    sizeProduct = (int)(sizeProduct * size[i]);
                 }
+
                 for (int i = dimension - 1; i >= 0; --i)
                 {
                     index += sizeProduct * vector[i];
                     if (i - 1 >= 0)
                     {
-                        sizeProduct = (int)(sizeProduct / sizeValues[i - 1]);
+                        sizeProduct = (int)(sizeProduct / size[i - 1]);
                     }
                 }
                 return index;
@@ -259,10 +255,9 @@
                 int arraySize = 1;
                 int nIn = NumberOfInputParameters;
                 int nOut = NumberOfOutputParameters;
-                ArrayToken sizes = Size;
                 for (int i = 0; i < nIn; i++)
                 {
-                    arraySize *= ((NumericToken)sizes[i]).Int;
+                    arraySize *= (int)Size[i];
                 }
                 samples = new int[arraySize][];
                 int bitsPerSample = BitsPerSample;
@@ -293,12 +288,11 @@
             return samples;
         }
 
-        public override double[] Eval(params double[] input)
+        public override Span<double> Eval(Span<double> input)
         {
             //This involves linear interpolation based on a set of sample points.
             //Theoretically it's not that difficult ... see section 3.9.1 of the PDF Reference.
 
-            double[] sizeValues = Size.Data.OfType<NumericToken>().Select(t => t.Double).ToArray();
             int bitsPerSample = BitsPerSample;
             double maxSample = Math.Pow(2, bitsPerSample) - 1.0;
             int numberOfInputValues = input.Length;
@@ -306,7 +300,7 @@
 
             int[] inputPrev = new int[numberOfInputValues];
             int[] inputNext = new int[numberOfInputValues];
-            input = input.ToArray(); // PDFBOX-4461
+            //input = input.ToArray(); // PDFBOX-4461 // TODO - Not sure if required anymore
 
             for (int i = 0; i < numberOfInputValues; i++)
             {
@@ -314,12 +308,12 @@
                 PdfRange encodeValues = GetEncodeForParameter(i)!.Value;
                 input[i] = ClipToRange(input[i], domain.Min, domain.Max);
                 input[i] = Interpolate(input[i], domain.Min, domain.Max, encodeValues.Min, encodeValues.Max);
-                input[i] = ClipToRange(input[i], 0, sizeValues[i] - 1);
+                input[i] = ClipToRange(input[i], 0, Size[i] - 1);
                 inputPrev[i] = (int)Math.Floor(input[i]);
                 inputNext[i] = (int)Math.Ceiling(input[i]);
             }
 
-            double[] outputValues = new RInterpol(input, inputPrev, inputNext, numberOfOutputValues, Size, GetSamples()).RInterpolate();
+            double[] outputValues = new RInterpol(input.ToArray(), inputPrev, inputNext, numberOfOutputValues, Size, GetSamples()).RInterpolate();
 
             for (int i = 0; i < numberOfOutputValues; i++)
             {

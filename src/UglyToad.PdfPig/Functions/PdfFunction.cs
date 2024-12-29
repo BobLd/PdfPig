@@ -25,21 +25,25 @@
         /// <summary>
         /// This class represents a function in a PDF document.
         /// </summary>
-        public PdfFunction(DictionaryToken function, ArrayToken domain, ArrayToken? range)
+        protected PdfFunction(DictionaryToken function, ArrayToken domain, ArrayToken? range)
+            : this(domain, range)
         {
             FunctionDictionary = function;
-            DomainValues = domain;
-            RangeValues = range;
         }
 
         /// <summary>
         /// This class represents a function in a PDF document.
         /// </summary>
-        public PdfFunction(StreamToken function, ArrayToken domain, ArrayToken? range)
+        protected PdfFunction(StreamToken function, ArrayToken domain, ArrayToken? range)
+            : this(domain, range)
         {
             FunctionStream = function;
-            DomainValues = domain;
-            RangeValues = range;
+        }
+
+        private PdfFunction(ArrayToken domain, ArrayToken? range)
+        {
+            DomainValues = domain.Data.OfType<NumericToken>().Select(t => t.Double).ToArray();
+            RangeValues = range?.Data?.OfType<NumericToken>().Select(t => t.Double).ToArray();
         }
 
         /// <summary>
@@ -64,10 +68,8 @@
             {
                 return FunctionStream.StreamDictionary;
             }
-            else
-            {
-                return FunctionDictionary;
-            }
+
+            return FunctionDictionary;
         }
 
         /// <summary>
@@ -98,15 +100,14 @@
         }
 
         /// <summary>
-        /// This will get the range for a certain output parameters. This is will never
-        /// return null.  If it is not present then the range 0 to 0 will
-        /// be returned.
+        /// This will get the range for a certain output parameters. This will never
+        /// return null. If it is not present then the range 0 to 0 will be returned.
         /// </summary>
         /// <param name="n">The output parameter number to get the range for.</param>
         /// <returns>The range for this component.</returns>
         public PdfRange GetRangeForOutput(int n)
         {
-            return new PdfRange(RangeValues!.Data.OfType<NumericToken>().Select(t => t.Double), n);
+            return new PdfRange(RangeValues!, n);
         }
 
         /// <summary>
@@ -120,15 +121,15 @@
             {
                 if (numberOfInputValues == -1)
                 {
-                    ArrayToken array = DomainValues;
-                    numberOfInputValues = array.Length / 2;
+                    numberOfInputValues = DomainValues.Length / 2;
                 }
+
                 return numberOfInputValues;
             }
         }
 
         /// <summary>
-        /// This will get the range for a certain input parameter.  This is will never
+        /// This will get the range for a certain input parameter. This is will never
         /// return null.  If it is not present then the range 0 to 0 will
         /// be returned.
         /// </summary>
@@ -136,8 +137,7 @@
         /// <returns>The domain range for this component.</returns>
         public PdfRange GetDomainForInput(int n)
         {
-            ArrayToken domainValues = DomainValues;
-            return new PdfRange(domainValues.Data.OfType<NumericToken>().Select(t => t.Double), n);
+            return new PdfRange(DomainValues, n);
         }
 
         /// <summary>
@@ -148,44 +148,40 @@
         /// In many cases will be an array of a single value, but not always.</param>
         /// <returns>The of outputs the function returns based on those inputs.
         /// In many cases will be an array of a single value, but not always.</returns>
-        public abstract double[] Eval(params double[] input);
+        public abstract Span<double> Eval(Span<double> input);
 
         /// <summary>
         /// Returns all ranges for the output values as <see cref="ArrayToken"/>. Required for type 0 and type 4 functions.
         /// </summary>
         /// <returns>the ranges array.</returns>
-        protected ArrayToken? RangeValues { get; }
+        protected double[]? RangeValues { get; }
 
         /// <summary>
         /// Returns all domains for the input values as <see cref="ArrayToken"/>. Required for all function types.
         /// </summary>
         /// <returns>the domains array.</returns>
-        private ArrayToken DomainValues { get; }
+        private double[] DomainValues { get; }
 
         /// <summary>
         /// Clip the given input values to the ranges.
         /// </summary>
         /// <param name="inputValues">inputValues the input values</param>
         /// <returns>the clipped values</returns>
-        protected double[] ClipToRange(double[] inputValues)
+        protected Span<double> ClipToRange(Span<double> inputValues)
         {
-            ArrayToken rangesArray = RangeValues!;
-            double[] result;
-            if (rangesArray != null && rangesArray.Length > 0)
+            if (RangeValues is null || RangeValues.Length == 0)
             {
-                double[] rangeValues = rangesArray.Data.OfType<NumericToken>().Select(t => t.Double).ToArray();
-                int numberOfRanges = rangeValues.Length / 2;
-                result = new double[numberOfRanges];
-                for (int i = 0; i < numberOfRanges; i++)
-                {
-                    int index = i << 1;
-                    result[i] = ClipToRange(inputValues[i], rangeValues[index], rangeValues[index + 1]);
-                }
+                return inputValues;
             }
-            else
+
+            int numberOfRanges = RangeValues.Length / 2;
+            double[] result = new double[numberOfRanges];
+            for (int i = 0; i < numberOfRanges; i++)
             {
-                result = inputValues;
+                int index = i << 1;
+                result[i] = ClipToRange(inputValues[i], RangeValues[index], RangeValues[index + 1]);
             }
+
             return result;
         }
 
@@ -202,10 +198,12 @@
             {
                 return rangeMin;
             }
-            else if (x > rangeMax)
+            
+            if (x > rangeMax)
             {
                 return rangeMax;
             }
+
             return x;
         }
 
