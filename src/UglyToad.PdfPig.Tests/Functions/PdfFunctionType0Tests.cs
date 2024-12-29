@@ -70,23 +70,23 @@
             var function0 = func as PdfFunctionType0;
 
             var result = function0.Eval(new double[] { 0.00 });
-            Assert.Single(result);
+            Assert.Equal(1, result.Length);
             Assert.Equal(0.0, result[0], 3);
 
             result = function0.Eval(new double[] { 0.25 });
-            Assert.Single(result);
+            Assert.Equal(1, result.Length);
             Assert.Equal(0.125, result[0], 3);
 
             result = function0.Eval(new double[] { 0.50 });
-            Assert.Single(result);
+            Assert.Equal(1, result.Length);
             Assert.Equal(0.25, result[0], 2);
 
             result = function0.Eval(new double[] { 0.75 });
-            Assert.Single(result);
+            Assert.Equal(1, result.Length);
             Assert.Equal(0.50, result[0], 2);
 
             result = function0.Eval(new double[] { 1.0 });
-            Assert.Single(result);
+            Assert.Equal(1, result.Length);
             Assert.Equal(1.00, result[0], 2);
         }
 
@@ -112,23 +112,23 @@
             var function0 = func as PdfFunctionType0;
 
             var result = function0.Eval(new double[] { 0.00 });
-            Assert.Single(result);
+            Assert.Equal(1, result.Length);
             Assert.Equal(0.0, result[0], 3);
 
             result = function0.Eval(new double[] { 0.25 });
-            Assert.Single(result);
+            Assert.Equal(1, result.Length);
             Assert.Equal(0.125, result[0], 3);
 
             result = function0.Eval(new double[] { 0.50 });
-            Assert.Single(result);
+            Assert.Equal(1, result.Length);
             Assert.Equal(0.25, result[0], 2);
 
             result = function0.Eval(new double[] { 0.75 });
-            Assert.Single(result);
+            Assert.Equal(1, result.Length);
             Assert.Equal(0.50, result[0], 2);
 
             result = function0.Eval(new double[] { 1.0 });
-            Assert.Single(result);
+            Assert.Equal(1, result.Length);
             Assert.Equal(1.00, result[0], 2);
         }
 

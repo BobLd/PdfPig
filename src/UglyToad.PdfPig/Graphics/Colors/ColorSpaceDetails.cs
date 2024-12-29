@@ -4,6 +4,7 @@
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
     using Tokens;
     using UglyToad.PdfPig.Content;
@@ -48,12 +49,12 @@
         /// <summary>
         /// Get the color.
         /// </summary>
-        public abstract IColor GetColor(params double[] values);
+        public abstract IColor GetColor(Span<double> values);
 
         /// <summary>
         /// Get the color, without check and caching.
         /// </summary>
-        internal abstract double[] Process(params double[] values);
+        internal abstract Span<double> Process(Span<double> values);
 
         /// <summary>
         /// Get the color that initialize the current stroking or nonstroking colour.
@@ -96,17 +97,17 @@
         { }
 
         /// <inheritdoc/>
-        internal override double[] Process(params double[] values)
+        internal override Span<double> Process(Span<double> values)
         {
             return values;
         }
 
         /// <inheritdoc/>
-        public override IColor GetColor(params double[] values)
+        public override IColor GetColor(Span<double> values)
         {
-            if (values is null || values.Length != NumberOfColorComponents)
+            if (values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values?.Length ?? 0}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             double gray = values[0];
@@ -158,17 +159,17 @@
         { }
 
         /// <inheritdoc/>
-        internal override double[] Process(params double[] values)
+        internal override Span<double> Process(Span<double> values)
         {
             return values;
         }
 
         /// <inheritdoc/>
-        public override IColor GetColor(params double[] values)
+        public override IColor GetColor(Span<double> values)
         {
-            if (values is null || values.Length != NumberOfColorComponents)
+            if (values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values?.Length ?? 0}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             double r = values[0];
@@ -220,17 +221,17 @@
         }
 
         /// <inheritdoc/>
-        internal override double[] Process(params double[] values)
+        internal override Span<double> Process(Span<double> values)
         {
             return values;
         }
 
         /// <inheritdoc/>
-        public override IColor GetColor(params double[] values)
+        public override IColor GetColor(Span<double> values)
         {
-            if (values is null || values.Length != NumberOfColorComponents)
+            if (values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values?.Length ?? 0}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             double c = values[0];
@@ -241,7 +242,8 @@
             {
                 return CMYKColor.Black;
             }
-            else if (c == 0 && m == 0 && y == 0 && k == 0)
+            
+            if (c == 0 && m == 0 && y == 0 && k == 0)
             {
                 return CMYKColor.White;
             }
@@ -323,11 +325,11 @@
         }
 
         /// <inheritdoc/>
-        internal override double[] Process(params double[] values)
+        internal override Span<double> Process(Span<double> values)
         {
             var csBytes = UnwrapIndexedColorSpaceBytes([(byte)values[0]]);
 
-            var scaledCsBytes = new double[csBytes.Length];
+            Span<double> scaledCsBytes = new double[csBytes.Length];
 
             for (int i = 0; i < csBytes.Length; i++)
             {
@@ -338,11 +340,11 @@
         }
 
         /// <inheritdoc/>
-        public override IColor GetColor(params double[] values)
+        public override IColor GetColor(Span<double> values)
         {
-            if (values is null || values.Length != NumberOfColorComponents)
+            if (values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values?.Length ?? 0}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             return cache.GetOrAdd(values[0], v =>
@@ -369,9 +371,13 @@
                 case ColorSpace.Lab:
                 {
                     Span<byte> result = new byte[input.Length * 3];
+                    ref var firstRef = ref MemoryMarshal.GetReference(input);
+
                     var i = 0;
-                    foreach (var x in input)
+                    for (int k = 0; k < input.Length; ++k)
                     {
+                        var x = Unsafe.Add(ref firstRef, k);
+
                         for (var j = 0; j < 3; ++j)
                         {
                             result[i++] = ColorTable[x * 3 + j];
@@ -384,9 +390,13 @@
                 case ColorSpace.DeviceCMYK:
                 {
                     Span<byte> result = new byte[input.Length * 4];
+                    ref var firstRef = ref MemoryMarshal.GetReference(input);
+
                     var i = 0;
-                    foreach (var x in input)
+                    for (int k = 0; k < input.Length; ++k)
                     {
+                        var x = Unsafe.Add(ref firstRef, k);
+
                         for (var j = 0; j < 4; ++j)
                         {
                             result[i++] = ColorTable[x * 4 + j];
@@ -426,8 +436,12 @@
                     }
 
                     Span<byte> result = new byte[input.Length * BaseColorSpace.NumberOfColorComponents];
-                    foreach (var x in input)
+                    ref var firstRef = ref MemoryMarshal.GetReference(input);
+
+                    for (int k = 0; k < input.Length; ++k)
                     {
+                        var x = Unsafe.Add(ref firstRef, k);
+
                         for (var j = 0; j < BaseColorSpace.NumberOfColorComponents; ++j)
                         {
                             result[i++] = ColorTable[x * BaseColorSpace.NumberOfColorComponents + j];
@@ -446,7 +460,7 @@
         {
             // Setting the current stroking or nonstroking colour space to an Indexed colour space shall
             // initialize the corresponding current colour to 0.
-            return GetColor(0);
+            return GetColor([0]);
         }
 
         /// <summary>
@@ -529,18 +543,18 @@
         }
 
         /// <inheritdoc/>
-        internal override double[] Process(params double[] values)
+        internal override Span<double> Process(Span<double> values)
         {
             var evaled = TintFunction.Eval(values);
             return AlternateColorSpace.Process(evaled);
         }
 
         /// <inheritdoc/>
-        public override IColor GetColor(params double[] values)
+        public override IColor GetColor(Span<double> values)
         {
-            if (values is null || values.Length != NumberOfColorComponents)
+            if (values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values?.Length ?? 0}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             // TODO - use attributes
@@ -568,7 +582,7 @@
 
                 if (!cache.TryGetValue(key, out double[]? colors))
                 {
-                    colors = Process(comps);
+                    colors = Process(comps).ToArray();
                     cache[key] = colors;
                 }
 
@@ -704,25 +718,26 @@
         }
 
         /// <inheritdoc/>
-        internal override double[] Process(params double[] values)
+        internal override Span<double> Process(Span<double> values)
         {
-            var evaled = TintFunction.Eval(values[0]);
+            Span<double> input = new double[] { values[0] };
+            var evaled = TintFunction.Eval(input);
             return AlternateColorSpace.Process(evaled);
         }
 
         /// <inheritdoc/>
-        public override IColor GetColor(params double[] values)
+        public override IColor GetColor(Span<double> values)
         {
-            if (values is null || values.Length != NumberOfColorComponents)
+            if (values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values?.Length ?? 0}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             // TODO - we ignore the name for now
 
             return cache.GetOrAdd(values[0], v =>
             {
-                var evaled = TintFunction.Eval(v);
+                var evaled = TintFunction.Eval([v]);
                 return AlternateColorSpace.GetColor(evaled);
             });
         }
@@ -738,7 +753,7 @@
                 byte b = values[i];
                 if (!colorCache.TryGetValue(b, out double[]? colors))
                 {
-                    colors = Process(b / 255.0);
+                    colors = Process([b / 255.0]).ToArray();
                     colorCache[b] = colors;
                 }
 
@@ -759,7 +774,7 @@
         public override IColor GetInitializeColor()
         {
             // The initial value for both the stroking and nonstroking colour in the graphics state shall be 1.0.
-            return GetColor(1.0);
+            return GetColor([1.0]);
         }
     }
 
@@ -851,7 +866,7 @@
             for (var i = 0; i < decoded.Length; i++)
             {
                 var component = decoded[i] / 255.0;
-                var rgbPixel = Process(component);
+                var rgbPixel = Process([component]);
                 // We only need one component here 
                 transformed[i] = ConvertToByte(rgbPixel[0]);
             }
@@ -860,18 +875,18 @@
         }
 
         /// <inheritdoc/>
-        internal override double[] Process(params double[] values)
+        internal override Span<double> Process(Span<double> values)
         {
             var (R, _, _) = colorSpaceTransformer.TransformToRGB((values[0], values[0], values[0]));
-            return [R];
+            return new double[] { R };
         }
 
         /// <inheritdoc/>
-        public override IColor GetColor(params double[] values)
+        public override IColor GetColor(Span<double> values)
         {
-            if (values is null || values.Length != NumberOfColorComponents)
+            if (values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values?.Length ?? 0}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             return TransformToRGB(values[0]);
@@ -884,7 +899,7 @@
             // initialize all components of the corresponding current colour to 0.0 (unless the range of valid
             // values for a given component does not include 0.0, in which case the nearest valid value shall
             // be substituted.)
-            return GetColor(0);
+            return GetColor([0]);
         }
     }
 
@@ -993,7 +1008,7 @@
 
             for (var i = 0; i < decoded.Length; i += 3)
             {
-                var rgbPixel = Process(decoded[i] / 255.0, decoded[i + 1] / 255.0, decoded[i + 2] / 255.0);
+                var rgbPixel = Process([decoded[i] / 255.0, decoded[i + 1] / 255.0, decoded[i + 2] / 255.0]);
                 transformed[index++] = ConvertToByte(rgbPixel[0]);
                 transformed[index++] = ConvertToByte(rgbPixel[1]);
                 transformed[index++] = ConvertToByte(rgbPixel[2]);
@@ -1003,18 +1018,18 @@
         }
 
         /// <inheritdoc/>
-        internal override double[] Process(params double[] values)
+        internal override Span<double> Process(Span<double> values)
         {
             var (R, G, B) = colorSpaceTransformer.TransformToRGB((values[0], values[1], values[2]));
-            return [R, G, B];
+            return new double[] { R, G, B };
         }
 
         /// <inheritdoc/>
-        public override IColor GetColor(params double[] values)
+        public override IColor GetColor(Span<double> values)
         {
-            if (values is null || values.Length != NumberOfColorComponents)
+            if (values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values?.Length ?? 0}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             return TransformToRGB((values[0], values[1], values[2]));
@@ -1103,7 +1118,7 @@
         /// </summary>
         private RGBColor TransformToRGB((double A, double B, double C) colorAbc)
         {
-            var rgb = Process(colorAbc.A, colorAbc.B, colorAbc.C);
+            var rgb = Process([colorAbc.A, colorAbc.B, colorAbc.C]);
             return new RGBColor(rgb[0], rgb[1], rgb[2]);
         }
 
@@ -1115,7 +1130,7 @@
 
             for (var i = 0; i < decoded.Length; i += 3)
             {
-                var rgbPixel = Process(decoded[i] / 255.0, decoded[i + 1] / 255.0, decoded[i + 2] / 255.0);
+                var rgbPixel = Process([decoded[i] / 255.0, decoded[i + 1] / 255.0, decoded[i + 2] / 255.0]);
                 transformed[index++] = ConvertToByte(rgbPixel[0]);
                 transformed[index++] = ConvertToByte(rgbPixel[1]);
                 transformed[index++] = ConvertToByte(rgbPixel[2]);
@@ -1134,7 +1149,7 @@
         }
 
         /// <inheritdoc/>
-        internal override double[] Process(params double[] values)
+        internal override Span<double> Process(Span<double> values)
         {
             // Component Ranges: L*: [0 100]; a* and b*: [−128 127]
             double b = PdfFunction.ClipToRange(values[1], Matrix[0], Matrix[1]);
@@ -1149,15 +1164,15 @@
             double Z = WhitePoint[2] * g(N);
 
             var (R, G, B) = colorSpaceTransformer.TransformToRGB((X, Y, Z));
-            return [R, G, B];
+            return new double[] { R, G, B };
         }
 
         /// <inheritdoc/>
-        public override IColor GetColor(params double[] values)
+        public override IColor GetColor(Span<double> values)
         {
-            if (values is null || values.Length != NumberOfColorComponents)
+            if (values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values?.Length ?? 0}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             return TransformToRGB((values[0], values[1], values[2]));
@@ -1256,7 +1271,7 @@
         }
 
         /// <inheritdoc/>
-        internal override double[] Process(params double[] values)
+        internal override Span<double> Process(Span<double> values)
         {
             // TODO - use ICC profile
 
@@ -1264,11 +1279,11 @@
         }
 
         /// <inheritdoc/>
-        public override IColor GetColor(params double[] values)
+        public override IColor GetColor(Span<double> values)
         {
-            if (values is null || values.Length != NumberOfColorComponents)
+            if (values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values?.Length ?? 0}", nameof(values));
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values.Length}", nameof(values));
             }
 
             // TODO - use ICC profile
@@ -1361,7 +1376,7 @@
         /// Cannot be called for <see cref="PatternColorSpaceDetails"/>, will throw a <see cref="InvalidOperationException"/>.
         /// </para>
         /// </summary>
-        internal override double[] Process(params double[] values)
+        internal override Span<double> Process(Span<double> values)
         {
             throw new InvalidOperationException("PatternColorSpaceDetails");
         }
@@ -1373,7 +1388,7 @@
         /// Use <see cref="GetColor(NameToken)"/> instead.
         /// </para>
         /// </summary>
-        public override IColor GetColor(params double[] values)
+        public override IColor GetColor(Span<double> values)
         {
             throw new InvalidOperationException("PatternColorSpaceDetails");
         }
@@ -1430,13 +1445,13 @@
         }
 
         /// <inheritdoc/>
-        internal override double[] Process(params double[] values)
+        internal override Span<double> Process(Span<double> values)
         {
             throw new InvalidOperationException("UnsupportedColorSpaceDetails");
         }
 
         /// <inheritdoc/>
-        public override IColor GetColor(params double[] values)
+        public override IColor GetColor(Span<double> values)
         {
             throw new InvalidOperationException("UnsupportedColorSpaceDetails");
         }

@@ -1,7 +1,6 @@
 ﻿namespace UglyToad.PdfPig.Functions
 {
     using System;
-    using System.Linq;
     using UglyToad.PdfPig.Core;
     using UglyToad.PdfPig.Functions.Type4;
     using UglyToad.PdfPig.Tokens;
@@ -25,15 +24,9 @@
             this.instructions = InstructionSequenceBuilder.Parse(str);
         }
 
-        public override FunctionTypes FunctionType
-        {
-            get
-            {
-                return FunctionTypes.PostScript;
-            }
-        }
+        public override FunctionTypes FunctionType => FunctionTypes.PostScript;
 
-        public override double[] Eval(params double[] input)
+        public override Span<double> Eval(Span<double> input)
         {
             //Setup the input values
             ExecutionContext context = new ExecutionContext(operators);

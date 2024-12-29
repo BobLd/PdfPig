@@ -80,13 +80,14 @@
         /// <summary>
         /// Convert the input values using the functions of the shading.
         /// </summary>
-        public double[] Eval(params double[] input)
+        public Span<double> Eval(Span<double> input)
         {
             if (Functions is null || Functions.Length == 0)
             {
                 return input;
             }
-            else if (Functions.Length == 1)
+            
+            if (Functions.Length == 1)
             {
                 return Clamp(Functions[0].Eval(input));
             }
@@ -94,26 +95,27 @@
             double[] returnValues = new double[Functions.Length];
             for (int i = 0; i < Functions.Length; i++)
             {
-                double[] newValue = Functions[i].Eval(input);
+                Span<double> newValue = Functions[i].Eval(input);
                 returnValues[i] = newValue[0]; // 1-out functions
             }
             return Clamp(returnValues);
         }
 
-        private static double[] Clamp(double[] input)
+        private static Span<double> Clamp(Span<double> input)
         {
             // From the PDF spec:
             // "If the value returned by the function for a given colour component 
             // is out of range, it shall be adjusted to the nearest valid value."
             for (int i = 0; i < input.Length; ++i)
             {
-                if (input[i] < 0)
+                ref double value = ref input[i];
+                if (value < 0)
                 {
-                    input[i] = 0;
+                    value = 0;
                 }
-                else if (input[i] > 1)
+                else if (value > 1)
                 {
-                    input[i] = 1;
+                    value = 1;
                 }
             }
             return input;

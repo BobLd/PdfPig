@@ -38,38 +38,38 @@
             Assert.Equal(FunctionTypes.Exponential, function.FunctionType);
 
             double[] input = new double[] { -0.7 };
-            double[] output = function.Eval(input);
-            Assert.Single(output);
+            var output = function.Eval(input);
+            Assert.Equal(1, output.Length);
             Assert.Equal(-0.7, output[0], 4);
 
             input = new double[] { 0.7 };
             output = function.Eval(input);
-            Assert.Single(output);
+            Assert.Equal(1, output.Length);
             Assert.Equal(0.7, output[0], 4);
 
             input = new double[] { -0.5 };
             output = function.Eval(input);
-            Assert.Single(output);
+            Assert.Equal(1, output.Length);
             Assert.Equal(-0.5, output[0], 4);
 
             input = new double[] { 0.5 };
             output = function.Eval(input);
-            Assert.Single(output);
+            Assert.Equal(1, output.Length);
             Assert.Equal(0.5, output[0], 4);
 
             input = new double[] { 0 };
             output = function.Eval(input);
-            Assert.Single(output);
+            Assert.Equal(1, output.Length);
             Assert.Equal(0, output[0], 4);
 
             input = new double[] { 1 };
             output = function.Eval(input);
-            Assert.Single(output);
+            Assert.Equal(1, output.Length);
             Assert.Equal(1, output[0], 4);
 
             input = new double[] { -1 };
             output = function.Eval(input);
-            Assert.Single(output);
+            Assert.Equal(1, output.Length);
             Assert.Equal(-1, output[0], 4);
         }
 
@@ -84,13 +84,13 @@
                         1);
 
             double[] input = new double[] { -15 };
-            double[] output = function.Eval(input);
-            Assert.Single(output);
+            var output = function.Eval(input);
+            Assert.Equal(1, output.Length);
             Assert.Equal(-1, output[0], 4);
 
             input = new double[] { 15 };
             output = function.Eval(input);
-            Assert.Single(output);
+            Assert.Equal(1, output.Length);
             Assert.Equal(1, output[0], 4);
         }
 
@@ -105,18 +105,18 @@
                         2);
 
             double[] input = new double[] { 1.12 };
-            double[] output = function.Eval(input);
-            Assert.Single(output);
+            var output = function.Eval(input);
+            Assert.Equal(1, output.Length);
             Assert.Equal(1.2544, output[0], 4);
 
             input = new double[] { -1.35 };
             output = function.Eval(input);
-            Assert.Single(output);
+            Assert.Equal(1, output.Length);
             Assert.Equal(1.82250, output[0], 4);
 
             input = new double[] { 5 };
             output = function.Eval(input);
-            Assert.Single(output);
+            Assert.Equal(1, output.Length);
             Assert.Equal(10, output[0], 4); // clip
         }
 
@@ -131,13 +131,13 @@
                         3);
 
             double[] input = new double[] { 1.0 };
-            double[] output = function.Eval(input);
-            Assert.Single(output);
+            var output = function.Eval(input);
+            Assert.Equal(1, output.Length);
             Assert.Equal(9.53, output[0], 4);
 
             input = new double[] { -1.236 };
             output = function.Eval(input);
-            Assert.Single(output);
+            Assert.Equal(1, output.Length);
             Assert.Equal(-6.44192, output[0], 4);
         }
 
@@ -152,18 +152,18 @@
                         0.5);
 
             double[] input = new double[] { 0.5 };
-            double[] output = function.Eval(input);
-            Assert.Single(output);
+            var output = function.Eval(input);
+            Assert.Equal(1, output.Length);
             Assert.Equal(8.23949, output[0], 4);
 
             input = new double[] { 0.78 };
             output = function.Eval(input);
-            Assert.Single(output);
+            Assert.Equal(1, output.Length);
             Assert.Equal(9.64646, output[0], 4);
 
             input = new double[] { -0.78 };
             output = function.Eval(input);
-            Assert.Single(output);
+            Assert.Equal(1, output.Length);
             Assert.True(double.IsNaN(output[0])); // negative input with sqrt
         }
     }

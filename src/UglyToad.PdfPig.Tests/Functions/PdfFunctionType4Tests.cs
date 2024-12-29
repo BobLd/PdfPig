@@ -42,21 +42,21 @@
             Assert.Equal(FunctionTypes.PostScript, function.FunctionType);
 
             double[] input = new double[] { 0.8, 0.1 };
-            double[] output = function.Eval(input);
+            var output = function.Eval(input);
 
-            Assert.Single(output);
+            Assert.Equal(1, output.Length);
             Assert.Equal(0.9, output[0], 4);
 
             input = new double[] { 0.8, 0.3 }; //results in 1.1f being outside Range
             output = function.Eval(input);
 
-            Assert.Single(output);
+            Assert.Equal(1, output.Length);
             Assert.Equal(1, output[0]);
 
             input = new double[] { 0.8, 1.2 }; //input argument outside Dimension
             output = function.Eval(input);
 
-            Assert.Single(output);
+            Assert.Equal(1, output.Length);
             Assert.Equal(1, output[0]);
         }
 
@@ -74,9 +74,9 @@
                         new double[] { -1.0, 1.0 });
 
             double[] input = new double[] { -0.7, 0.0 };
-            double[] output = function.Eval(input);
+            var output = function.Eval(input);
 
-            Assert.Single(output);
+            Assert.Equal(1, output.Length);
             Assert.Equal(-0.7, output[0], 4);
         }
 
@@ -90,7 +90,7 @@
                         new double[] { 0, 1, 0, 1, 0, 1, 0, 1 });
 
             double[] input = new double[] { 1.0, 1.0 };
-            double[] output = function.Eval(input);
+            var output = function.Eval(input);
 
             Assert.Equal(4, output.Length);
         }

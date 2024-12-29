@@ -54,19 +54,19 @@
         public void SetStrokingColorGray(double gray)
         {
             CurrentStrokingColorSpace = DeviceGrayColorSpaceDetails.Instance;
-            currentStateFunc().CurrentStrokingColor = CurrentStrokingColorSpace.GetColor(gray);
+            currentStateFunc().CurrentStrokingColor = CurrentStrokingColorSpace.GetColor([gray]);
         }
 
         public void SetStrokingColorRgb(double r, double g, double b)
         {
             CurrentStrokingColorSpace = DeviceRgbColorSpaceDetails.Instance;
-            currentStateFunc().CurrentStrokingColor = CurrentStrokingColorSpace.GetColor(r, g, b);
+            currentStateFunc().CurrentStrokingColor = CurrentStrokingColorSpace.GetColor([r, g, b]);
         }
 
         public void SetStrokingColorCmyk(double c, double m, double y, double k)
         {
             CurrentStrokingColorSpace = DeviceCmykColorSpaceDetails.Instance;
-            currentStateFunc().CurrentStrokingColor = CurrentStrokingColorSpace.GetColor(c, m, y, k);
+            currentStateFunc().CurrentStrokingColor = CurrentStrokingColorSpace.GetColor([c, m, y, k]);
         }
 
         public void SetNonStrokingColorspace(NameToken colorspace, DictionaryToken? dictionary = null)
@@ -101,19 +101,19 @@
         public void SetNonStrokingColorGray(double gray)
         {
             CurrentNonStrokingColorSpace = DeviceGrayColorSpaceDetails.Instance;
-            currentStateFunc().CurrentNonStrokingColor = CurrentNonStrokingColorSpace.GetColor(gray);
+            currentStateFunc().CurrentNonStrokingColor = CurrentNonStrokingColorSpace.GetColor([gray]);
         }
 
         public void SetNonStrokingColorRgb(double r, double g, double b)
         {
             CurrentNonStrokingColorSpace = DeviceRgbColorSpaceDetails.Instance;
-            currentStateFunc().CurrentNonStrokingColor = CurrentNonStrokingColorSpace.GetColor(r, g, b);
+            currentStateFunc().CurrentNonStrokingColor = CurrentNonStrokingColorSpace.GetColor([r, g, b]);
         }
 
         public void SetNonStrokingColorCmyk(double c, double m, double y, double k)
         {
             CurrentNonStrokingColorSpace = DeviceCmykColorSpaceDetails.Instance;
-            currentStateFunc().CurrentNonStrokingColor = CurrentNonStrokingColorSpace.GetColor(c, m, y, k);
+            currentStateFunc().CurrentNonStrokingColor = CurrentNonStrokingColorSpace.GetColor([c, m, y, k]);
         }
 
         public IColorSpaceContext DeepClone()
