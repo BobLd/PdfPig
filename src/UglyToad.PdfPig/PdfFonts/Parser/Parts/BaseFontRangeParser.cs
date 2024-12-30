@@ -43,7 +43,7 @@
                         destinationArray = arrayToken;
                         break;
                     case HexToken hexToken:
-                        destinationBytes = [.. hexToken.Bytes];
+                        destinationBytes = hexToken.BytesArray; // TODO - array will be updated
                         break;
                     case NumericToken _:
                         throw new NotImplementedException("From the spec it seems this possible but the meaning is unclear...");
@@ -52,7 +52,7 @@
                 }
 
                 var done = false;
-                var startCode = lowSourceCode.Bytes.ToArray();
+                var startCode = lowSourceCode.BytesArray; // TODO - array will be updated
                 var endCode = highSourceCode.Bytes;
 
                 if (destinationArray != null)

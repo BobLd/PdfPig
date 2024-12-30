@@ -55,7 +55,7 @@ namespace UglyToad.PdfPig.Encryption
                 var token = trailerDictionary.Identifier[0];
 
                 documentIdBytes = token switch {
-                    HexToken hex => hex.Bytes.ToArray(),
+                    HexToken hex => hex.BytesArray,
                     StringToken str => str.GetBytes(),
                     _ => OtherEncodings.StringAsLatin1Bytes(token.Data)
                 };
@@ -409,9 +409,7 @@ namespace UglyToad.PdfPig.Encryption
                     }
                 case HexToken hexToken:
                     {
-                        var data = hexToken.Bytes.ToArray();
-
-                        var decrypted = DecryptData(data, reference);
+                        var decrypted = DecryptData(hexToken.BytesArray, reference);
 
                         token = new HexToken(Hex.GetString(decrypted).AsSpan());
 

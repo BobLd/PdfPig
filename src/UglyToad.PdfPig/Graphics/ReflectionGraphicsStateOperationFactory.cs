@@ -331,7 +331,7 @@ namespace UglyToad.PdfPig.Graphics
                     }
                     else if (operands[0] is HexToken hnl)
                     {
-                        return new MoveToNextLineShowText(hnl.Bytes.ToArray());
+                        return new MoveToNextLineShowText(hnl.BytesArray);
                     }
                     else
                     {
@@ -413,7 +413,7 @@ namespace UglyToad.PdfPig.Graphics
                     }
                     else if (operands[0] is HexToken h)
                     {
-                        return new ShowText(h.Bytes.ToArray());
+                        return new ShowText(h.BytesArray);
                     }
                     else
                     {

@@ -381,7 +381,7 @@
                     byte[] bytes;
                     if (token is HexToken hex)
                     {
-                        bytes = [.. hex.Bytes];
+                        bytes = hex.BytesArray;
                     }
                     else
                     {

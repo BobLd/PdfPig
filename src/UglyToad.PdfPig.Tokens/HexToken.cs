@@ -40,17 +40,20 @@ namespace UglyToad.PdfPig.Tokens
         /// </summary>
         public string Data { get; }
 
-        private readonly byte[] _bytes;
+        /// <summary>
+        /// The bytes of the hex data (direct raw access).
+        /// </summary>
+        public byte[] BytesArray { get; }
 
         /// <summary>
         /// The bytes of the hex data.
         /// </summary>
-        public ReadOnlySpan<byte> Bytes => _bytes;
+        public ReadOnlySpan<byte> Bytes => BytesArray;
 
         /// <summary>
         /// The memory of the hex data.
         /// </summary>
-        public ReadOnlyMemory<byte> Memory => _bytes;
+        public ReadOnlyMemory<byte> Memory => BytesArray;
 
         /// <summary>
         /// Create a new <see cref="HexToken"/> from the provided hex characters.
@@ -106,7 +109,7 @@ namespace UglyToad.PdfPig.Tokens
                 Data = builder.ToString();
             }
 
-            _bytes = bytes;
+            BytesArray = bytes;
         }
 
         /// <summary>
@@ -171,7 +174,7 @@ namespace UglyToad.PdfPig.Tokens
 #if NET8_0_OR_GREATER
             return Convert.ToHexString(Bytes);
 #else
-            return BitConverter.ToString(Bytes.ToArray()).Replace("-", string.Empty);
+            return BitConverter.ToString(BytesArray).Replace("-", string.Empty);
 #endif
         }
     }

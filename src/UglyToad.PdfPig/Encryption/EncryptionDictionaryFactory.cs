@@ -49,7 +49,7 @@
                 }
                 else if (ownerToken is HexToken ownerHex)
                 {
-                    ownerBytes = ownerHex.Bytes.ToArray();
+                    ownerBytes = ownerHex.BytesArray;
                 }
             }
             
@@ -62,7 +62,7 @@
                 }
                 else if (userToken is HexToken userHex)
                 {
-                    userBytes = userHex.Bytes.ToArray();
+                    userBytes = userHex.BytesArray;
                 }
             }
             
@@ -104,7 +104,7 @@
 
             if (encryptionDictionary.TryGet(name, tokenScanner, out HexToken? hexToken))
             {
-                return hexToken.Bytes.ToArray();
+                return hexToken.BytesArray;
             }
 
             return null;
