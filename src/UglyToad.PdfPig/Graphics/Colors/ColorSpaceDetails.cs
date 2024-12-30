@@ -279,7 +279,10 @@
         internal static ColorSpaceDetails Stencil(ColorSpaceDetails colorSpaceDetails, double[] decode)
         {
             var blackIsOne = decode.Length >= 2 && decode[0] == 1 && decode[1] == 0;
-            return new IndexedColorSpaceDetails(colorSpaceDetails, 1, blackIsOne ? [255, 0] : [0, 255]);
+
+            ReadOnlyMemory<byte> colorTable = blackIsOne ? new byte[] { 255, 0 } : new byte[] { 0, 255 };
+
+            return new IndexedColorSpaceDetails(colorSpaceDetails, 1, colorTable);
         }
 
         /// <inheritdoc/>
@@ -303,17 +306,17 @@
         /// </summary>
         public byte HiVal { get; }
 
-        private readonly byte[] colorTable;
+        private readonly ReadOnlyMemory<byte> colorTable;
 
         /// <summary>
         /// Provides the mapping between index values and the corresponding colors in the base color space.
         /// </summary>
-        public ReadOnlySpan<byte> ColorTable => colorTable;
+        public ReadOnlySpan<byte> ColorTable => colorTable.Span;
 
         /// <summary>
         /// Create a new <see cref="IndexedColorSpaceDetails"/>.
         /// </summary>
-        public IndexedColorSpaceDetails(ColorSpaceDetails baseColorSpaceDetails, byte hiVal, byte[] colorTable)
+        public IndexedColorSpaceDetails(ColorSpaceDetails baseColorSpaceDetails, byte hiVal, ReadOnlyMemory<byte> colorTable)
             : base(ColorSpace.Indexed)
         {
             BaseColorSpace = baseColorSpaceDetails ?? throw new ArgumentNullException(nameof(baseColorSpaceDetails));
