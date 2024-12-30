@@ -94,7 +94,7 @@
         {
             if (lines.Count() <= 1)
             {
-                return lines.ToList();
+                return lines.ToArray();
             }
 
             var TextOrientation = lines.First().TextOrientation;
@@ -113,16 +113,16 @@
             switch (TextOrientation)
             {
                 case TextOrientation.Horizontal:
-                    return lines.OrderByDescending(w => w.BoundingBox.BottomLeft.Y).ToList();
+                    return lines.OrderByDescending(w => w.BoundingBox.BottomLeft.Y).ToArray();
 
                 case TextOrientation.Rotate180:
-                    return lines.OrderBy(w => w.BoundingBox.BottomLeft.Y).ToList();
+                    return lines.OrderBy(w => w.BoundingBox.BottomLeft.Y).ToArray();
 
                 case TextOrientation.Rotate90:
-                    return lines.OrderByDescending(w => w.BoundingBox.BottomLeft.X).ToList();
+                    return lines.OrderByDescending(w => w.BoundingBox.BottomLeft.X).ToArray();
 
                 case TextOrientation.Rotate270:
-                    return lines.OrderBy(w => w.BoundingBox.BottomLeft.X).ToList();
+                    return lines.OrderBy(w => w.BoundingBox.BottomLeft.X).ToArray();
 
                 case TextOrientation.Other:
                 default:
@@ -136,22 +136,22 @@
                     if (0 < avgAngle && avgAngle <= 90)
                     {
                         // quadrant 1, 0 < θ < π/2
-                        return lines.OrderByDescending(w => w.BoundingBox.BottomLeft.Y).ThenBy(w => w.BoundingBox.BottomLeft.X).ToList();
+                        return lines.OrderByDescending(w => w.BoundingBox.BottomLeft.Y).ThenBy(w => w.BoundingBox.BottomLeft.X).ToArray();
                     }
                     else if (90 < avgAngle && avgAngle <= 180)
                     {
                         // quadrant 2, π/2 < θ ≤ π
-                        return lines.OrderBy(w => w.BoundingBox.BottomLeft.X).ThenBy(w => w.BoundingBox.BottomLeft.Y).ToList();
+                        return lines.OrderBy(w => w.BoundingBox.BottomLeft.X).ThenBy(w => w.BoundingBox.BottomLeft.Y).ToArray();
                     }
                     else if (-180 < avgAngle && avgAngle <= -90)
                     {
                         // quadrant 3, -π < θ < -π/2
-                        return lines.OrderBy(w => w.BoundingBox.BottomLeft.Y).ThenByDescending(w => w.BoundingBox.BottomLeft.X).ToList();
+                        return lines.OrderBy(w => w.BoundingBox.BottomLeft.Y).ThenByDescending(w => w.BoundingBox.BottomLeft.X).ToArray();
                     }
                     else if (-90 < avgAngle && avgAngle <= 0)
                     {
                         // quadrant 4, -π/2 < θ < 0
-                        return lines.OrderByDescending(w => w.BoundingBox.BottomLeft.X).ThenByDescending(w => w.BoundingBox.BottomLeft.Y).ToList();
+                        return lines.OrderByDescending(w => w.BoundingBox.BottomLeft.X).ThenByDescending(w => w.BoundingBox.BottomLeft.Y).ToArray();
                     }
                     else
                     {

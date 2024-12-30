@@ -383,8 +383,13 @@
                 return null;
             }
 
-            var bboxes = path.Select(x => x.GetBoundingRectangle()).Where(x => x.HasValue).Select(x => x.Value).ToList();
-            if (bboxes.Count == 0)
+            var bboxes = path
+                .Select(x => x.GetBoundingRectangle())
+                .Where(x => x.HasValue)
+                .Select(x => x.Value)
+                .ToArray();
+
+            if (bboxes.Length == 0)
             {
                 return null;
             }

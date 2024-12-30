@@ -140,7 +140,7 @@
 
         private static Word GenerateWord(List<Letter> letters)
         {
-            return new Word(letters.ToList());
+            return new Word(letters.ToArray());
         }
 
         /// <summary>

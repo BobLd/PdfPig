@@ -64,7 +64,7 @@
                 throw new ArgumentException("XYLeaf(): The words contained in the leaf cannot be null.", nameof(words));
             }
 
-            var normalisedBBs = words.Select(b => b.BoundingBox.Normalise()).ToList();
+            var normalisedBBs = words.Select(b => b.BoundingBox.Normalise()).ToArray();
 
             BoundingBox = new PdfRectangle(normalisedBBs.Min(b => b.Left),
                                            normalisedBBs.Min(b => b.Bottom),

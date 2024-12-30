@@ -228,7 +228,7 @@
             // TO DO
             //var annots = GetAnnotations().ToList();
 
-            return mcesOptional.GroupBy(oc => oc.Name).ToDictionary(g => g.Key!, g => (IReadOnlyList<OptionalContentGroupElement>)g.ToList());
+            return mcesOptional.GroupBy(oc => oc.Name).ToDictionary(g => g.Key!, g => (IReadOnlyList<OptionalContentGroupElement>)g.ToArray());
         }
 
         private void GetOptionalContentsRecursively(IReadOnlyList<MarkedContentElement>? markedContentElements, ref List<OptionalContentGroupElement> mcesOptional)

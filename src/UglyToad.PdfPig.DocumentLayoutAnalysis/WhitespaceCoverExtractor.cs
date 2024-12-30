@@ -129,7 +129,7 @@
 
                     if (selected.Count >= maxRectangleCount)
                     {
-                        return selected.ToList();
+                        return selected.ToArray();
                     }
 
                     obstacles.Add(current.Bound);
@@ -193,7 +193,7 @@
                 }
             }
 
-            return selected.ToList();
+            return selected.ToArray();
         }
 
         private static bool IsAdjacentTo(PdfRectangle rectangle1, PdfRectangle rectangle2)
@@ -290,7 +290,7 @@
             public PdfRectangle GetPivot()
             {
                 int indexMiddle = Distances.FindIndexNearest(Bound.Centroid,
-                                    Obstacles.Select(o => o.Centroid).ToList(),
+                                    Obstacles.Select(o => o.Centroid).ToArray(),
                                     p => p, p => p, Distances.Euclidean, out double d);
 
                 return indexMiddle == -1 ? Obstacles.First() : Obstacles.ElementAt(indexMiddle);

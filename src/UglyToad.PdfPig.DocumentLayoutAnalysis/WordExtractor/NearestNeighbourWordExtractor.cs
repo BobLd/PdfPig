@@ -118,7 +118,7 @@
                 l => l.EndBaseLine, l => l.StartBaseLine,
                 filterPivotFunction,
                 filterFunction,
-                maxDegreeOfParallelism).ToList();
+                maxDegreeOfParallelism).ToArray();
 
             List<Word> words = new List<Word>();
             foreach (var g in groupedLetters)

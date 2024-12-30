@@ -213,14 +213,14 @@
 
             var regions = new List<PageXmlDocument.PageXmlRegion>();
 
-            var words = page.GetWords(wordExtractor).ToList();
-            if (words.Count > 0)
+            var words = page.GetWords(wordExtractor).ToArray();
+            if (words.Length > 0)
             {
                 var blocks = pageSegmenter.GetBlocks(words);
 
                 if (readingOrderDetector != null)
                 {
-                    blocks = readingOrderDetector.Get(blocks).ToList();
+                    blocks = readingOrderDetector.Get(blocks).ToArray();
                 }
 
                 regions.AddRange(blocks.Select(b => ToPageXmlTextRegion(b, data, page.Width, page.Height)));
@@ -239,8 +239,8 @@
                 }
             }
 
-            var images = page.GetImages().ToList();
-            if (images.Count > 0)
+            var images = page.GetImages().ToArray();
+            if (images.Length > 0)
             {
                 regions.AddRange(images.Select(i => ToPageXmlImageRegion(i, data, page.Width, page.Height)));
             }

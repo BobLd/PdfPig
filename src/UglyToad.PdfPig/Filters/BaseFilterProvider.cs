@@ -90,7 +90,7 @@
         /// <inheritdoc />
         public IReadOnlyList<IFilter> GetAllFilters()
         {
-            return FilterInstances.Values.Distinct().ToList();
+            return FilterInstances.Values.Distinct().ToArray();
         }
     }
 }

@@ -82,7 +82,7 @@
                 }
             });
 
-            return Get(pagesBlocks.OrderBy(x => x.Key).Select(x => x.Value).ToList(),
+            return Get(pagesBlocks.OrderBy(x => x.Key).Select(x => x.Value).ToArray(),
                 minimumEditDistanceNormalised,
                 similarityThreshold,
                 n,
@@ -155,9 +155,9 @@
                 // - from right to left (maximumx coordinate). 
 
                 // From top to bottom (based on the minimum y coordinate)
-                previousPage = previousPage.OrderByDescending(b => b.BoundingBox.Bottom).ThenBy(b => b.BoundingBox.Left).ToList();
-                currentPage = currentPage.OrderByDescending(b => b.BoundingBox.Bottom).ThenBy(b => b.BoundingBox.Left).ToList();
-                nextPage = nextPage.OrderByDescending(b => b.BoundingBox.Bottom).ThenBy(b => b.BoundingBox.Left).ToList();
+                previousPage = previousPage.OrderByDescending(b => b.BoundingBox.Bottom).ThenBy(b => b.BoundingBox.Left).ToArray();
+                currentPage = currentPage.OrderByDescending(b => b.BoundingBox.Bottom).ThenBy(b => b.BoundingBox.Left).ToArray();
+                nextPage = nextPage.OrderByDescending(b => b.BoundingBox.Bottom).ThenBy(b => b.BoundingBox.Left).ToArray();
 
                 for (int i = 0; i < nCurrent; i++)
                 {
@@ -170,9 +170,9 @@
                 }
 
                 // From bottom to top (maximum y coordinate)
-                previousPage = previousPage.OrderBy(b => b.BoundingBox.Top).ThenBy(b => b.BoundingBox.Left).ToList();
-                currentPage = currentPage.OrderBy(b => b.BoundingBox.Top).ThenBy(b => b.BoundingBox.Left).ToList();
-                nextPage = nextPage.OrderBy(b => b.BoundingBox.Top).ThenBy(b => b.BoundingBox.Left).ToList();
+                previousPage = previousPage.OrderBy(b => b.BoundingBox.Top).ThenBy(b => b.BoundingBox.Left).ToArray();
+                currentPage = currentPage.OrderBy(b => b.BoundingBox.Top).ThenBy(b => b.BoundingBox.Left).ToArray();
+                nextPage = nextPage.OrderBy(b => b.BoundingBox.Top).ThenBy(b => b.BoundingBox.Left).ToArray();
 
                 for (int i = 0; i < nCurrent; i++)
                 {
@@ -185,9 +185,9 @@
                 }
 
                 // From left to right (minimum x coordinate)
-                previousPage = previousPage.OrderBy(b => b.BoundingBox.Left).ThenBy(b => b.BoundingBox.Top).ToList();
-                currentPage = currentPage.OrderBy(b => b.BoundingBox.Left).ThenBy(b => b.BoundingBox.Top).ToList();
-                nextPage = nextPage.OrderBy(b => b.BoundingBox.Left).ThenBy(b => b.BoundingBox.Top).ToList();
+                previousPage = previousPage.OrderBy(b => b.BoundingBox.Left).ThenBy(b => b.BoundingBox.Top).ToArray();
+                currentPage = currentPage.OrderBy(b => b.BoundingBox.Left).ThenBy(b => b.BoundingBox.Top).ToArray();
+                nextPage = nextPage.OrderBy(b => b.BoundingBox.Left).ThenBy(b => b.BoundingBox.Top).ToArray();
 
                 for (int i = 0; i < nCurrent; i++)
                 {
@@ -200,9 +200,9 @@
                 }
 
                 // From right to left (maximumx coordinate)
-                previousPage = previousPage.OrderByDescending(b => b.BoundingBox.Right).ThenBy(b => b.BoundingBox.Top).ToList();
-                currentPage = currentPage.OrderByDescending(b => b.BoundingBox.Right).ThenBy(b => b.BoundingBox.Top).ToList();
-                nextPage = nextPage.OrderByDescending(b => b.BoundingBox.Right).ThenBy(b => b.BoundingBox.Top).ToList();
+                previousPage = previousPage.OrderByDescending(b => b.BoundingBox.Right).ThenBy(b => b.BoundingBox.Top).ToArray();
+                currentPage = currentPage.OrderByDescending(b => b.BoundingBox.Right).ThenBy(b => b.BoundingBox.Top).ToArray();
+                nextPage = nextPage.OrderByDescending(b => b.BoundingBox.Right).ThenBy(b => b.BoundingBox.Top).ToArray();
 
                 for (int i = 0; i < nCurrent; i++)
                 {
@@ -215,7 +215,7 @@
                 }
             });
 
-            return pageDecorations.OrderBy(x => x.Key).Select(x => x.Value).ToList();
+            return pageDecorations.OrderBy(x => x.Key).Select(x => x.Value).ToArray();
         }
 
         /// <summary>

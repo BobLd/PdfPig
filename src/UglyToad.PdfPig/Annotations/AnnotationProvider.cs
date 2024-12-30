@@ -90,11 +90,11 @@
                     var horizontal = borderArray.GetNumeric(0).Data;
                     var vertical = borderArray.GetNumeric(1).Data;
                     var width = borderArray.GetNumeric(2).Data;
-                    var dashes = default(IReadOnlyList<double>);
+                    var dashes = Array.Empty<double>();
 
                     if (borderArray.Length == 4 && borderArray.Data[4] is ArrayToken dashArray)
                     {
-                        dashes = dashArray.Data.OfType<NumericToken>().Select(x => x.Data).ToList();
+                        dashes = dashArray.Data.OfType<NumericToken>().Select(x => x.Data).ToArray();
                     }
 
                     border = new AnnotationBorder(horizontal, vertical, width, dashes);

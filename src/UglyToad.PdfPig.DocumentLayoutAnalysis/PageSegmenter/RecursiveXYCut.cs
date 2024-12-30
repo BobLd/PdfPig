@@ -202,8 +202,8 @@
             var newNodes = newLeaves.Select(l => HorizontalCut(l, minimumWidth,
                 dominantFontWidthFunc, dominantFontHeightFunc, level)).ToList();
 
-            var lost = leaf.Words.Except(newLeavesEnums.SelectMany(x => x)).Where(x => !string.IsNullOrWhiteSpace(x.Text)).ToList();
-            if (lost.Count > 0)
+            var lost = leaf.Words.Except(newLeavesEnums.SelectMany(x => x)).Where(x => !string.IsNullOrWhiteSpace(x.Text)).ToArray();
+            if (lost.Length > 0)
             {
                 newNodes.AddRange(lost.Select(w => new XYLeaf(w)));
             }
@@ -306,8 +306,8 @@
             var newNodes = newLeaves.Select(l => VerticalCut(l, minimumWidth,
                 dominantFontWidthFunc, dominantFontHeightFunc, level)).ToList();
 
-            var lost = leaf.Words.Except(newLeavesEnums.SelectMany(x => x)).Where(x => !string.IsNullOrWhiteSpace(x.Text)).ToList();
-            if (lost.Count > 0)
+            var lost = leaf.Words.Except(newLeavesEnums.SelectMany(x => x)).Where(x => !string.IsNullOrWhiteSpace(x.Text)).ToArray();
+            if (lost.Length > 0)
             {
                 newNodes.AddRange(lost.Select(w => new XYLeaf(w)));
             }

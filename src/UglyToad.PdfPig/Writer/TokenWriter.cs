@@ -161,7 +161,7 @@
 
             var sets = new List<XrefSeries>();
 
-            var orderedList = objectOffsets.OrderBy(x => x.Key.ObjectNumber).ToList();
+            var orderedList = objectOffsets.OrderBy(x => x.Key.ObjectNumber).ToArray();
 
             long firstObjectNumber = 0;
             long currentObjNum = 0;

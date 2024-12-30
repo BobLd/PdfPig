@@ -169,7 +169,7 @@
 
             distance = double.MaxValue;
             int closestPointIndex = -1;
-            var candidatesPoints = candidates.Select(candidatePoint).ToList();
+            var candidatesPoints = candidates.Select(candidatePoint).ToArray();
             var pivot = pivotPoint(element);
 
             for (var i = 0; i < candidates.Count; i++)
@@ -211,7 +211,7 @@
 
             distance = double.MaxValue;
             int closestLineIndex = -1;
-            var candidatesLines = candidates.Select(candidateLine).ToList();
+            var candidatesLines = candidates.Select(candidateLine).ToArray();
             var pivot = pivotLine(element);
 
             for (var i = 0; i < candidates.Count; i++)

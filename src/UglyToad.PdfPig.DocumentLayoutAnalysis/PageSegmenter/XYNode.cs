@@ -122,11 +122,11 @@
 
             if (isVerticalCut)
             {
-                notLeaves = notLeaves.OrderBy(x => x.BoundingBox.Left).ToList();
+                notLeaves = notLeaves.OrderBy(x => x.BoundingBox.Left);
             }
             else
             {
-                notLeaves = notLeaves.OrderByDescending(x => x.BoundingBox.Top).ToList();
+                notLeaves = notLeaves.OrderByDescending(x => x.BoundingBox.Top);
             }
 
             foreach (XYNode node in notLeaves)

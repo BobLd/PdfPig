@@ -74,7 +74,7 @@
             // 2. Group indexes
             foreach (var group in GroupIndexes(indexes))
             {
-                yield return group.Select(i => elements[i]).ToList();
+                yield return group.Select(i => elements[i]).ToArray();
             }
         }
 
@@ -144,7 +144,7 @@
             // 2. Group indexes
             foreach (var group in GroupIndexes(indexes))
             {
-                yield return group.Select(i => elements[i]).ToList();
+                yield return group.Select(i => elements[i]).ToArray();
             }
         }
 
@@ -213,7 +213,7 @@
             // 2. Group indexes
             foreach (var group in GroupIndexes(indexes))
             {
-                yield return group.Select(i => elements[i]).ToList();
+                yield return group.Select(i => elements[i]).ToArray();
             }
         }
 

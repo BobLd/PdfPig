@@ -124,7 +124,7 @@
                     var prev = x.GetPreviousOffset();
 
                     return new CrossReferenceTable.CrossReferenceOffset(x.Offset, prev >= 0 ? prev : default(long?));
-                }).ToList());
+                }).ToArray());
         }
     }
 }

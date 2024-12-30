@@ -261,7 +261,7 @@
                 {
                     r.StartBaseLine,
                     r.EndBaseLine,
-                }).ToList();
+                }).ToArray();
 
                 // Fitting a line through the base lines points
                 // to find the orientation (slope)
@@ -270,7 +270,7 @@
                 double sumProduct = 0;
                 double sumDiffSquaredX = 0;
 
-                for (int i = 0; i < baseLinePoints.Count; i++)
+                for (int i = 0; i < baseLinePoints.Length; i++)
                 {
                     var point = baseLinePoints[i];
                     var x_diff = point.X - x0;

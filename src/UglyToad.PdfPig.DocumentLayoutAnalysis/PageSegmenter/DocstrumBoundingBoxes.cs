@@ -53,7 +53,7 @@
                 return Array.Empty<TextBlock>();
             }
 
-            return GetBlocks(words.ToList(),
+            return GetBlocks(words.ToArray(),
                 options.WithinLineBounds, options.WithinLineMultiplier, options.WithinLineBinSize,
                 options.BetweenLineBounds, options.BetweenLineMultiplier, options.BetweenLineBinSize,
                 options.AngularDifferenceBounds,
@@ -92,7 +92,7 @@
             int maxDegreeOfParallelism)
         {
             // Filter out white spaces
-            words = words.Where(w => !string.IsNullOrWhiteSpace(w.Text)).ToList();
+            words = words.Where(w => !string.IsNullOrWhiteSpace(w.Text)).ToArray();
             if (words.Count == 0)
             {
                 return Array.Empty<TextBlock>();
@@ -120,7 +120,7 @@
 
             // 3. Structural Block Determination
             double maxBetweenLineDistance = blMultiplier * betweenLineDistance;
-            return GetStructuralBlocks(lines, maxBetweenLineDistance, angularDifferenceBounds, epsilon, lineSeparator, maxDegreeOfParallelism).ToList();
+            return GetStructuralBlocks(lines, maxBetweenLineDistance, angularDifferenceBounds, epsilon, lineSeparator, maxDegreeOfParallelism).ToArray();
         }
 
         #region Spacing Estimation
@@ -287,7 +287,7 @@
                 candidate => candidate.BoundingBox.BottomLeft,
                 _ => true,
                 (pivot, candidate) => wlBounds.Contains(AngleWL(pivot, candidate)),
-                maxDegreeOfParallelism).ToList();
+                maxDegreeOfParallelism).ToArray();
 
             foreach (var g in groupedWords)
             {

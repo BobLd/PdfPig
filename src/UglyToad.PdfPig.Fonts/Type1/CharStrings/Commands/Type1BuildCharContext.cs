@@ -57,7 +57,7 @@
 
         public void SetPath(IReadOnlyList<PdfSubpath> path)
         {
-            Path = path.ToList() ?? throw new ArgumentNullException(nameof(path));
+            Path = path?.ToList() ?? throw new ArgumentNullException(nameof(path));
         }
 
         public void ClearFlexPoints()
