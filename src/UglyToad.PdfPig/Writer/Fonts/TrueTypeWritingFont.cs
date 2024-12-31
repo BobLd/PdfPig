@@ -48,7 +48,7 @@
 
         public IndirectReferenceToken  WriteFont(IPdfStreamWriter writer, IndirectReferenceToken? reservedIndirect = null)
         {
-            var newEncoding = new TrueTypeSubsetEncoding(characterMapping.Keys.ToList());
+            var newEncoding = new TrueTypeSubsetEncoding(characterMapping.Keys.ToArray());
             var subsetBytes = TrueTypeSubsetter.Subset(fontFileBytes.ToArray(), newEncoding);
 
             var embeddedFile = DataCompresser.CompressToStream(subsetBytes);

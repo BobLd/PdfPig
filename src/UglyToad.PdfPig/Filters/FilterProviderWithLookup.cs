@@ -61,7 +61,7 @@
                     }
                     else if (DirectObjectFinder.TryGet<ArrayToken>(irt, scanner, out var indirectArray))
                     {
-                        return GetNamedFilters(indirectArray.Data.Select(x => (NameToken) x).ToList());
+                        return GetNamedFilters(indirectArray.Data.Select(x => (NameToken) x).ToArray());
                     }
                     else
                     {

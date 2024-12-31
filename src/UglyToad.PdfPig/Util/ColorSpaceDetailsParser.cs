@@ -335,19 +335,19 @@
 
                         var fourth = colorSpaceArray[3];
 
-                        byte[] tableBytes;
+                        ReadOnlyMemory<byte> tableBytes;
 
                         if (DirectObjectFinder.TryGet(fourth, scanner, out HexToken? tableHexToken))
                         {
-                            tableBytes = [.. tableHexToken.Bytes];
+                            tableBytes = tableHexToken.Memory;
                         }
                         else if (DirectObjectFinder.TryGet(fourth, scanner, out StreamToken? tableStreamToken))
                         {
-                            tableBytes = tableStreamToken.Decode(filterProvider, scanner).Span.ToArray();
+                            tableBytes = tableStreamToken.Decode(filterProvider, scanner);
                         }
                         else if (DirectObjectFinder.TryGet(fourth, scanner, out StringToken? stringToken))
                         {
-                            tableBytes = stringToken.GetBytes();
+                            tableBytes = stringToken.GetBytes().AsMemory();
                         }
                         else
                         {

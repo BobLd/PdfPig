@@ -42,8 +42,8 @@
         /// </summary>
         public PdfPoint GetCentroid()
         {
-            var filtered = commands.Where(c => c is Line || c is BezierCurve).ToList();
-            if (filtered.Count == 0)
+            var filtered = commands.Where(c => c is Line || c is BezierCurve).ToArray();
+            if (filtered.Length == 0)
             {
                 return new PdfPoint();
             }
@@ -383,8 +383,8 @@
                 return null;
             }
 
-            var bboxes = path.Select(x => x.GetBoundingRectangle()).Where(x => x.HasValue).Select(x => x.Value).ToList();
-            if (bboxes.Count == 0)
+            var bboxes = path.Select(x => x.GetBoundingRectangle()).Where(x => x.HasValue).Select(x => x.Value).ToArray();
+            if (bboxes.Length == 0)
             {
                 return null;
             }

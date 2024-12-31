@@ -108,13 +108,14 @@
             // is out of range, it shall be adjusted to the nearest valid value."
             for (int i = 0; i < input.Length; ++i)
             {
-                if (input[i] < 0)
+                ref double value = ref input[i];
+                if (value < 0)
                 {
-                    input[i] = 0;
+                    value = 0;
                 }
-                else if (input[i] > 1)
+                else if (value > 1)
                 {
-                    input[i] = 1;
+                    value = 1;
                 }
             }
             return input;

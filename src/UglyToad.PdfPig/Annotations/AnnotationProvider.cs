@@ -95,7 +95,7 @@
                     if (borderArray.Length == 4 && borderArray.Data[3] is ArrayToken dashArray)
                     {
                         // PDFBOX-624-2.pdf
-                        dashes = dashArray.Data.OfType<NumericToken>().Select(x => x.Data).ToList();
+                        dashes = dashArray.Data.OfType<NumericToken>().Select(x => x.Data).ToArray();
                     }
 
                     border = new AnnotationBorder(horizontal, vertical, width, dashes);

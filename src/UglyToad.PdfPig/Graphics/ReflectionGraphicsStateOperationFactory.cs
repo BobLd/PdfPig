@@ -329,14 +329,13 @@ namespace UglyToad.PdfPig.Graphics
                     {
                         return new MoveToNextLineShowText(snl.Data);
                     }
-                    else if (operands[0] is HexToken hnl)
+                    
+                    if (operands[0] is HexToken hnl)
                     {
-                        return new MoveToNextLineShowText(hnl.Bytes.ToArray());
+                        return new MoveToNextLineShowText(hnl.BytesArray);
                     }
-                    else
-                    {
-                        throw new InvalidOperationException($"Tried to create a move to next line and show text operation with operand type: {operands[0]?.GetType().Name ?? "null"}");
-                    }
+
+                    throw new InvalidOperationException($"Tried to create a move to next line and show text operation with operand type: {operands[0]?.GetType().Name ?? "null"}");
                 case MoveToNextLineWithOffset.Symbol:
                     return new MoveToNextLineWithOffset(OperandToDouble(operands[0]), OperandToDouble(operands[1]));
                 case MoveToNextLineWithOffsetSetLeading.Symbol:
@@ -350,7 +349,8 @@ namespace UglyToad.PdfPig.Graphics
                     {
                         return new SetNonStrokeColorAdvanced(operands.Take(operands.Count - 1).Select(x => ((NumericToken)x).Data).ToArray(), scnLowerPatternName);
                     }
-                    else if (operands.All(x => x is NumericToken))
+                    
+                    if (operands.All(x => x is NumericToken))
                     {
                         return new SetNonStrokeColorAdvanced(operands.Select(x => ((NumericToken)x).Data).ToArray());
                     }
@@ -375,11 +375,11 @@ namespace UglyToad.PdfPig.Graphics
                 case SetStrokeColorAdvanced.Symbol:
                     if (operands[operands.Count - 1] is NameToken scnPatternName)
                     {
-                        return new SetStrokeColorAdvanced(operands.Take(operands.Count - 1).Select(x => ((NumericToken)x).Data).ToList(), scnPatternName);
+                        return new SetStrokeColorAdvanced(operands.Take(operands.Count - 1).Select(x => ((NumericToken)x).Data).ToArray(), scnPatternName);
                     }
                     else if (operands.All(x => x is NumericToken))
                     {
-                        return new SetStrokeColorAdvanced(operands.Select(x => ((NumericToken)x).Data).ToList());
+                        return new SetStrokeColorAdvanced(operands.Select(x => ((NumericToken)x).Data).ToArray());
                     }
 
                     var errorMessageScn = string.Join(", ", operands.Select(x => x.ToString()));
@@ -413,7 +413,7 @@ namespace UglyToad.PdfPig.Graphics
                     }
                     else if (operands[0] is HexToken h)
                     {
-                        return new ShowText(h.Bytes.ToArray());
+                        return new ShowText(h.BytesArray);
                     }
                     else
                     {
@@ -510,7 +510,7 @@ namespace UglyToad.PdfPig.Graphics
                         offset++;
                     }
 
-                    arguments.Add(array.ToArray());
+                    arguments.Add(array);
                 }
                 else if (parameter.ParameterType == typeof(NameToken))
                 {

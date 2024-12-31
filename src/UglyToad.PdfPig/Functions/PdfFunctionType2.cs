@@ -35,7 +35,7 @@
             // exponential interpolation
             double xToN = Math.Pow(input[0], N); // x^exponent
 
-            var result = new double[Math.Min(C0.Length, C1.Length)];
+            Span<double> result = new double[Math.Min(C0.Length, C1.Length)];
             for (int j = 0; j < result.Length; j++)
             {
                 double c0j = C0[j];

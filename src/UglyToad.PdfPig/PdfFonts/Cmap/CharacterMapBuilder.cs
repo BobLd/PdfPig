@@ -106,7 +106,7 @@ namespace UglyToad.PdfPig.PdfFonts.Cmap
         public void UseCMap(CMap other)
         {
             CodespaceRanges = Combine(CodespaceRanges, other.CodespaceRanges);
-            CidCharacterMappings = Combine(CidCharacterMappings, other.CidCharacterMappings.Values.ToList());
+            CidCharacterMappings = Combine(CidCharacterMappings, other.CidCharacterMappings.Values.ToArray());
             cidRanges.AddRange(other.CidRanges);
 
             if (other.BaseFontCharacterMap != null)

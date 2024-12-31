@@ -263,9 +263,9 @@
                     Debug.WriteLine("Found more than 1 token in an object.");
 
                     var trimmedDuplicatedEndTokens = readTokens
-                        .Where(x => x is not OperatorToken op || (op.Data != ">" && op.Data != "]")).ToList();
+                        .Where(x => x is not OperatorToken op || (op.Data != ">" && op.Data != "]")).ToArray();
 
-                    if (trimmedDuplicatedEndTokens.Count == 1)
+                    if (trimmedDuplicatedEndTokens.Length == 1)
                     {
                         token = trimmedDuplicatedEndTokens[0];
                     }

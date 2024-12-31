@@ -72,6 +72,7 @@
                 partitionValues[0] = domain.Min;
                 partitionValues[partitionValuesSize - 1] = domain.Max;
                 Array.Copy(Bounds, 0, partitionValues, 1, boundsSize);
+
                 // find the partition 
                 for (int i = 0; i < partitionValuesSize - 1; i++)
                 {
@@ -85,6 +86,7 @@
                     }
                 }
             }
+
             if (function is null)
             {
                 throw new IOException("partition not found in type 3 function");
@@ -93,6 +95,7 @@
             // calculate the output values using the chosen function
             Span<double> arr = new double[] { x };
             Span<double> functionResult = function.Eval(arr);
+
             // clip to range if available
             return ClipToRange(functionResult);
         }

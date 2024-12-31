@@ -47,7 +47,11 @@
             }
             else
             {
-                currentStateFunc().CurrentStrokingColor = CurrentStrokingColorSpace.GetColor(operands.ToArray());
+                if (!(operands is double[] array))
+                {
+                    array = operands.ToArray();
+                }
+                currentStateFunc().CurrentStrokingColor = CurrentStrokingColorSpace.GetColor(array);
             }
         }
 
@@ -94,7 +98,11 @@
             }
             else
             {
-                currentStateFunc().CurrentNonStrokingColor = CurrentNonStrokingColorSpace.GetColor(operands.ToArray());
+                if (!(operands is double[] array))
+                {
+                    array = operands.ToArray();
+                }
+                currentStateFunc().CurrentNonStrokingColor = CurrentNonStrokingColorSpace.GetColor(array);
             }
         }
 

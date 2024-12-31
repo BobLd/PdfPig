@@ -4,7 +4,6 @@
     using System.Collections;
     using System.IO;
     using System.Linq;
-    using System.Runtime.InteropServices;
     using UglyToad.PdfPig.Core;
     using UglyToad.PdfPig.Tokens;
 
@@ -253,14 +252,12 @@
             if (samples is null)
             {
                 int arraySize = 1;
-                int nIn = NumberOfInputParameters;
-                int nOut = NumberOfOutputParameters;
-                for (int i = 0; i < nIn; i++)
+
+                for (int i = 0; i < NumberOfInputParameters; i++)
                 {
                     arraySize *= (int)Size[i];
                 }
                 samples = new int[arraySize][];
-                int bitsPerSample = BitsPerSample;
 
                 // PDF spec 1.7 p.171:
                 // Each sample value is represented as a sequence of BitsPerSample bits. 
@@ -269,14 +266,14 @@
 
                 for (int i = 0; i < arraySize; i++)
                 {
-                    samples[i] = new int[nOut];
-                    for (int k = 0; k < nOut; k++)
+                    samples[i] = new int[NumberOfOutputParameters];
+                    for (int k = 0; k < NumberOfOutputParameters; k++)
                     {
                         long accum = 0L;
-                        for (int l = bitsPerSample - 1; l >= 0; l--)
+                        for (int l = BitsPerSample - 1; l >= 0; l--)
                         {
                             accum <<= 1;
-                            accum |= bits[i * nOut * bitsPerSample + (k * bitsPerSample) + l] ? (uint)1 : 0;
+                            accum |= bits[i * NumberOfOutputParameters * BitsPerSample + (k * BitsPerSample) + l] ? (uint)1 : 0;
                         }
 
                         // TODO will this cast work properly for 32 bitsPerSample or should we use long[]?
@@ -293,16 +290,13 @@
             //This involves linear interpolation based on a set of sample points.
             //Theoretically it's not that difficult ... see section 3.9.1 of the PDF Reference.
 
-            int bitsPerSample = BitsPerSample;
-            double maxSample = Math.Pow(2, bitsPerSample) - 1.0;
-            int numberOfInputValues = input.Length;
-            int numberOfOutputValues = NumberOfOutputParameters;
+            double maxSample = Math.Pow(2, BitsPerSample) - 1.0;
 
-            int[] inputPrev = new int[numberOfInputValues];
-            int[] inputNext = new int[numberOfInputValues];
+            int[] inputPrev = new int[input.Length];
+            int[] inputNext = new int[input.Length];
             //input = input.ToArray(); // PDFBOX-4461 // TODO - Not sure if required anymore
 
-            for (int i = 0; i < numberOfInputValues; i++)
+            for (int i = 0; i < input.Length; i++)
             {
                 PdfRange domain = GetDomainForInput(i);
                 PdfRange encodeValues = GetEncodeForParameter(i)!.Value;
@@ -313,9 +307,9 @@
                 inputNext[i] = (int)Math.Ceiling(input[i]);
             }
 
-            double[] outputValues = new RInterpol(input.ToArray(), inputPrev, inputNext, numberOfOutputValues, Size, GetSamples()).RInterpolate();
+            double[] outputValues = new RInterpol(input.ToArray(), inputPrev, inputNext, NumberOfOutputParameters, Size, GetSamples()).RInterpolate();
 
-            for (int i = 0; i < numberOfOutputValues; i++)
+            for (int i = 0; i < NumberOfOutputParameters; i++)
             {
                 PdfRange range = GetRangeForOutput(i);
                 PdfRange? decodeValues = GetDecodeForParameter(i);

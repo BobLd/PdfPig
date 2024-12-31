@@ -48,7 +48,7 @@
             SignatureFlags = signatureFlags;
             NeedAppearances = needAppearances;
             this.fieldsWithReferences = fieldsWithReferences ?? throw new ArgumentNullException(nameof(fieldsWithReferences));
-            Fields = fieldsWithReferences.Values.ToList();
+            Fields = fieldsWithReferences.Values.ToArray();
         }
 
         /// <summary>

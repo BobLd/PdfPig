@@ -40,17 +40,20 @@ namespace UglyToad.PdfPig.Tokens
         /// </summary>
         public string Data { get; }
 
-        private readonly byte[] _bytes;
+        /// <summary>
+        /// The bytes of the hex data.
+        /// </summary>
+        public byte[] BytesArray { get; }
 
         /// <summary>
         /// The bytes of the hex data.
         /// </summary>
-        public ReadOnlySpan<byte> Bytes => _bytes;
+        public ReadOnlySpan<byte> Bytes => BytesArray;
 
         /// <summary>
         /// The memory of the hex data.
         /// </summary>
-        public ReadOnlyMemory<byte> Memory => _bytes;
+        public ReadOnlyMemory<byte> Memory => BytesArray;
 
         /// <summary>
         /// Create a new <see cref="HexToken"/> from the provided hex characters.
@@ -66,7 +69,7 @@ namespace UglyToad.PdfPig.Tokens
             // if the final character is missing, it is considered to be a 0, as per 7.3.4.3
             // adding 1 to the characters array length ensure the size of the byte array is correct
             // in all situations
-            var bytes = new byte[(characters.Length+1) / 2];
+            var bytes = new byte[(characters.Length + 1) / 2];
             int index = 0;
 
             for (var i = 0; i < characters.Length; i += 2)
@@ -106,7 +109,7 @@ namespace UglyToad.PdfPig.Tokens
                 Data = builder.ToString();
             }
 
-            _bytes = bytes;
+            BytesArray = bytes;
         }
 
         /// <summary>

@@ -15,6 +15,8 @@
     using Parser;
     using PdfFonts;
     using PdfPig.Core;
+    using System.Runtime.CompilerServices;
+    using System.Runtime.InteropServices;
     using Tokenization.Scanner;
     using Tokens;
     using XObjects;
@@ -168,9 +170,36 @@
         /// </summary>
         protected void ProcessOperations(IReadOnlyList<IGraphicsStateOperation> operations)
         {
-            foreach (var stateOperation in operations)
+            if (operations is IGraphicsStateOperation[] arr)
             {
-                stateOperation.Run(this);
+                ref var start = ref MemoryMarshal.GetArrayDataReference(arr);
+                ref var end = ref Unsafe.Add(ref start, arr.Length);
+
+                while (Unsafe.IsAddressLessThan(ref start, ref end))
+                {
+                    start.Run(this);
+                    start = ref Unsafe.Add(ref start, 1);
+                }
+            }
+            else if (operations is List<IGraphicsStateOperation> list)
+            {
+                var span = CollectionsMarshal.AsSpan(list);
+
+                ref var start = ref MemoryMarshal.GetReference(span);
+                ref var end = ref Unsafe.Add(ref start, span.Length);
+
+                while (Unsafe.IsAddressLessThan(ref start, ref end))
+                {
+                    start.Run(this);
+                    start = ref Unsafe.Add(ref start, 1);
+                }
+            }
+            else
+            {
+                foreach (var stateOperation in operations)
+                {
+                    stateOperation.Run(this);
+                }
             }
         }
 

@@ -615,12 +615,12 @@ namespace UglyToad.PdfPig.Writer
                 var prev = context.AttemptDeduplication;
                 context.AttemptDeduplication = false;
 
-                var toWrite = page.Value.contentStreams.Where(x => x.HasContent).ToList();
-                if (toWrite.Count == 0)
+                var toWrite = page.Value.contentStreams.Where(x => x.HasContent).ToArray();
+                if (toWrite.Length == 0)
                 {
                     pageDictionary[NameToken.Contents] = new PdfPageBuilder.DefaultContentStream().Write(context);
                 }
-                else if (toWrite.Count == 1)
+                else if (toWrite.Length == 1)
                 {
                     // write single
                     pageDictionary[NameToken.Contents] = toWrite[0].Write(context);

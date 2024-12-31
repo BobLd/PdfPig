@@ -19,8 +19,7 @@
         internal PdfFunctionType4(StreamToken function, ArrayToken domain, ArrayToken range)
             : base(function, domain, range)
         {
-            byte[] bytes = FunctionStream!.Data.ToArray();
-            string str = OtherEncodings.Iso88591.GetString(bytes);
+            string str = OtherEncodings.Iso88591.GetString(FunctionStream!.Data.Span);
             this.instructions = InstructionSequenceBuilder.Parse(str);
         }
 
@@ -41,17 +40,16 @@
             instructions.Execute(context);
 
             //Extract the output values
-            int numberOfOutputValues = NumberOfOutputParameters;
             int numberOfActualOutputValues = context.Stack.Count;
-            if (numberOfActualOutputValues < numberOfOutputValues)
+            if (numberOfActualOutputValues < NumberOfOutputParameters)
             {
                 throw new ArgumentOutOfRangeException("The type 4 function returned "
                         + numberOfActualOutputValues
                         + " values but the Range entry indicates that "
-                        + numberOfOutputValues + " values be returned.");
+                        + NumberOfOutputParameters + " values be returned.");
             }
-            double[] outputValues = new double[numberOfOutputValues];
-            for (int i = numberOfOutputValues - 1; i >= 0; i--)
+            double[] outputValues = new double[NumberOfOutputParameters];
+            for (int i = NumberOfOutputParameters - 1; i >= 0; i--)
             {
                 PdfRange range = GetRangeForOutput(i);
                 outputValues[i] = context.PopReal();
