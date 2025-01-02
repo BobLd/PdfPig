@@ -1,6 +1,5 @@
 ﻿namespace UglyToad.PdfPig.Graphics.Operations
 {
-    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using Tokens;
@@ -24,7 +23,7 @@
         /// <summary>
         /// The values for the color.
         /// </summary>
-        public IReadOnlyList<double> Operands { get; }
+        public double[] Operands { get; }
 
         /// <summary>
         /// The name of an entry in the Pattern subdictionary of the current resource dictionary.
@@ -35,7 +34,7 @@
         /// Create a new <see cref="SetStrokeColor"/>.
         /// </summary>
         /// <param name="operands">The color operands.</param>
-        public SetStrokeColorAdvanced(IReadOnlyList<double> operands)
+        public SetStrokeColorAdvanced(double[] operands)
         {
             Operands = operands;
         }
@@ -45,7 +44,7 @@
         /// </summary>
         /// <param name="operands">The color operands.</param>
         /// <param name="patternName">The pattern name.</param>
-        public SetStrokeColorAdvanced(IReadOnlyList<double> operands, NameToken patternName)
+        public SetStrokeColorAdvanced(double[] operands, NameToken patternName)
         {
             Operands = operands;
             PatternName = patternName;
