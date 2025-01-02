@@ -110,21 +110,30 @@
                 var assembly = typeof(Standard14).Assembly;
 
                 var name = $"UglyToad.PdfPig.Fonts.Resources.AdobeFontMetrics.{afmName}.afm";
-
-                IInputBytes bytes;
-                using (var memory = new MemoryStream())
+    
                 using (var resource = assembly.GetManifestResourceStream(name))
                 {
+                    IInputBytes bytes;
                     if (resource == null)
                     {
                         throw new InvalidOperationException($"Could not find AFM resource with name: {name}.");
                     }
 
-                    resource.CopyTo(memory);
-                    bytes = new MemoryInputBytes(memory.ToArray());
+                    if (resource.CanRead && resource.CanSeek)
+                    {
+                        bytes = new StreamInputBytes(resource);
+                    }
+                    else
+                    {
+                        using (var memory = new MemoryStream())
+                        {
+                            resource.CopyTo(memory);
+                            bytes = new StreamInputBytes(memory);
+                        }
+                    }
+         
+                    Standard14Cache[fontName] = AdobeFontMetricsParser.Parse(bytes, true);
                 }
-
-                Standard14Cache[fontName] = AdobeFontMetricsParser.Parse(bytes, true);
             }
             catch (Exception ex)
             {

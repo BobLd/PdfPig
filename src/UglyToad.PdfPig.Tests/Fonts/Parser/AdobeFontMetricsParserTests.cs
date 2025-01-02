@@ -92,6 +92,35 @@ EndCharMetrics";
             Assert.NotNull(metrics);
         }
 
+
+        [Fact]
+        public void CanParseHelveticaAfmFileStream()
+        {
+            using var helvetica = GetResourceStream("UglyToad.PdfPig.Fonts.Resources.AdobeFontMetrics.Helvetica.afm");
+
+            var input = new StreamInputBytes(helvetica);
+
+            var metrics = AdobeFontMetricsParser.Parse(input, false);
+
+            Assert.NotNull(metrics);
+        }
+
+        private static MemoryStream GetResourceStream(string name)
+        {
+            var memoryStream = new MemoryStream();
+            using (var resource = typeof(AdobeFontMetricsParser).Assembly.GetManifestResourceStream(name))
+            {
+                if (resource == null)
+                {
+                    throw new InvalidOperationException($"No assembly resource with name: {name}.");
+                }
+
+                resource.CopyTo(memoryStream);
+                memoryStream.Position = 0;
+                return memoryStream;
+            }
+        }
+
         private static byte[] GetResourceBytes(string name)
         {
             using (var memoryStream = new MemoryStream())

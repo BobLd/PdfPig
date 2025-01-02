@@ -139,23 +139,27 @@
                 return false;
             }
 
-            byte[] bytes;
             using (var stream = typeof(CMapParser).Assembly.GetManifestResourceStream(resource))
             {
                 if (stream is null)
                 {
                     return false;
                 }
-
-                using (var memoryStream = new MemoryStream())
+                
+                if (stream.CanRead && stream.CanSeek)
                 {
-                    stream.CopyTo(memoryStream);
+                    result = Parse(new StreamInputBytes(stream));
+                }
+                else
+                {
+                    using (var memoryStream = new MemoryStream())
+                    {
+                        stream.CopyTo(memoryStream);
 
-                    bytes = memoryStream.ToArray();
+                        result = Parse(new StreamInputBytes(memoryStream));
+                    }
                 }
             }
-
-            result = Parse(new MemoryInputBytes(bytes));
 
             return true;
         }
