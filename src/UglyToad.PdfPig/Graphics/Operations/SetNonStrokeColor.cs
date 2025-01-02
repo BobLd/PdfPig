@@ -1,6 +1,5 @@
 ﻿namespace UglyToad.PdfPig.Graphics.Operations
 {
-    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
 
@@ -20,7 +19,7 @@
         /// <summary>
         /// The values for the color, 1 for grayscale, 3 for RGB, 4 for CMYK.
         /// </summary>
-        public IReadOnlyList<double> Operands { get; }
+        public double[] Operands { get; }
 
         /// <summary>
         /// Create a new <see cref="SetNonStrokeColor"/>.
