@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace UglyToad.PdfPig.Fonts.AdobeFontMetrics
+﻿namespace UglyToad.PdfPig.Fonts.AdobeFontMetrics
 {
     using System;
     using System.Globalization;
