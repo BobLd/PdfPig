@@ -244,10 +244,12 @@ namespace UglyToad.PdfPig.Fonts.SystemFonts
         private bool TryReadFile(string fileName, bool readNameFirst, string fontName, out TrueTypeFont font)
         {
             font = null;
+            
+            using var bytes = File.OpenRead(fileName);
 
-            var bytes = File.ReadAllBytes(fileName);
-
-            var data = new TrueTypeDataBytes(new MemoryInputBytes(bytes));
+            var data = new TrueTypeDataBytes(new StreamInputBytes(bytes));
+            
+            //var data = new TrueTypeDataBytes(new MemoryInputBytes(File.ReadAllBytes(fileName)));
 
             if (readNameFirst)
             {
