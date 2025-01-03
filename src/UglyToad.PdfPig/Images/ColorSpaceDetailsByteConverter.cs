@@ -97,7 +97,24 @@
         
         private static Span<byte> RemoveStridePadding(Span<byte> input, int strideWidth, int imageWidth, int imageHeight, int multiplier)
         {
-            Span<byte> result = new byte[imageWidth * imageHeight * multiplier];
+            int size = imageWidth * imageHeight * multiplier;
+
+            System.Diagnostics.Debug.Assert(imageWidth < strideWidth);
+            
+            if (size < input.Length)
+            {
+                for (int y = 0; y < imageHeight; y++)
+                {
+                    int sourceIndex = y * strideWidth;
+                    int targetIndex = y * imageWidth;
+                    input.Slice(sourceIndex, imageWidth).CopyTo(input.Slice(targetIndex, imageWidth));
+                }
+
+                return input.Slice(0, size);
+            }
+            
+
+            Span<byte> result = new byte[size];
             for (int y = 0; y < imageHeight; y++)
             {
                 int sourceIndex = y * strideWidth;
