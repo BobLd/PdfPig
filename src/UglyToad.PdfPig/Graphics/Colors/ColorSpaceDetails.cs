@@ -35,7 +35,7 @@
         /// <summary>
         /// The number of components for the underlying color space.
         /// </summary>
-        internal abstract int BaseNumberOfColorComponents { get; }
+        public abstract int BaseNumberOfColorComponents { get; }
 
         /// <summary>
         /// Create a new <see cref="ColorSpaceDetails"/>.
@@ -91,7 +91,7 @@
         public override int NumberOfColorComponents => 1;
 
         /// <inheritdoc/>
-        internal override int BaseNumberOfColorComponents => NumberOfColorComponents;
+        public override int BaseNumberOfColorComponents => NumberOfColorComponents;
 
         private DeviceGrayColorSpaceDetails() : base(ColorSpace.DeviceGray)
         { }
@@ -153,7 +153,7 @@
         public override int NumberOfColorComponents => 3;
 
         /// <inheritdoc/>
-        internal override int BaseNumberOfColorComponents => NumberOfColorComponents;
+        public override int BaseNumberOfColorComponents => NumberOfColorComponents;
 
         private DeviceRgbColorSpaceDetails() : base(ColorSpace.DeviceRGB)
         { }
@@ -214,7 +214,7 @@
         public override int NumberOfColorComponents => 4;
 
         /// <inheritdoc/>
-        internal override int BaseNumberOfColorComponents => NumberOfColorComponents;
+        public override int BaseNumberOfColorComponents => NumberOfColorComponents;
 
         private DeviceCmykColorSpaceDetails() : base(ColorSpace.DeviceCMYK)
         {
@@ -291,7 +291,7 @@
         /// <inheritdoc/>
         /// <para>In the case of <see cref="IndexedColorSpaceDetails"/>, gets the <see cref="BaseColorSpace"/>' <c>BaseNumberOfColorComponents</c>.</para>
         /// </summary>
-        internal override int BaseNumberOfColorComponents => BaseColorSpace.BaseNumberOfColorComponents;
+        public override int BaseNumberOfColorComponents => BaseColorSpace.BaseNumberOfColorComponents;
 
         /// <summary>
         /// The base color space in which the values in the color table are to be interpreted.
@@ -489,7 +489,7 @@
         public override int NumberOfColorComponents { get; }
 
         /// <inheritdoc/>
-        internal override int BaseNumberOfColorComponents => AlternateColorSpace.NumberOfColorComponents;
+        public override int BaseNumberOfColorComponents => AlternateColorSpace.NumberOfColorComponents;
 
         /// <summary>
         /// Specifies name objects specifying the individual colour components. The length of the array shall
@@ -671,7 +671,7 @@
         public override int NumberOfColorComponents => 1;
 
         /// <inheritdoc/>
-        internal override int BaseNumberOfColorComponents => AlternateColorSpace.NumberOfColorComponents;
+        public override int BaseNumberOfColorComponents => AlternateColorSpace.NumberOfColorComponents;
 
         /// <summary>
         /// Specifies the name of the colorant that this Separation color space is intended to represent.
@@ -790,7 +790,7 @@
         public override int NumberOfColorComponents => 1;
 
         /// <inheritdoc/>
-        internal override int BaseNumberOfColorComponents => NumberOfColorComponents;
+        public override int BaseNumberOfColorComponents => NumberOfColorComponents;
 
         private readonly CIEBasedColorSpaceTransformer colorSpaceTransformer;
 
@@ -915,7 +915,7 @@
         public override int NumberOfColorComponents => 3;
 
         /// <inheritdoc/>
-        internal override int BaseNumberOfColorComponents => NumberOfColorComponents;
+        public override int BaseNumberOfColorComponents => NumberOfColorComponents;
 
         private readonly CIEBasedColorSpaceTransformer colorSpaceTransformer;
 
@@ -1060,7 +1060,7 @@
         public override int NumberOfColorComponents => 3;
 
         /// <inheritdoc/>
-        internal override int BaseNumberOfColorComponents => NumberOfColorComponents;
+        public override int BaseNumberOfColorComponents => NumberOfColorComponents;
 
         /// <summary>
         /// An array of three numbers [XW  YW  ZW] specifying the tristimulus value, in the CIE 1931 XYZ space of the
@@ -1211,7 +1211,7 @@
         public override int NumberOfColorComponents { get; }
 
         /// <inheritdoc/>
-        internal override int BaseNumberOfColorComponents => NumberOfColorComponents;
+        public override int BaseNumberOfColorComponents => NumberOfColorComponents;
 
         /// <summary>
         /// An alternate color space that can be used in case the one specified in the stream data is not
@@ -1342,7 +1342,7 @@
         /// Valid for Uncoloured Tiling Patterns. Will throw a <see cref="InvalidOperationException"/> otherwise.
         /// </para>
         /// </summary>
-        internal override int BaseNumberOfColorComponents => UnderlyingColourSpace!.NumberOfColorComponents;
+        public override int BaseNumberOfColorComponents => UnderlyingColourSpace!.NumberOfColorComponents;
 
         /// <summary>
         /// The underlying color space for Uncoloured Tiling Patterns.
@@ -1438,7 +1438,7 @@
         /// Cannot be called for <see cref="UnsupportedColorSpaceDetails"/>, will throw a <see cref="InvalidOperationException"/>.
         /// </para>
         /// </summary>
-        internal override int BaseNumberOfColorComponents => NumberOfColorComponents;
+        public override int BaseNumberOfColorComponents => NumberOfColorComponents;
 
         private UnsupportedColorSpaceDetails() : base(ColorSpace.DeviceGray)
         {
