@@ -22,19 +22,12 @@
 
         private readonly Dictionary<string, string> oddNameToUnicodeCache = new Dictionary<string, string>();
 
-        private static readonly Lazy<GlyphList> LazyAdobeGlyphList = new Lazy<GlyphList>(() => GlyphListFactory.Get("glyphlist"));
+        private static readonly Lazy<GlyphList> LazyAdobeGlyphList = new Lazy<GlyphList>(() => GlyphListFactory.Get("glyphlist", "additional"));
 
         /// <summary>
-        /// The Adobe Glyph List.
+        /// The Adobe Glyph List (includes an extension to the Adobe Glyph List.).
         /// </summary>
         public static GlyphList AdobeGlyphList => LazyAdobeGlyphList.Value;
-
-        private static readonly Lazy<GlyphList> LazyAdditionalGlyphList = new Lazy<GlyphList>(() => GlyphListFactory.Get("additional"));
-
-        /// <summary>
-        /// An extension to the Adobe Glyph List.
-        /// </summary>
-        public static GlyphList AdditionalGlyphList => LazyAdditionalGlyphList.Value;
 
         private static readonly Lazy<GlyphList> LazyZapfDingbatsGlyphList = new Lazy<GlyphList>(() => GlyphListFactory.Get("zapfdingbats"));
         
@@ -101,11 +94,6 @@
             if (oddNameToUnicodeCache.TryGetValue(name, out var result))
             {
                 return result;
-            }
-
-            if (AdditionalGlyphList.nameToUnicode.TryGetValue(name, out var addUnicodeValue))
-            {
-                return addUnicodeValue;
             }
 
             string? unicode;
