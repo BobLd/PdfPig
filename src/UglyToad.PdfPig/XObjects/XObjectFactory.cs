@@ -132,6 +132,7 @@
             }
 
             ColorSpaceDetails? details = null;
+            int[]? mask = null;
             if (!isImageMask)
             {
                 if (dictionary.TryGet(NameToken.ColorSpace, pdfScanner, out NameToken? colorSpaceNameToken))
@@ -146,6 +147,16 @@
                 else if (!isJpxDecode)
                 {
                     details = xObject.DefaultColorSpace;
+                }
+
+                if (dictionary.TryGet(NameToken.Mask, pdfScanner, out ArrayToken? maskArray))
+                {
+                    mask = maskArray.Data.OfType<NumericToken>().Select(n => n.Int).ToArray();
+                }
+                else if (dictionary.TryGet(NameToken.Mask, pdfScanner, out StreamToken? maskStream))
+                {
+                    // FICTIF_TABLE_INDEX.pdf
+                    // ImageMask
                 }
             }
             else
@@ -166,7 +177,8 @@
                 dictionary,
                 xObject.Stream.Data,
                 decodedBytes,
-                details);
+                details,
+                mask);
         }
     }
 }
