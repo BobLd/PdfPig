@@ -95,6 +95,11 @@
         ColorSpaceDetails? ColorSpaceDetails { get; }
 
         /// <summary>
+        /// TODO
+        /// </summary>
+        int[]? Mask { get; }
+
+        /// <summary>
         /// Get the decoded memory of the image if applicable. For JPEG images and some other types the
         /// <see cref="RawMemory"/> should be used directly.
         /// </summary>

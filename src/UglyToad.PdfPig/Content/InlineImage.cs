@@ -57,6 +57,9 @@
         /// <inheritdoc />
         public ColorSpaceDetails ColorSpaceDetails { get; }
 
+        /// <inheritdoc />
+        public int[]? Mask { get; }
+
         /// <summary>
         /// Create a new <see cref="InlineImage"/>.
         /// </summary>
