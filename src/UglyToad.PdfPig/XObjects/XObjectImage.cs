@@ -64,6 +64,9 @@
         /// <inheritdoc />
         public ColorSpaceDetails? ColorSpaceDetails { get; }
 
+        /// <inheritdoc />
+        public int[]? Mask { get; }
+
         /// <summary>
         /// Creates a new <see cref="XObjectImage"/>.
         /// </summary>
@@ -79,7 +82,8 @@
             DictionaryToken imageDictionary,
             ReadOnlyMemory<byte> rawMemory,
             Lazy<ReadOnlyMemory<byte>>? bytes,
-            ColorSpaceDetails? colorSpaceDetails)
+            ColorSpaceDetails? colorSpaceDetails,
+            int[]? mask)
         {
             Bounds = bounds;
             WidthInSamples = widthInSamples;
@@ -94,6 +98,7 @@
             RawMemory = rawMemory;
             ColorSpaceDetails = colorSpaceDetails;
             memoryFactory = bytes;
+            Mask = mask;
         }
 
         /// <inheritdoc />
