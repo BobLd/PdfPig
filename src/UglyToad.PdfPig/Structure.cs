@@ -1,9 +1,12 @@
 ﻿namespace UglyToad.PdfPig
 {
     using System;
+    using System.Collections.Generic;
     using Content;
     using Core;
     using CrossReference;
+    using Parser.Parts;
+    using System.Linq;
     using Tokenization.Scanner;
     using Tokens;
 
@@ -43,6 +46,79 @@
         public ObjectToken GetObject(IndirectReference reference)
         {
             return TokenScanner.Get(reference) ?? throw new InvalidOperationException($"Could not find the object with reference: {reference}.");
+        }
+
+        private static void Build(ArrayToken arrayToken, IPdfTokenScanner tokenScanner, string? label, OptionalContentGroupElement ocgs)
+        {
+            ocgs.NestedRaw ??= new List<OptionalContentGroupElement>();
+            string? currentLabel = label; // Default
+
+            bool isPreviousTokenDico = false;
+            foreach (var order in arrayToken.Data)
+            {
+                if (order is NameToken nameToken)
+                {
+                    currentLabel = nameToken.Data;
+                    isPreviousTokenDico = false;
+                }
+                else if (order is StringToken stringToken)
+                {
+                    currentLabel = stringToken.Data;
+                    isPreviousTokenDico = false;
+                }
+                else if (order is HexToken hexToken)
+                {
+                    currentLabel = hexToken.Data;
+                    isPreviousTokenDico = false;
+                }
+                else if (order is ArrayToken nesterArrayToken)
+                {
+                    Build(nesterArrayToken, tokenScanner, currentLabel, isPreviousTokenDico ? ocgs.NestedRaw.Last() : ocgs);
+                    isPreviousTokenDico = false;
+                }
+                else if (DirectObjectFinder.TryGet(order, tokenScanner, out DictionaryToken v))
+                {
+                    ocgs.NestedRaw.Add(new OptionalContentGroupElement(v, tokenScanner, currentLabel));
+                    isPreviousTokenDico = true;
+                }
+            }
+        }
+
+        public bool TryGetOptionalContentProperties(out IReadOnlyList<OptionalContentGroupElement>? o)
+        {
+            o = null;
+            if (!Catalog.CatalogDictionary.TryGet(NameToken.Ocproperties, TokenScanner, out DictionaryToken ocDictionaryToken))
+            {
+                return false;
+            }
+
+            if (!ocDictionaryToken.TryGet(NameToken.Ocgs, TokenScanner, out ArrayToken ocgsArray))
+            {
+                // Required
+                return false;
+            }
+
+            if (!ocDictionaryToken.TryGet(NameToken.D, TokenScanner, out DictionaryToken viewDictionary))
+            {
+                // Required
+                return false;
+            }
+
+            var root = new OptionalContentGroupElement();
+            if (viewDictionary.TryGet(NameToken.Order, TokenScanner, out ArrayToken orderArray))
+            {
+                Build(orderArray, TokenScanner, null, root);
+
+            }
+
+            if (ocDictionaryToken.TryGet(NameToken.Create("Configs"), TokenScanner, out ArrayToken configsArray))
+            {
+                // Optional
+            }
+
+            o = root.NestedRaw;
+
+            return true;
         }
     }
 }

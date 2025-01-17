@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using UglyToad.PdfPig.Tokenization.Scanner;
+﻿using UglyToad.PdfPig.Tokenization.Scanner;
 using UglyToad.PdfPig.Tokens;
 
 namespace UglyToad.PdfPig.Content
@@ -9,8 +7,14 @@ namespace UglyToad.PdfPig.Content
     /// An optional content group is a dictionary representing a collection of graphics
     /// that can be made visible or invisible dynamically by users of viewers applications.
     /// </summary>
-    public class OptionalContentGroupElement
+    public sealed class OptionalContentGroupElement
     {
+        /// <summary>
+        /// Text labels in nested arrays shall be used to present collections of related optional content groups,
+        /// and not to communicate actual nesting of content inside multiple layers of groups.
+        /// </summary>
+        public string? Label { get; }
+
         /// <summary>
         /// The type of PDF object that this dictionary describes.
         /// <para>Must be OCG for an optional content group dictionary.</para>
@@ -34,59 +38,78 @@ namespace UglyToad.PdfPig.Content
         public IReadOnlyDictionary<string, IToken>? Usage { get; }
 
         /// <summary>
+        /// Nested contents.
+        /// </summary>
+        public IReadOnlyList<OptionalContentGroupElement>? Nested => NestedRaw;
+        
+        internal List<OptionalContentGroupElement>? NestedRaw { get; set; }
+
+        /// <summary>
         /// Underlying <see cref="MarkedContentElement"/>.
         /// </summary>
         public MarkedContentElement MarkedContent { get; }
 
-        internal OptionalContentGroupElement(MarkedContentElement markedContentElement, IPdfTokenScanner  pdfTokenScanner)
+        internal OptionalContentGroupElement(string? label = null)
+        {
+            Label = label;
+        }
+
+        internal OptionalContentGroupElement(MarkedContentElement markedContentElement, IPdfTokenScanner pdfTokenScanner)
+            : this(markedContentElement.Properties, pdfTokenScanner)
         {
             MarkedContent = markedContentElement;
-
+        }
+        
+        internal OptionalContentGroupElement(DictionaryToken markedContentProperties, IPdfTokenScanner pdfTokenScanner, string? label = null)
+            : this(label)
+        {
             // Type - Required
-            if (markedContentElement.Properties.TryGet(NameToken.Type, pdfTokenScanner, out NameToken? type))
+            if (markedContentProperties.TryGet(NameToken.Type, pdfTokenScanner, out NameToken? type))
             {
                 Type = type.Data;
             }
-            else if (markedContentElement.Properties.TryGet(NameToken.Type, pdfTokenScanner, out StringToken? typeStr))
+            else if (markedContentProperties.TryGet(NameToken.Type, pdfTokenScanner, out StringToken? typeStr))
             {
                 Type = typeStr.Data;
             }
             else
             {
-                throw new ArgumentException($"Cannot parse optional content's {nameof(Type)} from {nameof(markedContentElement.Properties)}. This is a required field.", nameof(markedContentElement.Properties));
+                throw new ArgumentException($"Cannot parse optional content's {nameof(Type)} from {nameof(markedContentProperties)}. This is a required field.",
+                    nameof(markedContentProperties));
             }
 
             switch (Type)
             {
                 case "OCG": // Optional content group dictionary
                     // Name - Required
-                    if (markedContentElement.Properties.TryGet(NameToken.Name, pdfTokenScanner, out NameToken? name))
+                    if (markedContentProperties.TryGet(NameToken.Name, pdfTokenScanner, out NameToken? name))
                     {
                         Name = name.Data;
                     }
-                    else if (markedContentElement.Properties.TryGet(NameToken.Name, pdfTokenScanner, out StringToken? nameStr))
+                    else if (markedContentProperties.TryGet(NameToken.Name, pdfTokenScanner, out StringToken? nameStr))
                     {
                         Name = nameStr.Data;
                     }
-                    else if (markedContentElement.Properties.TryGet(NameToken.Name, pdfTokenScanner, out HexToken? nameHex))
+                    else if (markedContentProperties.TryGet(NameToken.Name, pdfTokenScanner, out HexToken? nameHex))
                     {
                         Name = nameHex.Data;
                     }
                     else
                     {
-                        throw new ArgumentException($"Cannot parse optional content's {nameof(Name)} from {nameof(markedContentElement.Properties)}. This is a required field.", nameof(markedContentElement.Properties));
+                        throw new ArgumentException($"Cannot parse optional content's {nameof(Name)} from {nameof(markedContentProperties)}. This is a required field.",
+                            nameof(markedContentProperties));
                     }
 
                     // Intent - Optional
-                    if (markedContentElement.Properties.TryGet(NameToken.Intent, pdfTokenScanner, out NameToken? intentName))
+                    if (markedContentProperties.TryGet(NameToken.Intent, pdfTokenScanner, out NameToken? intentName))
                     {
                         Intent = [intentName.Data];
                     }
-                    else if (markedContentElement.Properties.TryGet(NameToken.Intent, pdfTokenScanner, out StringToken? intentStr))
+                    else if (markedContentProperties.TryGet(NameToken.Intent, pdfTokenScanner, out StringToken? intentStr))
                     {
                         Intent = [intentStr.Data];
                     }
-                    else if (markedContentElement.Properties.TryGet(NameToken.Intent, pdfTokenScanner, out ArrayToken? intentArray))
+                    else if (markedContentProperties.TryGet(NameToken.Intent, pdfTokenScanner, out ArrayToken? intentArray))
                     {
                         List<string> intentList = new List<string>();
                         foreach (var token in intentArray.Data)
@@ -104,6 +127,7 @@ namespace UglyToad.PdfPig.Content
                                 throw new NotImplementedException();
                             }
                         }
+
                         Intent = intentList;
                     }
                     else
@@ -113,36 +137,38 @@ namespace UglyToad.PdfPig.Content
                     }
 
                     // Usage - Optional
-                    if (markedContentElement.Properties.TryGet(NameToken.Usage, pdfTokenScanner, out DictionaryToken? usage))
+                    if (markedContentProperties.TryGet(NameToken.Usage, pdfTokenScanner, out DictionaryToken? usage))
                     {
-                        this.Usage = usage.Data;
+                        Usage = usage.Data;
                     }
+
                     break;
 
                 case "OCMD":
                     // OCGs - Optional
-                    if (markedContentElement.Properties.TryGet(NameToken.Ocgs, pdfTokenScanner, out DictionaryToken? ocgsD))
+                    if (markedContentProperties.TryGet(NameToken.Ocgs, pdfTokenScanner, out DictionaryToken? ocgsD))
                     {
                         // dictionary or array
                         throw new NotImplementedException($"{NameToken.Ocgs}");
                     }
-                    else if (markedContentElement.Properties.TryGet(NameToken.Ocgs, pdfTokenScanner, out ArrayToken? ocgsA))
+                    else if (markedContentProperties.TryGet(NameToken.Ocgs, pdfTokenScanner, out ArrayToken? ocgsA))
                     {
                         // dictionary or array
                         throw new NotImplementedException($"{NameToken.Ocgs}");
                     }
 
                     // P - Optional
-                    if (markedContentElement.Properties.TryGet(NameToken.P, pdfTokenScanner, out NameToken? p))
+                    if (markedContentProperties.TryGet(NameToken.P, pdfTokenScanner, out NameToken? p))
                     {
                         throw new NotImplementedException($"{NameToken.P}");
                     }
 
                     // VE - Optional
-                    if (markedContentElement.Properties.TryGet(NameToken.VE, pdfTokenScanner, out ArrayToken? ve))
+                    if (markedContentProperties.TryGet(NameToken.VE, pdfTokenScanner, out ArrayToken? ve))
                     {
                         throw new NotImplementedException($"{NameToken.VE}");
                     }
+
                     break;
 
                 default:
