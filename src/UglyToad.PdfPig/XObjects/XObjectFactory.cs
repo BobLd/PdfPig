@@ -10,6 +10,7 @@
     using Graphics.Core;
     using Tokenization.Scanner;
     using Tokens;
+    using UglyToad.PdfPig.Images;
     using Util;
 
     /// <summary>
@@ -53,18 +54,36 @@
                 && filterName.Equals(NameToken.JpxDecode);
 
             int bitsPerComponent = 0;
-            if (!isImageMask && !isJpxDecode)
-            {
-                if (!dictionary.TryGet(NameToken.BitsPerComponent, pdfScanner, out NumericToken? bitsPerComponentToken))
-                {
-                    throw new PdfDocumentFormatException($"No bits per component defined for image: {dictionary}.");
-                }
-
-                bitsPerComponent = bitsPerComponentToken.Int;
-            }
-            else if (isImageMask)
+            if (isImageMask)
             {
                 bitsPerComponent = 1;
+            }
+            else
+            {
+                if (isJpxDecode)
+                {
+                    // Optional for JPX
+                    if (dictionary.TryGet(NameToken.BitsPerComponent, pdfScanner,
+                            out NumericToken? bitsPerComponentToken))
+                    {
+                        bitsPerComponent = bitsPerComponentToken.Int;
+                        System.Diagnostics.Debug.Assert(bitsPerComponent == Jpeg2000Helper.GetJp2BitsPerComponent(xObject.Stream.Data.Span));
+                    }
+                    else
+                    {
+                        bitsPerComponent = Jpeg2000Helper.GetJp2BitsPerComponent(xObject.Stream.Data.Span);
+                        System.Diagnostics.Debug.Assert(new int[] { 1, 2, 4, 8, 16 }.Contains(bitsPerComponent));
+                    }
+                }
+                else
+                {
+                    if (!dictionary.TryGet(NameToken.BitsPerComponent, pdfScanner, out NumericToken? bitsPerComponentToken))
+                    {
+                        throw new PdfDocumentFormatException($"No bits per component defined for image: {dictionary}.");
+                    }
+
+                    bitsPerComponent = bitsPerComponentToken.Int;
+                }
             }
 
             var intent = xObject.DefaultRenderingIntent;
