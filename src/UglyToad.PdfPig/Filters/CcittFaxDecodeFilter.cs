@@ -1,9 +1,9 @@
 ﻿namespace UglyToad.PdfPig.Filters
 {
     using System;
-    using System.IO;
-    using Tokens;
     using CcittFax;
+    using Core;
+    using Tokens;
     using Util;
 
     // Filter updated from original port because of issue #982
@@ -41,7 +41,8 @@
             var k = decodeParms.GetIntOrDefault(NameToken.K, 0);
             var encodedByteAlign = decodeParms.GetBooleanOrDefault(NameToken.EncodedByteAlign, false);
             var compressionType = DetermineCompressionType(input, k);
-            using (var stream = new CcittFaxDecoderStream(new MemoryStream(input.ToArray()), cols, compressionType, encodedByteAlign))
+            
+            using (var stream = new CcittFaxDecoderStream(ReadHelper.GetMemoryStream(input), cols, compressionType, encodedByteAlign))
             {
                 var arraySize = (cols + 7) / 8 * rows;
                 var decompressed = new byte[arraySize];
