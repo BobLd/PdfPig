@@ -1,5 +1,6 @@
 ﻿namespace UglyToad.PdfPig.Filters
 {
+    using Core;
     using Fonts;
     using System;
     using System.IO;
@@ -37,10 +38,9 @@
 
             var predictor = parameters.GetIntOrDefault(NameToken.Predictor, -1);
 
-            var bytes = input.ToArray();
             try
             {
-                var decompressed = Decompress(bytes);
+                var decompressed = Decompress(input);
 
                 if (predictor == -1)
                 {
@@ -58,18 +58,16 @@
                 // ignored.
             }
 
-            return bytes;
+            return input.ToArray();
         }
 
-        private static byte[] Decompress(byte[] input)
+        private static byte[] Decompress(ReadOnlySpan<byte> input)
         {
-            using (var memoryStream = new MemoryStream(input))
+            // The first 2 bytes are the header which DeflateStream does not support.
+            
+            using (var memoryStream = ReadHelper.GetMemoryStream(input.Slice(2)))
             using (var output = new MemoryStream())
             {
-                // The first 2 bytes are the header which DeflateStream does not support.
-                memoryStream.ReadByte();
-                memoryStream.ReadByte();
-
                 try
                 {
                     using (var deflate = new DeflateStream(memoryStream, CompressionMode.Decompress))
