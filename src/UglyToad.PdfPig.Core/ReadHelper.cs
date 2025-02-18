@@ -3,6 +3,7 @@
     using System;
     using System.Buffers.Text;
     using System.Collections.Generic;
+    using System.IO;
     using System.Text;
 
 #if NET8_0_OR_GREATER
@@ -330,6 +331,20 @@
             }
 
             bytesRead = position;
+        }
+
+        /// <summary>
+        /// Get <see cref="MemoryStream"/> from span.
+        /// </summary>
+        public static MemoryStream GetMemoryStream(ReadOnlySpan<byte> bytes)
+        {
+            var memoryStream = new MemoryStream(bytes.Length);
+            foreach (var b in bytes)
+            {
+                memoryStream.WriteByte(b);
+            }
+            memoryStream.Position = 0;
+            return memoryStream;
         }
     }
 }

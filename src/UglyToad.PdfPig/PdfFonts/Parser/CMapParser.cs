@@ -147,12 +147,15 @@
                     return false;
                 }
 
-                using (var memoryStream = new MemoryStream())
-                {
-                    stream.CopyTo(memoryStream);
+                bytes = new byte[stream.Length];
 
-                    bytes = memoryStream.ToArray();
-                }
+#if NET
+                int read = stream.Read(bytes.AsSpan());
+#else
+                int read = stream.Read(bytes, 0, bytes.Length);
+#endif
+
+                System.Diagnostics.Debug.Assert(read == stream.Length);
             }
 
             result = Parse(new MemoryInputBytes(bytes));
