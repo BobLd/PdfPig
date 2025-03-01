@@ -34,6 +34,7 @@
         public DictionaryToken ImageDictionary { get; set; }
 
         public ColorSpaceDetails ColorSpaceDetails { get; set; }
+        public int[]? Mask { get; }
 
         public ReadOnlyMemory<byte> DecodedBytes { get; set; }
 
