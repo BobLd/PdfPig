@@ -34,13 +34,6 @@
     {
         public static BlendMode? ToBlendMode(this string s)
         {
-#if DEBUG
-            if (s.Contains(" "))
-            {
-
-            }
-#endif
-
             return s switch
             {
                 // 11.3.5.2 Separable blend modes
