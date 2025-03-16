@@ -801,6 +801,7 @@
             else if (state.TryGet(NameToken.Smask, PdfScanner, out DictionaryToken? smDictToken))
             {
                 currentGraphicsState.SoftMask = SoftMask.Parse(smDictToken, PdfScanner, FilterProvider);
+                ProcessFormXObject(currentGraphicsState.SoftMask.TransparencyGroup, NameToken.Smask);
             }
         }
 

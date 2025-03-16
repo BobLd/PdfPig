@@ -164,6 +164,8 @@ namespace UglyToad.PdfPig.Graphics
                 CurrentNonStrokingColor = CurrentNonStrokingColor,
                 CurrentClippingPath = CurrentClippingPath,
                 ColorSpaceContext = ColorSpaceContext?.DeepClone(),
+                BlendMode = BlendMode,
+                SoftMask = SoftMask
             };
         }
     }
