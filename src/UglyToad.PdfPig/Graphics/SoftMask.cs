@@ -2,17 +2,11 @@
 {
     using System;
     using System.Linq;
-    using System.Security.Principal;
-    using System.Threading.Tasks;
     using UglyToad.PdfPig.Filters;
     using UglyToad.PdfPig.Functions;
     using UglyToad.PdfPig.Tokenization.Scanner;
     using UglyToad.PdfPig.Tokens;
     using UglyToad.PdfPig.Util;
-    using UglyToad.PdfPig.XObjects;
-    using static System.Runtime.InteropServices.JavaScript.JSType;
-    using static UglyToad.PdfPig.Functions.Type4.BitwiseOperators;
-    using static UglyToad.PdfPig.Functions.Type4.RelationalOperators;
 
     public sealed class SoftMask
     {
