@@ -427,7 +427,8 @@ namespace UglyToad.PdfPig.Graphics
 
             if (ParsingOptions.ClipPaths)
             {
-                var currentClipping = GetCurrentState().CurrentClippingPath!;
+                var graphicsState = GetCurrentState();
+                var currentClipping = graphicsState.CurrentClippingPath!;
                 currentClipping.SetClipping(clippingRule);
 
                 var newClippings = CurrentPath.Clip(currentClipping, ParsingOptions.Logger);
@@ -437,8 +438,27 @@ namespace UglyToad.PdfPig.Graphics
                 }
                 else
                 {
-                    GetCurrentState().CurrentClippingPath = newClippings;
+                    graphicsState.CurrentClippingPath = newClippings;
                 }
+            }
+        }
+
+        protected override void ClipToRectangle(PdfRectangle rectangle)
+        {
+            // https://github.com/apache/pdfbox/blob/f4bfe47de37f6fe69e8f98b164c3546facfd5e91/pdfbox/src/main/java/org/apache/pdfbox/contentstream/PDFStreamEngine.java#L611
+            var graphicsState = GetCurrentState();
+            var clip = rectangle.ToPdfPath();
+
+            var currentClipping = graphicsState.CurrentClippingPath!;
+            var newClippings = clip.Clip(currentClipping, ParsingOptions.Logger);
+            
+            if (newClippings is null)
+            {
+                ParsingOptions.Logger.Warn("Empty clipping path found. Clipping path not updated.");
+            }
+            else
+            {
+                graphicsState.CurrentClippingPath = newClippings;
             }
         }
 

@@ -145,15 +145,8 @@
         /// </summary>
         protected static PdfPath GetInitialClipping(CropBox cropBox)
         {
-            var cropBoxBounds = cropBox.Bounds;
-
-            // initiate CurrentClippingPath to cropBox
-            var clippingSubpath = new PdfSubpath();
-            clippingSubpath.Rectangle(cropBoxBounds.BottomLeft.X,
-                cropBoxBounds.BottomLeft.Y,
-                cropBoxBounds.Width,
-                cropBoxBounds.Height);
-            var clippingPath = new PdfPath() { clippingSubpath };
+            // Initiate CurrentClippingPath to cropBox
+            var clippingPath = cropBox.Bounds.ToPdfPath();
             clippingPath.SetClipping(FillingRule.EvenOdd);
             return clippingPath;
         }
@@ -578,7 +571,14 @@
                 new MemoryInputBytes(contentStream),
                 ParsingOptions.Logger);
 
-            // 3. We don't respect clipping currently.
+            // 3. Clip to bounding box
+            if (formStream.StreamDictionary.TryGet<ArrayToken>(NameToken.Bbox, PdfScanner, out var bboxToken))
+            {
+                var points = bboxToken.Data.OfType<NumericToken>().Select(x => x.Double).ToArray();
+                PdfRectangle bbox = new PdfRectangle(points[0], points[1], points[2], points[3]);
+                PdfRectangle transformedBox = startState.CurrentTransformationMatrix.Transform(bbox); //.Normalise();
+                ClipToRectangle(transformedBox);
+            }
 
             // 4. Paint the objects.
             bool hasCircularReference = HasFormXObjectCircularReference(formStream, xObjectName, operations);
@@ -665,6 +665,8 @@
         /// <inheritdoc/>
         public abstract void ModifyClippingIntersect(FillingRule clippingRule);
 
+        protected abstract void ClipToRectangle(PdfRectangle rectangle);
+
         /// <inheritdoc/>
         public virtual void SetNamedGraphicsState(NameToken stateName)
         {
@@ -707,6 +709,10 @@
                 // whether the current soft mask and alpha constant are to be interpreted as
                 // shape values (true) or opacity values (false).
                 currentGraphicsState.AlphaSource = aisToken.Data;
+                if (currentGraphicsState.AlphaSource)
+                {
+
+                }
             }
 
             if (state.TryGet(NameToken.Ca, PdfScanner, out NumericToken? caToken))
@@ -801,6 +807,11 @@
             else if (state.TryGet(NameToken.Smask, PdfScanner, out DictionaryToken? smDictToken))
             {
                 currentGraphicsState.SoftMask = SoftMask.Parse(smDictToken, PdfScanner, FilterProvider);
+
+                // https://github.com/apache/pdfbox/blob/f4bfe47de37f6fe69e8f98b164c3546facfd5e91/pdfbox/src/main/java/org/apache/pdfbox/contentstream/PDFStreamEngine.java#L198
+                // https://github.com/apache/pdfbox/blob/trunk/pdfbox/src/main/java/org/apache/pdfbox/rendering/PageDrawer.java#L1908
+                // https://github.com/apache/pdfbox/blob/trunk/pdfbox/src/main/java/org/apache/pdfbox/rendering/PageDrawer.java#L625
+
                 ProcessFormXObject(currentGraphicsState.SoftMask.TransparencyGroup, NameToken.Smask);
             }
         }
