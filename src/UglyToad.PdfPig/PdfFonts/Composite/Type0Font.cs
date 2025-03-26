@@ -51,7 +51,7 @@
 
             BaseFont = baseFont ?? throw new ArgumentNullException(nameof(baseFont));
             CidFont = cidFont ?? throw new ArgumentNullException(nameof(cidFont));
-            CMap = cmap ?? throw new ArgumentNullException(nameof(cmap));
+            CMap = cmap;// ?? throw new ArgumentNullException(nameof(cmap));
             ToUnicode = new ToUnicodeCMap(toUnicodeCMap);
             Details = cidFont.Details?.WithName(Name.Data)
                       ?? FontDetails.GetDefault(Name.Data);
