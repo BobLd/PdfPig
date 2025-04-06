@@ -5,7 +5,7 @@
 
     public class LetterFilterTests
     {
-        [Fact]
+        [SkippableFact]
         public void CanFilterClippedLetters()
         {
             var one = IntegrationHelpers.GetDocumentPath("ClipPathLetterFilter-Test1.pdf");
