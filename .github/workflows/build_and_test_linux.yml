@@ -25,9 +25,6 @@ jobs:
 
       - name: Run the tests net8.0
         run: dotnet test -c Release src/UglyToad.PdfPig.sln -f net8.0
-
-      - name: Build the solution net6.0
-        run: dotnet build -c Release src/UglyToad.PdfPig.sln -f net6.0
-
+        
       - name: Run the tests net6.0
         run: dotnet test -c Release src/UglyToad.PdfPig.sln -f net6.0
