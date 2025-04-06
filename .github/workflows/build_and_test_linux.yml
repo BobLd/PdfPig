@@ -16,13 +16,18 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: | 
-            2.1.x
             6.0.x
             8.0.x
                     
       # Build the release build
-      - name: Build the solution
+      - name: Build the solution net8.0
         run: dotnet build -c Release src/UglyToad.PdfPig.sln -f net8.0
 
-      - name: Run the tests
+      - name: Run the tests net8.0
         run: dotnet test -c Release src/UglyToad.PdfPig.sln -f net8.0
+
+      - name: Build the solution net6.0
+        run: dotnet build -c Release src/UglyToad.PdfPig.sln -f net6.0
+
+      - name: Run the tests net6.0
+        run: dotnet test -c Release src/UglyToad.PdfPig.sln -f net6.0
