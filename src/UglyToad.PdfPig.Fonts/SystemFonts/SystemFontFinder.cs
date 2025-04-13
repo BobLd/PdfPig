@@ -126,6 +126,13 @@ namespace UglyToad.PdfPig.Fonts.SystemFonts
         /// <inheritdoc />
         public TrueTypeFont GetTrueTypeFont(string name)
         {
+            // https://github.com/apache/pdfbox/blob/7bf2a5e2fdbbfbda10f5f9a7fdb20fadd9e70450/pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/FontMapperImpl.java#L469
+
+            if (name.Length > 7 && name[6] == '+')
+            {
+                name = name.Substring(7);
+            }
+
             var result = GetTrueTypeFontNamed(name);
 
             if (result != null)

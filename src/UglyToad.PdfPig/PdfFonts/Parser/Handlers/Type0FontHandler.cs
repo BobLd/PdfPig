@@ -40,19 +40,33 @@
         {
             var baseFont = dictionary.GetNameOrDefault(NameToken.BaseFont);
 
-            var cMap = ReadEncoding(dictionary, out var isCMapPredefined);
-
+            CMap? cMap = null;
+            bool isCMapPredefined = false;
             ICidFont cidFont;
 
-            if (TryGetFirstDescendant(dictionary, out var descendantObject))
+            if (dictionary.TryGet(NameToken.Subtype, out var subtype) &&
+                (subtype.Equals(NameToken.CidFontType0) || subtype.Equals(NameToken.CidFontType2)))
             {
-                DictionaryToken descendantFontDictionary;
+                cidFont = ParseDescendant(dictionary)!;
 
+                cMap = new CMap(cidFont.SystemInfo,
+                    0,
+                    0,
+                    cidFont.BaseFont.Data,
+                    "0",
+                    new Dictionary<int, string>(),
+                    Array.Empty<CodespaceRange>(),
+                    Array.Empty<CidRange>(),
+                    Array.Empty<CidCharacterMapping>());
+            }
+            else if (TryGetFirstDescendant(dictionary, out var descendantObject))
+            {
+                cMap = ReadEncoding(dictionary, out isCMapPredefined);
+
+                DictionaryToken descendantFontDictionary;
                 if (descendantObject is IndirectReferenceToken obj)
                 {
-                    var parsed = DirectObjectFinder.Get<DictionaryToken>(obj, scanner);
-
-                    descendantFontDictionary = parsed;
+                    descendantFontDictionary = DirectObjectFinder.Get<DictionaryToken>(obj, scanner);
                 }
                 else
                 {
@@ -81,7 +95,7 @@
                     }
                 }
                 else if (DirectObjectFinder.TryGet<NameToken>(toUnicodeValue, scanner, out var toUnicodeName)
-                && CMapCache.TryGet(toUnicodeName.Data, out toUnicodeCMap))
+                         && CMapCache.TryGet(toUnicodeName.Data, out toUnicodeCMap))
                 {
                 }
                 else

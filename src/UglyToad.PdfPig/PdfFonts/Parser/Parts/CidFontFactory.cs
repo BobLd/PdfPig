@@ -8,9 +8,11 @@
     using Filters;
     using Fonts;
     using Fonts.CompactFontFormat;
+    using Fonts.SystemFonts;
     using Fonts.TrueType;
     using Fonts.TrueType.Parser;
     using Geometry;
+    using Geometry.ClipperLibrary;
     using PdfPig.Parser.Parts;
     using Tokenization.Scanner;
     using Tokens;
@@ -67,6 +69,15 @@
             var baseFont = dictionary.GetNameOrDefault(NameToken.BaseFont);
 
             var systemInfo = GetSystemInfo(dictionary);
+
+            if (fontProgram is null)
+            {
+                var test = SystemFontFinder.Instance.GetTrueTypeFont(baseFont);
+                if (test is not null)
+                {
+                    fontProgram = new PdfCidTrueTypeFont(test);
+                }
+            }
 
             var subType = dictionary.GetNameOrDefault(NameToken.Subtype);
             if (NameToken.CidFontType0.Equals(subType))
@@ -265,6 +276,29 @@
                 cidDictionary = DirectObjectFinder.Get<DictionaryToken>(cidEntry, pdfScanner);
             }
 
+            if (cidDictionary.TryGet<DictionaryToken>(NameToken.Font, pdfScanner, out var fontDictionary))
+            {
+                foreach (var pair in fontDictionary.Data)
+                {
+                    if (pair.Value is IndirectReferenceToken objectKey)
+                    {
+                        var fontObject = DirectObjectFinder.Get<DictionaryToken>(objectKey, pdfScanner);
+                    }
+                }
+            }
+
+            if (dictionary.TryGet<DictionaryToken>(NameToken.FontDescriptor, pdfScanner, out var fontDesc)
+                && fontDesc.ContainsKey(NameToken.Registry)
+                && fontDesc.ContainsKey(NameToken.Ordering)
+                && fontDesc.ContainsKey(NameToken.Supplement))
+            {
+                var registryD = SafeKeyAccess(fontDesc, NameToken.Registry);
+                var orderingD = SafeKeyAccess(fontDesc, NameToken.Ordering);
+                var supplementD = fontDesc.GetIntOrDefault(NameToken.Supplement);
+
+                //return new CharacterIdentifierSystemInfo(registryD, orderingD, supplementD);
+            }
+
             var registry = SafeKeyAccess(cidDictionary, NameToken.Registry);
             var ordering = SafeKeyAccess(cidDictionary, NameToken.Ordering);
             var supplement = cidDictionary.GetIntOrDefault(NameToken.Supplement);
@@ -281,6 +315,7 @@
 
             if (DirectObjectFinder.TryGet(entry, pdfScanner, out NameToken? _))
             {
+                // Identity
                 return new CharacterIdentifierToGlyphIndexMap();
             }
 
