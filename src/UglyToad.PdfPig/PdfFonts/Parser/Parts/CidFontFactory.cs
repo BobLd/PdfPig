@@ -8,10 +8,12 @@
     using Filters;
     using Fonts;
     using Fonts.CompactFontFormat;
+    using Fonts.SystemFonts;
     using Fonts.TrueType;
     using Fonts.TrueType.Parser;
     using Geometry;
     using PdfPig.Parser.Parts;
+    using System.Linq;
     using Tokenization.Scanner;
     using Tokens;
     using UglyToad.PdfPig.Logging;
@@ -67,6 +69,12 @@
             var baseFont = dictionary.GetNameOrDefault(NameToken.BaseFont);
 
             var systemInfo = GetSystemInfo(dictionary);
+
+            if (fontProgram is null && !string.IsNullOrEmpty(baseFont?.Data))
+            {
+                var ttf = SystemFontFinder.Instance.GetTrueTypeFont(baseFont!.Data);
+                fontProgram =  new PdfCidTrueTypeFont(ttf);
+            }
 
             var subType = dictionary.GetNameOrDefault(NameToken.Subtype);
             if (NameToken.CidFontType0.Equals(subType))
@@ -268,6 +276,14 @@
             var registry = SafeKeyAccess(cidDictionary, NameToken.Registry);
             var ordering = SafeKeyAccess(cidDictionary, NameToken.Ordering);
             var supplement = cidDictionary.GetIntOrDefault(NameToken.Supplement);
+
+            if (string.IsNullOrEmpty( registry) && string.IsNullOrEmpty(ordering) && supplement == 0 &&
+                dictionary.TryGet<DictionaryToken>(NameToken.FontDescriptor, pdfScanner, out var fontDescriptorDictionary))
+            {
+                 registry = SafeKeyAccess(fontDescriptorDictionary, NameToken.Registry);
+                 ordering = SafeKeyAccess(fontDescriptorDictionary, NameToken.Ordering);
+                 supplement = fontDescriptorDictionary.GetIntOrDefault(NameToken.Supplement);
+            }
 
             return new CharacterIdentifierSystemInfo(registry, ordering, supplement);
         }

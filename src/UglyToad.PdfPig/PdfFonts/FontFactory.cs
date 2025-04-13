@@ -18,11 +18,14 @@
             this.log = log;
             handlers = new Dictionary<NameToken, IFontHandler>
             {
-                {NameToken.Type0, type0FontHandler},
-                {NameToken.TrueType,  trueTypeFontHandler},
-                {NameToken.Type1, type1FontHandler},
-                {NameToken.MmType1, type1FontHandler},
-                {NameToken.Type3, type3FontHandler}
+                { NameToken.Type0, type0FontHandler },
+                { NameToken.CidFontType0, type0FontHandler },
+                { NameToken.CidFontType2, type0FontHandler },
+
+                { NameToken.TrueType, trueTypeFontHandler },
+                { NameToken.Type1, type1FontHandler },
+                { NameToken.MmType1, type1FontHandler },
+                { NameToken.Type3, type3FontHandler }
             };
         }
 

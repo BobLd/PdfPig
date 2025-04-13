@@ -8,6 +8,19 @@
     public class GithubIssuesTests
     {
         [Fact]
+        public void Issue1013()
+        {
+            var path = IntegrationHelpers.GetSpecificTestDocumentPath("document_with_failed_fonts.pdf");
+
+            // Lenient parsing ON + Skip missing fonts
+            using (var document = PdfDocument.Open(path, new ParsingOptions() { UseLenientParsing = true, SkipMissingFonts = false }))
+            {
+                var page = document.GetPage(3);
+                Assert.NotEmpty(page.Letters);
+            }
+        }
+
+        [Fact]
         public void Issue1016()
         {
             // Doc has letters with Shading pattern color

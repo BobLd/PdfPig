@@ -40,12 +40,19 @@
         {
             var baseFont = dictionary.GetNameOrDefault(NameToken.BaseFont);
 
-            var cMap = ReadEncoding(dictionary, out var isCMapPredefined);
-
+            CMap? cMap = null;
+            bool isCMapPredefined = false;
             ICidFont cidFont;
 
-            if (TryGetFirstDescendant(dictionary, out var descendantObject))
+            if (dictionary.TryGet(NameToken.Subtype, out var subtype) &&
+                (subtype.Equals(NameToken.CidFontType0) || subtype.Equals(NameToken.CidFontType2)))
             {
+                cidFont = ParseDescendant(dictionary)!;
+            }
+            else if (TryGetFirstDescendant(dictionary, out var descendantObject))
+            {
+                cMap = ReadEncoding(dictionary, out isCMapPredefined);
+
                 DictionaryToken descendantFontDictionary;
 
                 if (descendantObject is IndirectReferenceToken obj)
