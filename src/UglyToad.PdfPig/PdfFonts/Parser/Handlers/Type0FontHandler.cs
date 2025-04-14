@@ -8,6 +8,8 @@
     using Core;
     using Filters;
     using Fonts;
+    using Fonts.AdobeFontMetrics;
+    using Fonts.Standard14Fonts;
     using Logging;
     using Parts;
     using PdfPig.Parser.Parts;
@@ -48,6 +50,9 @@
                 (subtype.Equals(NameToken.CidFontType0) || subtype.Equals(NameToken.CidFontType2)))
             {
                 cidFont = ParseDescendant(dictionary)!;
+                CMapCache.TryGet("Identity-H", out cMap);
+                var standard14Font = Standard14.GetAdobeFontMetrics("Arial-BoldMT");
+                var encoding = new AdobeFontMetricsEncoding(standard14Font);
             }
             else if (TryGetFirstDescendant(dictionary, out var descendantObject))
             {
@@ -88,9 +93,8 @@
                     }
                 }
                 else if (DirectObjectFinder.TryGet<NameToken>(toUnicodeValue, scanner, out var toUnicodeName)
-                && CMapCache.TryGet(toUnicodeName.Data, out toUnicodeCMap))
-                {
-                }
+                         && CMapCache.TryGet(toUnicodeName.Data, out toUnicodeCMap))
+                { }
                 else
                 {
                     // Rather than throwing here, let's try returning the font anyway since

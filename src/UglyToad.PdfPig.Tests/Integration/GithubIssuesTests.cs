@@ -13,7 +13,7 @@
             var path = IntegrationHelpers.GetSpecificTestDocumentPath("document_with_failed_fonts.pdf");
 
             // Lenient parsing ON + Skip missing fonts
-            using (var document = PdfDocument.Open(path, new ParsingOptions() { UseLenientParsing = true, SkipMissingFonts = false }))
+            using (var document = PdfDocument.Open(path, new ParsingOptions() { UseLenientParsing = true, SkipMissingFonts = true }))
             {
                 var page = document.GetPage(3);
                 Assert.NotEmpty(page.Letters);

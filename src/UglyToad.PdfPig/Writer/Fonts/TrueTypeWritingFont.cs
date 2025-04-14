@@ -122,7 +122,7 @@
                 { NameToken.FirstChar, new NumericToken(0) },
                 { NameToken.LastChar, new NumericToken(lastCharacter) },
                 { NameToken.Widths, new ArrayToken(widths) },
-                {NameToken.ToUnicode, toUnicode }
+                { NameToken.ToUnicode, toUnicode }
             };
 
             var token = new DictionaryToken(dictionary);
