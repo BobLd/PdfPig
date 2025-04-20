@@ -13,6 +13,7 @@
     using PdfPig.Parser.Parts;
     using Tokenization.Scanner;
     using Tokens;
+    using UglyToad.PdfPig.PdfFonts.Simple;
     using Util;
 
     internal sealed class Type0FontHandler : IFontHandler
@@ -48,6 +49,22 @@
                 (subtype.Equals(NameToken.CidFontType0) || subtype.Equals(NameToken.CidFontType2)))
             {
                 cidFont = ParseDescendant(dictionary)!;
+                if (cidFont is Type2CidFont t2 && t2.fontProgram is PdfCidTrueTypeFont tt)
+                {
+                    var k = new TrueTypeSimpleFont(cidFont.BaseFont,
+                        cidFont.Descriptor,
+                        null,
+                        null,
+                        tt.font,
+                        0,
+                        new double[0]);
+
+                    return k;
+                }
+         
+         
+
+                
 
                 cMap = new CMap(cidFont.SystemInfo,
                     0,

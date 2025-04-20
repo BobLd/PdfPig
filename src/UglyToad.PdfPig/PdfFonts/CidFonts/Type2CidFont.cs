@@ -15,7 +15,7 @@
     /// </summary>
     internal sealed class Type2CidFont : ICidFont
     {
-        private readonly ICidFontProgram? fontProgram;
+        public readonly ICidFontProgram? fontProgram;
         private readonly VerticalWritingMetrics verticalWritingMetrics;
         private readonly IReadOnlyDictionary<int, double> widths;
         private readonly double? defaultWidth;

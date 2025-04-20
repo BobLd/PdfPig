@@ -9,7 +9,7 @@
 
     internal sealed class PdfCidTrueTypeFont : ICidFontProgram
     {
-        private readonly TrueTypeFont font;
+        public readonly TrueTypeFont font;
 
         public FontDetails Details { get; }
 

@@ -8,6 +8,7 @@
     using Filters;
     using Fonts;
     using Fonts.CompactFontFormat;
+    using Fonts.Standard14Fonts;
     using Fonts.SystemFonts;
     using Fonts.TrueType;
     using Fonts.TrueType.Parser;
@@ -72,10 +73,10 @@
 
             if (fontProgram is null)
             {
-                var test = SystemFontFinder.Instance.GetTrueTypeFont(baseFont);
-                if (test is not null)
+                var tt = SystemFontFinder.Instance.GetTrueTypeFont(baseFont);
+                if (tt is not null)
                 {
-                    fontProgram = new PdfCidTrueTypeFont(test);
+                    fontProgram = new PdfCidTrueTypeFont(tt);
                 }
             }
 

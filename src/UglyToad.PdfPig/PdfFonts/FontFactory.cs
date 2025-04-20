@@ -1,5 +1,6 @@
 ﻿namespace UglyToad.PdfPig.PdfFonts
 {
+    using Fonts.SystemFonts;
     using System;
     using System.Collections.Generic;
     using Logging;
@@ -20,8 +21,8 @@
             {
                 { NameToken.Type0, type0FontHandler },
 
-                { NameToken.CidFontType0, type0FontHandler },
-                { NameToken.CidFontType2, type0FontHandler },
+                //{ NameToken.CidFontType0, type0FontHandler },
+                //{ NameToken.CidFontType2, type0FontHandler },
 
                 { NameToken.TrueType, trueTypeFontHandler },
                 { NameToken.Type1, type1FontHandler },
@@ -47,8 +48,10 @@
             {
                 return handler.Generate(dictionary);
             }
+            
+            return handlers[NameToken.Type1].Generate(dictionary);
 
-            throw new NotImplementedException($"Parsing not implemented for fonts of type: {subtype}, please submit a pull request or an issue.");
+            //throw new NotImplementedException($"Parsing not implemented for fonts of type: {subtype}, please submit a pull request or an issue.");
         }
     }
 }
