@@ -165,6 +165,31 @@
             {
                 stateOperation.Run(this);
             }
+
+
+            if (_frequencies.Count > 0)
+            {
+                int count = 0;
+                Dictionary<int, float> freq = new Dictionary<int, float>();
+                foreach (var kvp in _frequencies.OrderByDescending(k => k.Value))
+                {
+                    if (freq.Count < 10)
+                    {
+                        freq.Add(kvp.Key, kvp.Value);
+                    }
+                    count += kvp.Value;
+                }
+
+                foreach (var key in freq.Keys)
+                {
+                    freq[key] /= count;
+
+                    var test = System.Text.Encoding.GetEncoding("windows-1251").GetString([(byte)key]);
+                }
+            }
+
+            
+            
         }
 
         /// <summary>
@@ -212,6 +237,8 @@
             GraphicsStack.Push(GraphicsStack.Peek().DeepClone());
         }
 
+        private Dictionary<int, int> _frequencies = new Dictionary<int, int>();
+        
         /// <inheritdoc/>
         public void ShowText(IInputBytes bytes)
         {
@@ -260,9 +287,11 @@
                 {
                     ParsingOptions.Logger.Warn(
                         $"We could not find the corresponding character with code {code} in font {font.Name}.");
-
-                    // Try casting directly to string as in PDFBox 1.8.
+                    
                     unicode = new string((char)code, 1);
+                    _frequencies.TryAdd(code, 0);
+                    _frequencies[code]++;
+                    //unicode = System.Text.Encoding.GetEncoding("windows-1251").GetString([(byte)code]);
                 }
 
                 var wordSpacing = 0.0;

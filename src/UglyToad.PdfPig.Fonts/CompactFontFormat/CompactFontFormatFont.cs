@@ -62,6 +62,7 @@
 
             if (Charset.IsCidCharset || isCid)
             {
+                // GHOSTSCRIPT-700139-0.pdf -> return Charset?.GetNameByGlyphId(characterCode);
                 return Charset?.GetNameByStringId(characterCode);
             }
 
