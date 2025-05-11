@@ -62,7 +62,7 @@
         /// <inheritdoc />
         public void Run(IOperationContext operationContext)
         {
-            // need to implement marked content here
+            // TODO - need to implement marked content here, see GHOSTSCRIPT-686747-1.pdf
         }
 
         /// <inheritdoc />
