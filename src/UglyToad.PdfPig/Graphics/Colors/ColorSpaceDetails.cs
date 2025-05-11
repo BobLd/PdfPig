@@ -15,6 +15,8 @@
     /// </summary>
     public abstract class ColorSpaceDetails
     {
+        public bool IsStencil { get; }
+        
         /// <summary>
         /// The type of the ColorSpace.
         /// </summary>
@@ -39,10 +41,11 @@
         /// <summary>
         /// Create a new <see cref="ColorSpaceDetails"/>.
         /// </summary>
-        protected internal ColorSpaceDetails(ColorSpace type)
+        protected internal ColorSpaceDetails(ColorSpace type, bool isStencil = false)
         {
             Type = type;
             BaseType = type;
+            IsStencil = isStencil;
         }
 
         /// <summary>
@@ -279,7 +282,7 @@
         internal static ColorSpaceDetails Stencil(ColorSpaceDetails colorSpaceDetails, double[] decode)
         {
             var blackIsOne = decode.Length >= 2 && decode[0] == 1 && decode[1] == 0;
-            return new IndexedColorSpaceDetails(colorSpaceDetails, 1, blackIsOne ? [255, 0] : [0, 255]);
+            return new IndexedColorSpaceDetails(colorSpaceDetails, 1, blackIsOne ? [255, 0] : [0, 255], true);
         }
 
         /// <inheritdoc/>
@@ -310,11 +313,20 @@
         /// </summary>
         public ReadOnlySpan<byte> ColorTable => colorTable;
 
+        public IndexedColorSpaceDetails(ColorSpaceDetails baseColorSpaceDetails, byte hiVal, byte[] colorTable)
+            : this(baseColorSpaceDetails, hiVal, colorTable, false)
+        {
+            BaseColorSpace = baseColorSpaceDetails ?? throw new ArgumentNullException(nameof(baseColorSpaceDetails));
+            HiVal = hiVal;
+            this.colorTable = colorTable;
+            BaseType = baseColorSpaceDetails.Type;
+        }
+
         /// <summary>
         /// Create a new <see cref="IndexedColorSpaceDetails"/>.
         /// </summary>
-        public IndexedColorSpaceDetails(ColorSpaceDetails baseColorSpaceDetails, byte hiVal, byte[] colorTable)
-            : base(ColorSpace.Indexed)
+        private IndexedColorSpaceDetails(ColorSpaceDetails baseColorSpaceDetails, byte hiVal, byte[] colorTable, bool isStencil)
+            : base(ColorSpace.Indexed, isStencil)
         {
             BaseColorSpace = baseColorSpaceDetails ?? throw new ArgumentNullException(nameof(baseColorSpaceDetails));
             HiVal = hiVal;

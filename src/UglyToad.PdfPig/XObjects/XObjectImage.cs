@@ -67,6 +67,8 @@
         /// <inheritdoc />
         public IPdfImage? SoftMaskImage { get; }
 
+        public bool ShouldInvertColor { get; }
+
         /// <summary>
         /// Creates a new <see cref="XObjectImage"/>.
         /// </summary>
@@ -99,6 +101,8 @@
             ColorSpaceDetails = colorSpaceDetails;
             memoryFactory = bytes;
             SoftMaskImage = softMaskImage;
+
+            ShouldInvertColor = ColorSpaceDetails?.IsStencil != true && decode.Count >= 2 && decode[0] == 1 && decode[1] == 0;
         }
 
         /// <inheritdoc />

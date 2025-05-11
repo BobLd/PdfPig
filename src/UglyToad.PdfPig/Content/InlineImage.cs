@@ -60,6 +60,8 @@
         /// <inheritdoc />
         public IPdfImage? SoftMaskImage { get; }
 
+        public bool ShouldInvertColor { get; }
+
         /// <summary>
         /// Create a new <see cref="InlineImage"/>.
         /// </summary>
@@ -89,6 +91,8 @@
             ImageDictionary = streamDictionary;
             RawMemory = rawMemory;
             ColorSpaceDetails = colorSpaceDetails;
+
+            ShouldInvertColor = ColorSpaceDetails?.IsStencil != true && decode.Count >= 2 && decode[0] == 1 && decode[1] == 0;
 
             var filters = filterProvider.GetNamedFilters(filterNames);
             

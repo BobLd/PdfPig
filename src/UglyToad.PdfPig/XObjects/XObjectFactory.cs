@@ -45,65 +45,39 @@
 
             var isImageMask = dictionary.TryGet(NameToken.ImageMask, out BooleanToken isMaskToken) && isMaskToken.Data;
 
+            var decode = Array.Empty<double>();
+            if (dictionary.TryGet(NameToken.Decode, out ArrayToken decodeArrayToken))
+            {
+                decode = decodeArrayToken.Data.OfType<NumericToken>()
+                    .Select(x => x.Double)
+                    .ToArray();
+            }
+            
             XObjectImage? softMaskImage = null;
             if (dictionary.TryGet(NameToken.Smask, pdfScanner, out StreamToken? sMaskToken))
             {
-                if (!sMaskToken.StreamDictionary.TryGet(NameToken.Subtype, out NameToken softMaskSubType) || !softMaskSubType.Equals(NameToken.Image))
+                softMaskImage = GetSoftMaskImage(sMaskToken, pdfScanner, filterProvider);
+            }
+            else if (dictionary.TryGet(NameToken.Mask, out StreamToken maskStream))
+            {
+                if (maskStream.StreamDictionary.TryGet(NameToken.ColorSpace, out NameToken softMaskColorSpace))
                 {
-                    throw new Exception("The SMask dictionary does not contain a 'Subtype' entry, or its value is not 'Image'.");
+                    throw new Exception("The SMask dictionary contains a 'ColorSpace'.");
                 }
 
-                if (!sMaskToken.StreamDictionary.TryGet(NameToken.ColorSpace, out NameToken softMaskColorSpace) || !softMaskColorSpace.Equals(NameToken.Devicegray))
-                {
-                    throw new Exception("The SMask dictionary does not contain a 'ColorSpace' entry, or its value is not 'Devicegray'.");
-                }
+                // Stencil masking
+                XObjectContentRecord maskImageRecord = new XObjectContentRecord(XObjectType.Image,
+                    maskStream,
+                    TransformationMatrix.Identity,
+                    xObject.DefaultRenderingIntent,
+                    null);
 
-                if (sMaskToken.StreamDictionary.ContainsKey(NameToken.Mask) || sMaskToken.StreamDictionary.ContainsKey(NameToken.Smask))
-                {
-                    throw new Exception("The SMask dictionary contains a 'Mask' or 'Smask' entry.");
-                }
-
-                var renderingIntent = xObject.DefaultRenderingIntent; // Ignored
-
-                XObjectContentRecord softMaskImageRecord = new XObjectContentRecord(XObjectType.Image, sMaskToken, TransformationMatrix.Identity,
-                    renderingIntent, DeviceGrayColorSpaceDetails.Instance);
-
-                softMaskImage = ReadImage(softMaskImageRecord, pdfScanner, filterProvider, resourceStore);
+                softMaskImage = ReadImage(maskImageRecord, pdfScanner, filterProvider, resourceStore);
             }
 
             var isJpxDecode = dictionary.TryGet(NameToken.Filter, out NameToken filterName) && filterName.Equals(NameToken.JpxDecode);
 
-            int bitsPerComponent;
-            if (isImageMask)
-            {
-                bitsPerComponent = 1;
-            }
-            else
-            {
-                if (isJpxDecode)
-                {
-                    // Optional for JPX
-                    if (dictionary.TryGet(NameToken.BitsPerComponent, out NumericToken? bitsPerComponentToken))
-                    {
-                        bitsPerComponent = bitsPerComponentToken.Int;
-                        System.Diagnostics.Debug.Assert(bitsPerComponent == Jpeg2000Helper.GetBitsPerComponent(xObject.Stream.Data.Span));
-                    }
-                    else
-                    {
-                        bitsPerComponent = Jpeg2000Helper.GetBitsPerComponent(xObject.Stream.Data.Span);
-                        System.Diagnostics.Debug.Assert(new int[] { 1, 2, 4, 8, 16 }.Contains(bitsPerComponent));
-                    }
-                }
-                else
-                {
-                    if (!dictionary.TryGet(NameToken.BitsPerComponent, out NumericToken? bitsPerComponentToken))
-                    {
-                        throw new PdfDocumentFormatException($"No bits per component defined for image: {dictionary}.");
-                    }
-
-                    bitsPerComponent = bitsPerComponentToken.Int;
-                }
-            }
+            int bitsPerComponent = GetBitsPerComponent(xObject.Stream, isImageMask, isJpxDecode);
 
             var intent = xObject.DefaultRenderingIntent;
             if (dictionary.TryGet(NameToken.Intent, out NameToken renderingIntentToken))
@@ -129,15 +103,7 @@
 
             var decodedBytes = supportsFilters ? new Lazy<ReadOnlyMemory<byte>>(() => streamToken.Decode(filterProvider, pdfScanner))
                 : null;
-
-            var decode = Array.Empty<double>();
-            if (dictionary.TryGet(NameToken.Decode, out ArrayToken decodeArrayToken))
-            {
-                decode = decodeArrayToken.Data.OfType<NumericToken>()
-                    .Select(x => x.Double)
-                    .ToArray();
-            }
-
+            
             ColorSpaceDetails? details = null;
             if (!isImageMask)
             {
@@ -175,6 +141,109 @@
                 decodedBytes,
                 details,
                 softMaskImage);
+        }
+
+        private static XObjectImage GetSoftMaskImage(StreamToken softMaskStreamToken,
+            IPdfTokenScanner pdfScanner,
+            ILookupFilterProvider filterProvider)
+        {
+            if (!softMaskStreamToken.StreamDictionary.TryGet(NameToken.Subtype, out NameToken softMaskSubType) || !softMaskSubType.Equals(NameToken.Image))
+            {
+                throw new Exception("The SMask dictionary does not contain a 'Subtype' entry, or its value is not 'Image'.");
+            }
+
+            if (!softMaskStreamToken.StreamDictionary.TryGet(NameToken.ColorSpace, out NameToken softMaskColorSpace) || !softMaskColorSpace.Equals(NameToken.Devicegray))
+            {
+                throw new Exception("The SMask dictionary does not contain a 'ColorSpace' entry, or its value is not 'Devicegray'.");
+            }
+
+            if (softMaskStreamToken.StreamDictionary.ContainsKey(NameToken.Mask) || softMaskStreamToken.StreamDictionary.ContainsKey(NameToken.Smask))
+            {
+                throw new Exception("The SMask dictionary contains a 'Mask' or 'Smask' entry.");
+            }
+
+            var decodeMask = Array.Empty<double>();
+            if (softMaskStreamToken.StreamDictionary.TryGet(NameToken.Decode, out ArrayToken decodeMaskArrayToken))
+            {
+                decodeMask = decodeMaskArrayToken.Data.OfType<NumericToken>()
+                    .Select(x => x.Double)
+                    .ToArray();
+            }
+
+            var isMaskJpxDecode = softMaskStreamToken.StreamDictionary.TryGet(NameToken.Filter, out NameToken maskFilterName) && maskFilterName.Equals(NameToken.JpxDecode);
+
+            var maskSupportsFilters = true;
+            var maskFilters = filterProvider.GetFilters(softMaskStreamToken.StreamDictionary, pdfScanner);
+            foreach (var filter in maskFilters)
+            {
+                if (!filter.IsSupported)
+                {
+                    maskSupportsFilters = false;
+                    break;
+                }
+            }
+
+            var streamToken = new StreamToken(softMaskStreamToken.StreamDictionary, softMaskStreamToken.Data);
+
+            var maskDecodedBytes = maskSupportsFilters ? new Lazy<ReadOnlyMemory<byte>>(() =>
+            {
+                var memory = streamToken.Decode(filterProvider, pdfScanner);
+                return memory;
+                /*
+                Memory<byte> scaled = new byte[memory.Length];
+
+                for (int i = 0; i < memory.Length; ++i)
+                {
+                    scaled.Span[i] = Convert.ToByte(memory.Span[i] / 255.0);
+                }
+
+                return scaled;
+                */
+            }) : null;
+
+            return new XObjectImage(
+                new PdfRectangle(new PdfPoint(0, 0), new PdfPoint(1, 1)),
+                softMaskStreamToken.StreamDictionary.GetInt(NameToken.Width),
+                softMaskStreamToken.StreamDictionary.GetInt(NameToken.Height),
+                GetBitsPerComponent(softMaskStreamToken, false, isMaskJpxDecode),
+                isMaskJpxDecode,
+                false,
+                RenderingIntent.RelativeColorimetric, // Ignored
+                softMaskStreamToken.StreamDictionary.TryGet(NameToken.Interpolate, out BooleanToken? maskInterpolateToken) && maskInterpolateToken.Data,
+                decodeMask,
+                softMaskStreamToken.StreamDictionary,
+                softMaskStreamToken.Data,
+                maskDecodedBytes,
+                DeviceGrayColorSpaceDetails.Instance,
+                null);
+        }
+        
+        private static int GetBitsPerComponent(StreamToken streamToken, bool isImageMask, bool isJpxDecode)
+        {
+            if (isImageMask)
+            {
+                return 1;
+            }
+            
+            if (isJpxDecode)
+            {
+                // Optional for JPX
+                if (streamToken.StreamDictionary.TryGet(NameToken.BitsPerComponent, out NumericToken? bitsPerComponentToken))
+                {
+                    return bitsPerComponentToken.Int;
+                }
+                
+                return Jpeg2000Helper.GetBitsPerComponent(streamToken.Data.Span);
+            }
+            else
+            {
+                if (!streamToken.StreamDictionary.TryGet(NameToken.BitsPerComponent, out NumericToken? bitsPerComponentToken))
+                {
+                    throw new PdfDocumentFormatException($"No bits per component defined for image: {streamToken.StreamDictionary}.");
+                }
+
+                return bitsPerComponentToken.Int;
+            }
         }
     }
 }

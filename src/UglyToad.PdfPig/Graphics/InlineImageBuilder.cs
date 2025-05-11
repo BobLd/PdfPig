@@ -75,8 +75,19 @@
                     throw new Exception("The SMask dictionary contains a 'Mask' or 'Smask' entry.");
                 }
 
-                XObjectContentRecord softMaskImageRecord = new XObjectContentRecord(XObjectType.Image, sMaskToken, TransformationMatrix.Identity,
-                    defaultRenderingIntent, DeviceGrayColorSpaceDetails.Instance);
+                var decodeMask = Array.Empty<double>();
+                if (sMaskToken.StreamDictionary.TryGet(NameToken.Decode, out ArrayToken decodeMaskArrayToken))
+                {
+                    decodeMask = decodeMaskArrayToken.Data.OfType<NumericToken>()
+                        .Select(x => x.Double)
+                        .ToArray();
+                }
+                
+                XObjectContentRecord softMaskImageRecord = new XObjectContentRecord(XObjectType.Image,
+                    sMaskToken,
+                    TransformationMatrix.Identity,
+                    defaultRenderingIntent,
+                    IndexedColorSpaceDetails.Stencil(DeviceGrayColorSpaceDetails.Instance, decodeMask));
 
                 softMaskImage = XObjectFactory.ReadImage(softMaskImageRecord, tokenScanner, filterProvider, resourceStore);
             }
