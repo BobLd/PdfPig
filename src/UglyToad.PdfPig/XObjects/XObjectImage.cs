@@ -65,7 +65,7 @@
         public ColorSpaceDetails? ColorSpaceDetails { get; }
 
         /// <inheritdoc />
-        public IPdfImage? SoftMaskImage { get; }
+        public IPdfImage? MaskImage { get; }
 
         /// <summary>
         /// Creates a new <see cref="XObjectImage"/>.
@@ -83,7 +83,7 @@
             ReadOnlyMemory<byte> rawMemory,
             Lazy<ReadOnlyMemory<byte>>? bytes,
             ColorSpaceDetails? colorSpaceDetails,
-            IPdfImage? softMaskImage)
+            IPdfImage? maskImage)
         {
             Bounds = bounds;
             WidthInSamples = widthInSamples;
@@ -98,7 +98,7 @@
             RawMemory = rawMemory;
             ColorSpaceDetails = colorSpaceDetails;
             memoryFactory = bytes;
-            SoftMaskImage = softMaskImage;
+            MaskImage = maskImage;
         }
 
         /// <inheritdoc />

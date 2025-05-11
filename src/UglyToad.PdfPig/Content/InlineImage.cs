@@ -58,7 +58,7 @@
         public ColorSpaceDetails ColorSpaceDetails { get; }
 
         /// <inheritdoc />
-        public IPdfImage? SoftMaskImage { get; }
+        public IPdfImage? MaskImage { get; }
 
         /// <summary>
         /// Create a new <see cref="InlineImage"/>.
@@ -76,8 +76,9 @@
             IReadOnlyList<NameToken> filterNames,
             DictionaryToken streamDictionary,
             ColorSpaceDetails colorSpaceDetails,
-            IPdfImage? softMaskImage)
+            IPdfImage? maskImage)
         {
+            IsInlineImage = true;
             Bounds = bounds;
             WidthInSamples = widthInSamples;
             HeightInSamples = heightInSamples;
@@ -114,7 +115,7 @@
                 return b;
             }) : null;
 
-            SoftMaskImage = softMaskImage;
+            MaskImage = maskImage;
         }
 
         /// <inheritdoc />

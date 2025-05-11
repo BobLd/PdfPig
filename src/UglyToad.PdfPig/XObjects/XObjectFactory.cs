@@ -45,7 +45,7 @@
 
             var isImageMask = dictionary.TryGet(NameToken.ImageMask, out BooleanToken isMaskToken) && isMaskToken.Data;
 
-            XObjectImage? softMaskImage = null;
+            XObjectImage? maskImage = null;
             if (dictionary.TryGet(NameToken.Smask, pdfScanner, out StreamToken? sMaskToken))
             {
                 if (!sMaskToken.StreamDictionary.TryGet(NameToken.Subtype, out NameToken softMaskSubType) || !softMaskSubType.Equals(NameToken.Image))
@@ -63,14 +63,31 @@
                     throw new Exception("The SMask dictionary contains a 'Mask' or 'Smask' entry.");
                 }
 
-                var renderingIntent = xObject.DefaultRenderingIntent; // Ignored
+                XObjectContentRecord softMaskImageRecord = new XObjectContentRecord(XObjectType.Image,
+                    sMaskToken,
+                    TransformationMatrix.Identity,
+                    xObject.DefaultRenderingIntent, // Ignored
+                    DeviceGrayColorSpaceDetails.Instance);
 
-                XObjectContentRecord softMaskImageRecord = new XObjectContentRecord(XObjectType.Image, sMaskToken, TransformationMatrix.Identity,
-                    renderingIntent, DeviceGrayColorSpaceDetails.Instance);
-
-                softMaskImage = ReadImage(softMaskImageRecord, pdfScanner, filterProvider, resourceStore);
+                maskImage = ReadImage(softMaskImageRecord, pdfScanner, filterProvider, resourceStore);
             }
+            else if (dictionary.TryGet(NameToken.Mask, out StreamToken maskStream))
+            {
+                // Stencil masking
+                if (maskStream.StreamDictionary.ContainsKey(NameToken.ColorSpace))
+                {
+                    throw new Exception("The SMask dictionary contains a 'ColorSpace'.");
+                }
+     
+                XObjectContentRecord maskImageRecord = new XObjectContentRecord(XObjectType.Image,
+                    maskStream,
+                    TransformationMatrix.Identity,
+                    xObject.DefaultRenderingIntent,
+                    DeviceGrayColorSpaceDetails.Instance);
 
+                maskImage = ReadImage(maskImageRecord, pdfScanner, filterProvider, resourceStore);
+            }
+            
             var isJpxDecode = dictionary.TryGet(NameToken.Filter, out NameToken filterName) && filterName.Equals(NameToken.JpxDecode);
 
             int bitsPerComponent;
@@ -174,7 +191,7 @@
                 xObject.Stream.Data,
                 decodedBytes,
                 details,
-                softMaskImage);
+                maskImage);
         }
     }
 }

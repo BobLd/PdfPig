@@ -7,9 +7,22 @@
 
     internal static class PngFromPdfImageFactory
     {
-        private static bool TryGenerateSoftMask(IPdfImage image, [NotNullWhen(true)] out ReadOnlySpan<byte> bytes)
+        private static bool TryGenerateMask(IPdfImage image, [NotNullWhen(true)] out ReadOnlySpan<byte> bytes)
         {
             bytes = ReadOnlySpan<byte>.Empty;
+
+            if (image.MaskImage is null)
+            {
+                return false;
+            }
+            
+            // Because we cannot resize images directly in PdfPig, we only
+            // apply the mask if it has the same size as the image
+            if (image.HeightInSamples != image.MaskImage.HeightInSamples ||
+                image.WidthInSamples != image.MaskImage.WidthInSamples)
+            {
+                return false;
+            }
 
             if (!image.TryGetBytesAsMemory(out var imageMemory))
             {
@@ -51,6 +64,8 @@
                     bytesPure[actualSize - 1] == ReadHelper.AsciiLineFeed);
         }
 
+
+        
         public static bool TryGenerate(IPdfImage image, [NotNullWhen(true)] out byte[]? bytes)
         {
             bytes = null;
@@ -74,9 +89,17 @@
                 var numberOfComponents = image.ColorSpaceDetails!.BaseNumberOfColorComponents;
 
                 ReadOnlySpan<byte> softMask = null;
-                bool isSoftMask = image.SoftMaskImage is not null && TryGenerateSoftMask(image.SoftMaskImage, out softMask);
+                bool hasMask = TryGenerateMask(image, out softMask);
 
-                var builder = PngBuilder.Create(image.WidthInSamples, image.HeightInSamples, isSoftMask);
+                Func<int, byte> getAlphaChannel = _ => byte.MaxValue;
+
+                if (hasMask)
+                {
+                    byte[] softMaskBytes = softMask.ToArray();
+                    getAlphaChannel = i => softMaskBytes[i];
+                }
+                
+                var builder = PngBuilder.Create(image.WidthInSamples, image.HeightInSamples, hasMask);
 
                 if (!IsCorrectlySized(image, bytesPure))
                 {
@@ -98,7 +121,7 @@
                              * B = 255 × (1-Y) × (1-K)
                              */
 
-                            byte a = isSoftMask ? softMask[sm++] : byte.MaxValue;
+                            byte a = getAlphaChannel(sm++);
                             double c = (bytesPure[i++] / 255d);
                             double m = (bytesPure[i++] / 255d);
                             double y = (bytesPure[i++] / 255d);
@@ -119,7 +142,7 @@
                     {
                         for (int row = 0; row < image.WidthInSamples; row++)
                         {
-                            byte a = isSoftMask ? softMask[sm++] : byte.MaxValue;
+                            byte a = getAlphaChannel(sm++);
                             builder.SetPixel(new Pixel(bytesPure[i++], bytesPure[i++], bytesPure[i++], a, false), row, col);
                         }
                     }
@@ -131,7 +154,7 @@
                     {
                         for (int row = 0; row < image.WidthInSamples; row++)
                         {
-                            byte a = isSoftMask ? softMask[i] : byte.MaxValue;
+                            byte a = getAlphaChannel(i);
                             byte pixel = bytesPure[i++];
                             builder.SetPixel(new Pixel(pixel, pixel, pixel, a, false), row, col);
                         }
