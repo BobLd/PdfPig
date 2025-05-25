@@ -509,7 +509,7 @@
             WriteLineBreak(outputStream);
             outputStream.Write(StreamStart);
             WriteLineBreak(outputStream);
-            outputStream.Write(streamToken.Data.Span);
+            outputStream.Write(streamToken.Data);
             WriteLineBreak(outputStream);
             outputStream.Write(StreamEnd);
         }

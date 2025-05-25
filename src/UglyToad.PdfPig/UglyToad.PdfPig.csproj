@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFrameworks>net8.0</TargetFrameworks>
-		<LangVersion>12</LangVersion>
+		<LangVersion>S</LangVersion>
 		<Version>0.1.11-alpha001</Version>
 		<IsTestProject>False</IsTestProject>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>

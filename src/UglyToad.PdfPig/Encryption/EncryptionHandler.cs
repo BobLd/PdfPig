@@ -384,7 +384,7 @@ namespace UglyToad.PdfPig.Encryption
 
                         var streamDictionary = (DictionaryToken)DecryptInternal(reference, stream.StreamDictionary);
 
-                        var decrypted = DecryptData(stream.Data.ToArray(), reference);
+                        var decrypted = DecryptData(stream.Data, reference);
 
                         token = new StreamToken(streamDictionary, decrypted);
 

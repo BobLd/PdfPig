@@ -491,10 +491,10 @@
                 dataLength -= 2;
             }
 
-            Memory<byte> data = new byte[dataLength];
+            byte[] data = new byte[dataLength];
 
             inputBytes.Seek(streamDataStart);
-            inputBytes.Read(data.Span);
+            inputBytes.Read(data);
 
             inputBytes.Seek(streamDataEnd);
 

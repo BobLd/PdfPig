@@ -104,11 +104,11 @@
                     if (dictionary.TryGet(NameToken.BitsPerComponent, out NumericToken? bitsPerComponentToken))
                     {
                         bitsPerComponent = bitsPerComponentToken.Int;
-                        System.Diagnostics.Debug.Assert(bitsPerComponent == Jpeg2000Helper.GetBitsPerComponent(xObject.Stream.Data.Span));
+                        System.Diagnostics.Debug.Assert(bitsPerComponent == Jpeg2000Helper.GetBitsPerComponent(xObject.Stream.Data));
                     }
                     else
                     {
-                        bitsPerComponent = Jpeg2000Helper.GetBitsPerComponent(xObject.Stream.Data.Span);
+                        bitsPerComponent = Jpeg2000Helper.GetBitsPerComponent(xObject.Stream.Data);
                         System.Diagnostics.Debug.Assert(new int[] { 1, 2, 4, 8, 16 }.Contains(bitsPerComponent));
                     }
                 }
@@ -144,7 +144,7 @@
             }
             
             var streamToken = new StreamToken(dictionary, xObject.Stream.Data); // Needed as Resolve(pdfScanner) was called on the dictionary
-            var decodedBytes = supportsFilters ? new Lazy<ReadOnlyMemory<byte>>(() => streamToken.Decode(filterProvider, pdfScanner))
+            var decodedBytes = supportsFilters ? new Lazy<byte[]>(() => streamToken.Decode(filterProvider, pdfScanner))
                 : null;
 
             var decode = Array.Empty<double>();

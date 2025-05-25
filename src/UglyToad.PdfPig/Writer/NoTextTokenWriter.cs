@@ -42,7 +42,7 @@ namespace UglyToad.PdfPig.Writer
             WriteLineBreak(outputStream);
             outputStream.Write(StreamStart);
             WriteLineBreak(outputStream);
-            outputStream.Write(outputStreamToken.Data.Span);
+            outputStream.Write(outputStreamToken.Data);
             WriteLineBreak(outputStream);
             outputStream.Write(StreamEnd);
         }

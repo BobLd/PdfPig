@@ -15,7 +15,7 @@
         /// change the data but for <see cref="ColorSpace.Indexed"/> it will convert the bytes which are indexes into the
         /// real pixel data into the real pixel data.
         /// </summary>
-        public static ReadOnlySpan<byte> Convert(ColorSpaceDetails details, ReadOnlySpan<byte> decoded, int bitsPerComponent, int imageWidth, int imageHeight)
+        public static Span<byte> Convert(ColorSpaceDetails details, Span<byte> decoded, int bitsPerComponent, int imageWidth, int imageHeight)
         {
             if (decoded.IsEmpty)
             {
@@ -27,9 +27,7 @@
                 return decoded;
             }
 
-            // TODO - We should aim at removing this alloc.
-            // The decoded input variable needs to become a Span<byte>
-            Span<byte> data = decoded.ToArray();
+            Span<byte> data = decoded;
 
             if (bitsPerComponent != 8)
             {

@@ -344,7 +344,7 @@
                         }
                         else if (DirectObjectFinder.TryGet(fourth, scanner, out StreamToken? tableStreamToken))
                         {
-                            tableBytes = tableStreamToken.Decode(filterProvider, scanner).Span.ToArray();
+                            tableBytes = tableStreamToken.Decode(filterProvider, scanner);
                         }
                         else if (DirectObjectFinder.TryGet(fourth, scanner, out StringToken? stringToken))
                         {

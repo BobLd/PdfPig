@@ -34,7 +34,7 @@
         /// <returns>The bytes for the metadata object with any filters removed.</returns>
         public ReadOnlySpan<byte> GetXmlBytes()
         {
-            return MetadataStreamToken.Decode(filterProvider, pdfTokenScanner).Span;
+            return MetadataStreamToken.Decode(filterProvider, pdfTokenScanner);
         }
 
         /// <summary>

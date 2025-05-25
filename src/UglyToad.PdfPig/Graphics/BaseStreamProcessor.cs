@@ -623,7 +623,7 @@
                    && operations.OfType<InvokeNamedXObject>()?.Any(o => o.Name == xObjectName) ==
                    true // operations contain another form with same name
                    && ResourceStore.TryGetXObject(xObjectName, out var result)
-                   && result.Data.Span.SequenceEqual(formStream.Data.Span); // The form contained in the operations has identical data to current form
+                   && result.Data.AsSpan().SequenceEqual(formStream.Data.AsSpan()); // The form contained in the operations has identical data to current form
         }
 
         /// <inheritdoc/>
@@ -833,7 +833,7 @@
         }
 
         /// <inheritdoc/>
-        public virtual void EndInlineImage(ReadOnlyMemory<byte> bytes)
+        public virtual void EndInlineImage(byte[] bytes)
         {
             if (InlineImageBuilder is null)
             {

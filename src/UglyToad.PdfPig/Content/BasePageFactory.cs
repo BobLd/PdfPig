@@ -136,7 +136,7 @@
                         throw new InvalidOperationException($"Could not find the contents for object {obj}.");
                     }
 
-                    bytes.Write(contentStream.Decode(FilterProvider, PdfScanner).Span);
+                    bytes.Write(contentStream.Decode(FilterProvider, PdfScanner));
 
                     if (i < array.Data.Count - 1)
                     {

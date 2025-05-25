@@ -31,13 +31,13 @@
         public bool IsSupported { get; } = true;
 
         /// <inheritdoc />
-        public ReadOnlyMemory<byte> Decode(ReadOnlySpan<byte> input, DictionaryToken streamDictionary, IFilterProvider filterProvider, int filterIndex)
+        public byte[] Decode(byte[] input, DictionaryToken streamDictionary, IFilterProvider filterProvider, int filterIndex)
         {
             var parameters = DecodeParameterResolver.GetFilterParameters(streamDictionary, filterIndex);
 
             var predictor = parameters.GetIntOrDefault(NameToken.Predictor, -1);
 
-            var bytes = input.ToArray();
+            var bytes = input;
             try
             {
                 var decompressed = Decompress(bytes);

@@ -20,7 +20,7 @@
         public bool IsSupported { get; } = true;
 
         /// <inheritdoc />
-        public ReadOnlyMemory<byte> Decode(ReadOnlySpan<byte> input, DictionaryToken streamDictionary, IFilterProvider filterProvider, int filterIndex)
+        public byte[] Decode(byte[] input, DictionaryToken streamDictionary, IFilterProvider filterProvider, int filterIndex)
         {
             var decodeParms = DecodeParameterResolver.GetFilterParameters(streamDictionary, filterIndex);
 
@@ -41,7 +41,7 @@
             var k = decodeParms.GetIntOrDefault(NameToken.K, 0);
             var encodedByteAlign = decodeParms.GetBooleanOrDefault(NameToken.EncodedByteAlign, false);
             var compressionType = DetermineCompressionType(input, k);
-            using (var stream = new CcittFaxDecoderStream(new MemoryStream(input.ToArray()), cols, compressionType, encodedByteAlign))
+            using (var stream = new CcittFaxDecoderStream(new MemoryStream(input), cols, compressionType, encodedByteAlign))
             {
                 var arraySize = (cols + 7) / 8 * rows;
                 var decompressed = new byte[arraySize];

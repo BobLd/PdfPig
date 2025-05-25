@@ -18,19 +18,21 @@
         /// <summary>
         /// The raw data for the inline image which should be interpreted according to the corresponding <see cref="BeginInlineImageData.Dictionary"/>.
         /// </summary>
-        public ReadOnlyMemory<byte> ImageData { get; }
+        public byte[] ImageData { get; }
         
         /// <inheritdoc />
         public string Operator => Symbol;
 
+        /*
         /// <summary>
         /// Create a new <see cref="EndInlineImage"/> operation.
         /// </summary>
         /// <param name="imageData">The raw byte data of this image.</param>
-        public EndInlineImage(ReadOnlyMemory<byte> imageData)
+        public EndInlineImage(Memory<byte> imageData)
         {
             ImageData = imageData;
         }
+        */
 
         /// <summary>
         /// Create a new <see cref="EndInlineImage"/> operation.

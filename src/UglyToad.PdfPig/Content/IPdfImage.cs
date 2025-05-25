@@ -37,7 +37,7 @@
         /// <summary>
         /// The encoded memory of the image with all filters still applied.
         /// </summary>
-        ReadOnlyMemory<byte> RawMemory { get; }
+        byte[] RawMemory { get; }
 
         /// <summary>
         /// The encoded memory span of the image with all filters still applied.
@@ -104,7 +104,7 @@
         /// Get the decoded memory of the image if applicable. For JPEG images and some other types the
         /// <see cref="RawMemory"/> should be used directly.
         /// </summary>
-        bool TryGetBytesAsMemory(out ReadOnlyMemory<byte> memory);
+        bool TryGetBytesAsMemory(out Memory<byte> memory);
 
         /// <summary>
         /// Try to convert the image to PNG. Doesn't support conversion of JPG to PNG.

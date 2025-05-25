@@ -270,7 +270,7 @@
                 // PDF spec 1.7 p.171:
                 // Each sample value is represented as a sequence of BitsPerSample bits. 
                 // Successive values are adjacent in the bit stream; there is no padding at byte boundaries.
-                var bits = new BitArray(FunctionStream!.Data.ToArray());
+                var bits = new BitArray(FunctionStream!.Data);
 
                 for (int i = 0; i < arraySize; i++)
                 {

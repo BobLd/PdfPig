@@ -27,7 +27,7 @@
         /// <summary>
         /// Inline image bytes.
         /// </summary>
-        public ReadOnlyMemory<byte> Bytes { get; internal set; }
+        public byte[] Bytes { get; internal set; }
 
         internal InlineImage CreateInlineImage(
             in TransformationMatrix transformationMatrix,

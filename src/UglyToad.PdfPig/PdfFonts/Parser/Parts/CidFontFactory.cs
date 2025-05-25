@@ -109,7 +109,7 @@
             {
                 case DescriptorFontFile.FontFileType.TrueType:
                     {
-                        if (IsTrueTypeCff(fontFile.Span))
+                        if (IsTrueTypeCff(fontFile))
                         {
                             logger.Warn("The CID TrueType font has the signature of a CFF font. Using CID CFF instead.");
                             var font = CompactFontFormatParser.Parse(new CompactFontFormatData(fontFile));
@@ -298,7 +298,7 @@
 
             var bytes = stream.Decode(filterProvider, pdfScanner);
 
-            return new CharacterIdentifierToGlyphIndexMap(bytes.Span);
+            return new CharacterIdentifierToGlyphIndexMap(bytes);
         }
 
         private string SafeKeyAccess(DictionaryToken dictionary, NameToken keyName)

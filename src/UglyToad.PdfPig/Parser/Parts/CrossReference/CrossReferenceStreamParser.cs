@@ -20,7 +20,7 @@
         /// </summary>
         public CrossReferenceTablePart Parse(long streamOffset, long? fromTableAtOffset, StreamToken stream)
         {
-            var decoded = stream.Decode(filterProvider).Span;
+            var decoded = stream.Decode(filterProvider);
 
             var fieldSizes = new CrossReferenceStreamFieldSize(stream.StreamDictionary);
 
