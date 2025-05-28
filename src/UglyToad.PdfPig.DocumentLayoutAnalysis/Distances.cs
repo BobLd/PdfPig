@@ -4,6 +4,7 @@
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Runtime.CompilerServices;
 
     /// <summary>
     /// Contains helpful tools for distance measures.
@@ -15,6 +16,7 @@
         /// </summary>
         /// <param name="point1">The first point.</param>
         /// <param name="point2">The second point.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Euclidean(PdfPoint point1, PdfPoint point2)
         {
             double dx = point1.X - point2.X;
@@ -29,6 +31,7 @@
         /// <param name="point2">The second point.</param>
         /// <param name="wX">The weight of the X coordinates. Default is 1.</param>
         /// <param name="wY">The weight of the Y coordinates. Default is 1.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double WeightedEuclidean(PdfPoint point1, PdfPoint point2, double wX = 1.0, double wY = 1.0)
         {
             double dx = point1.X - point2.X;
@@ -42,6 +45,7 @@
         /// </summary>
         /// <param name="point1">The first point.</param>
         /// <param name="point2">The second point.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Manhattan(PdfPoint point1, PdfPoint point2)
         {
             return Math.Abs(point1.X - point2.X) + Math.Abs(point1.Y - point2.Y);
@@ -53,6 +57,7 @@
         /// </summary>
         /// <param name="startPoint">The first point.</param>
         /// <param name="endPoint">The second point.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Angle(PdfPoint startPoint, PdfPoint endPoint)
         {
             return Math.Atan2(endPoint.Y - startPoint.Y, endPoint.X - startPoint.X) * 180 / Math.PI;
@@ -63,6 +68,7 @@
         /// </summary>
         /// <param name="point1">The first point.</param>
         /// <param name="point2">The second point.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Vertical(PdfPoint point1, PdfPoint point2)
         {
             return Math.Abs(point2.Y - point1.Y);
@@ -73,6 +79,7 @@
         /// </summary>
         /// <param name="point1">The first point.</param>
         /// <param name="point2">The second point.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Horizontal(PdfPoint point1, PdfPoint point2)
         {
             return Math.Abs(point2.X - point1.X);
@@ -82,6 +89,7 @@
         /// Bound angle so that -180 ≤ θ ≤ 180.
         /// </summary>
         /// <param name="angle">The angle to bound.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double BoundAngle180(double angle)
         {
             angle = (angle + 180) % 360;
@@ -93,6 +101,7 @@
         /// Bound angle so that 0 ≤ θ ≤ 360.
         /// </summary>
         /// <param name="angle">The angle to bound.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double BoundAngle0to360(double angle)
         {
             angle %= 360;

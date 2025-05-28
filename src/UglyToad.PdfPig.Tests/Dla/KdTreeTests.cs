@@ -6676,22 +6676,22 @@
             Assert.Equal(new PdfPoint(7, 2), kdTree.Root.Element, PointComparer);
             Assert.Equal(0, kdTree.Root.Depth);
             Assert.Equal(3, kdTree.Root.Index);
-            Assert.False(kdTree.Root.IsLeaf);
-            Assert.True(kdTree.Root.IsAxisCutX);
+            Assert.False(kdTree.Root.IsLeaf());
+            Assert.True(kdTree.Root.IsAxisCutX());
 
             // root -> left side
             Assert.Equal(new PdfPoint(5, 4), kdTree.Root.LeftChild.Element, PointComparer);
             Assert.Equal(1, kdTree.Root.LeftChild.Depth);
             Assert.Equal(2, kdTree.Root.LeftChild.Index);
-            Assert.False(kdTree.Root.LeftChild.IsLeaf);
-            Assert.False(kdTree.Root.LeftChild.IsAxisCutX);
+            Assert.False(kdTree.Root.LeftChild.IsLeaf());
+            Assert.False(kdTree.Root.LeftChild.IsAxisCutX());
 
             // root -> left side -> left side
             Assert.Equal(new PdfPoint(2, 3), kdTree.Root.LeftChild.LeftChild.Element, PointComparer);
             Assert.Equal(2, kdTree.Root.LeftChild.LeftChild.Depth);
             Assert.Equal(0, kdTree.Root.LeftChild.LeftChild.Index);
-            Assert.True(kdTree.Root.LeftChild.LeftChild.IsLeaf);
-            Assert.True(kdTree.Root.LeftChild.LeftChild.IsAxisCutX);
+            Assert.True(kdTree.Root.LeftChild.LeftChild.IsLeaf());
+            Assert.True(kdTree.Root.LeftChild.LeftChild.IsAxisCutX());
 
             Assert.Null(kdTree.Root.LeftChild.LeftChild.LeftChild);
             Assert.Null(kdTree.Root.LeftChild.LeftChild.RightChild);
@@ -6700,8 +6700,8 @@
             Assert.Equal(new PdfPoint(4, 7), kdTree.Root.LeftChild.RightChild.Element, PointComparer);
             Assert.Equal(2, kdTree.Root.LeftChild.RightChild.Depth);
             Assert.Equal(1, kdTree.Root.LeftChild.RightChild.Index);
-            Assert.True(kdTree.Root.LeftChild.RightChild.IsLeaf);
-            Assert.True(kdTree.Root.LeftChild.RightChild.IsAxisCutX);
+            Assert.True(kdTree.Root.LeftChild.RightChild.IsLeaf());
+            Assert.True(kdTree.Root.LeftChild.RightChild.IsAxisCutX());
 
             Assert.Null(kdTree.Root.LeftChild.RightChild.LeftChild);
             Assert.Null(kdTree.Root.LeftChild.RightChild.RightChild);
@@ -6710,15 +6710,15 @@
             Assert.Equal(new PdfPoint(9, 6), kdTree.Root.RightChild.Element, PointComparer);
             Assert.Equal(1, kdTree.Root.RightChild.Depth);
             Assert.Equal(5, kdTree.Root.RightChild.Index);
-            Assert.False(kdTree.Root.RightChild.IsLeaf);
-            Assert.False(kdTree.Root.RightChild.IsAxisCutX);
+            Assert.False(kdTree.Root.RightChild.IsLeaf());
+            Assert.False(kdTree.Root.RightChild.IsAxisCutX());
 
             // root -> right side -> left side
             Assert.Equal(new PdfPoint(8, 1), kdTree.Root.RightChild.LeftChild.Element, PointComparer);
             Assert.Equal(2, kdTree.Root.RightChild.LeftChild.Depth);
             Assert.Equal(4, kdTree.Root.RightChild.LeftChild.Index);
-            Assert.True(kdTree.Root.RightChild.LeftChild.IsLeaf);
-            Assert.True(kdTree.Root.RightChild.LeftChild.IsAxisCutX);
+            Assert.True(kdTree.Root.RightChild.LeftChild.IsLeaf());
+            Assert.True(kdTree.Root.RightChild.LeftChild.IsAxisCutX());
 
             Assert.Null(kdTree.Root.RightChild.LeftChild.RightChild);
             Assert.Null(kdTree.Root.RightChild.LeftChild.LeftChild);
