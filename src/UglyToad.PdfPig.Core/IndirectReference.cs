@@ -11,7 +11,7 @@
         /// <summary>
         /// A positive integer object number.
         /// </summary>
-        public long ObjectNumber { get; }
+        public int ObjectNumber { get; }
 
         /// <summary>
         /// A non-negative integer generation number which starts as 0 and increases if the file is updated incrementally.
@@ -24,7 +24,7 @@
         /// <param name="objectNumber">The object number.</param>
         /// <param name="generation">The generation number.</param>
         [DebuggerStepThrough]
-        public IndirectReference(long objectNumber, int generation)
+        public IndirectReference(int objectNumber, int generation)
         {
             ObjectNumber = objectNumber;
             Generation = generation;

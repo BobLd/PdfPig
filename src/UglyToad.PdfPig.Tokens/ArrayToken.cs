@@ -48,7 +48,7 @@
                     // Clear the previous 2 tokens.
                     result.RemoveRange(result.Count - 2, 2);
 
-                    result.Add(new IndirectReferenceToken(new IndirectReference(objectNumber.Long, generation.Int)));
+                    result.Add(new IndirectReferenceToken(new IndirectReference(objectNumber.Int, generation.Int)));
                 }
                 else
                 {

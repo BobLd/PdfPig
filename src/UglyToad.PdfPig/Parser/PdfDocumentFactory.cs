@@ -122,7 +122,7 @@
 
             var version = FileHeaderParser.Parse(scanner, inputBytes, parsingOptions.UseLenientParsing, parsingOptions.Logger);
 
-            var crossReferenceOffset = FileTrailerParser.GetFirstCrossReferenceOffset(
+            int crossReferenceOffset = FileTrailerParser.GetFirstCrossReferenceOffset(
                 inputBytes,
                 scanner,
                 parsingOptions.UseLenientParsing) + version.OffsetInFile;

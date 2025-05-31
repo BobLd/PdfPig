@@ -162,7 +162,7 @@
 
                     if (r == OperatorToken.R)
                     {
-                        result[key] = new IndirectReferenceToken(new IndirectReference(num.Long, gen.Int));
+                        result[key] = new IndirectReferenceToken(new IndirectReference(num.Int, gen.Int));
                         i = i + 2;
                     }
                 }

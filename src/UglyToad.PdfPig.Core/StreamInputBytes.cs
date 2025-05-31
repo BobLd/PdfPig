@@ -15,7 +15,7 @@
         private bool isAtEnd;
 
         /// <inheritdoc />
-        public long CurrentOffset => stream.Position;
+        public int CurrentOffset => (int)stream.Position;
 
         /// <inheritdoc />
         public byte CurrentByte { get; private set; }

@@ -23,11 +23,11 @@
     /// </remarks>
     internal class CrossReferenceTablePart
     {
-        public IReadOnlyDictionary<IndirectReference, long> ObjectOffsets { get; }
+        public IReadOnlyDictionary<IndirectReference, int> ObjectOffsets { get; }
 
-        public long Offset { get; private set; }
+        public int Offset { get; private set; }
 
-        public long Previous { get; }
+        public int Previous { get; }
 
         public DictionaryToken Dictionary { get; private set; }
 
@@ -39,11 +39,11 @@
         public long? TiedToXrefAtOffset { get; }
 
         public CrossReferenceTablePart(
-            IReadOnlyDictionary<IndirectReference, long> objectOffsets,
-            long offset, long previous,
+            IReadOnlyDictionary<IndirectReference, int> objectOffsets,
+            int offset, int previous,
             DictionaryToken dictionary,
             CrossReferenceType type,
-            long? tiedToXrefAtOffset)
+            int? tiedToXrefAtOffset)
         {
             ObjectOffsets = objectOffsets;
             Offset = offset;
@@ -53,17 +53,17 @@
             TiedToXrefAtOffset = tiedToXrefAtOffset;
         }
 
-        public void FixOffset(long offset)
+        public void FixOffset(int offset)
         {
             Offset = offset;
             Dictionary = Dictionary.With(NameToken.Prev, new NumericToken((double)offset));
         }
 
-        public long GetPreviousOffset()
+        public int GetPreviousOffset()
         {
             if (Dictionary.TryGet(NameToken.Prev, out var token) && token is NumericToken numeric)
             {
-                return numeric.Long;
+                return numeric.Int;
             }
 
             return -1;

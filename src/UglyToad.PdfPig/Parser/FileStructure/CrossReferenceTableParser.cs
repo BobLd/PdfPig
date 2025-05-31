@@ -14,7 +14,7 @@
         private const string InUseEntry = "n";
         private const string FreeEntry = "f";
 
-        public static CrossReferenceTablePart Parse(ISeekableTokenScanner scanner, long offset, bool isLenientParsing)
+        public static CrossReferenceTablePart Parse(ISeekableTokenScanner scanner, int offset, bool isLenientParsing)
         {
             var builder = new CrossReferenceTablePartBuilder
             {
@@ -60,7 +60,7 @@
                     throw new PdfDocumentFormatException($"Unexpected token following xref and {firstObjectNumber}. We found: {scanner.CurrentToken}.");
                 }
 
-                var definition = new TableSubsectionDefinition(firstObjectNumber.Long, objectCount.Int);
+                var definition = new TableSubsectionDefinition(firstObjectNumber.Int, objectCount.Int);
 
                 var tokenizer = new EndOfLineTokenizer();
 
@@ -141,7 +141,7 @@
                 {
                     if (tokens[0] is NumericToken newFirstObjectToken && tokens[1] is NumericToken newObjectCountToken)
                     {
-                        definition = new TableSubsectionDefinition(newFirstObjectToken.Long, newObjectCountToken.Int);
+                        definition = new TableSubsectionDefinition(newFirstObjectToken.Int, newObjectCountToken.Int);
 
                         return 0;
                     }
@@ -185,7 +185,7 @@
 
                 if (tokens[0] is NumericToken offset && tokens[1] is NumericToken generationNumber)
                 {
-                    builder.Add(definition.FirstNumber + objectCount, generationNumber.Int, offset.Long);
+                    builder.Add(definition.FirstNumber + objectCount, generationNumber.Int, offset.Int);
 
                     return objectCount + 1;
                 }

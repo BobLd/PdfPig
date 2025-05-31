@@ -11,7 +11,7 @@
         /// <summary>
         /// The current offset in bytes.
         /// </summary>
-        long CurrentOffset { get; }
+        int CurrentOffset { get; }
 
         /// <summary>
         /// Moves to the next byte if available.

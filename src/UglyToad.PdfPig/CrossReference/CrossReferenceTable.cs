@@ -13,12 +13,12 @@
     /// </summary>
     public class CrossReferenceTable
     {
-        private readonly Dictionary<IndirectReference, long> objectOffsets;
+        private readonly Dictionary<IndirectReference, int> objectOffsets;
 
         /// <summary>
         /// The corresponding byte offset for each keyed object in this document.
         /// </summary>
-        public IReadOnlyDictionary<IndirectReference, long> ObjectOffsets => objectOffsets;
+        public IReadOnlyDictionary<IndirectReference, int> ObjectOffsets => objectOffsets;
 
         /// <summary>
         /// The type of the first cross-reference table located in this document.
@@ -36,7 +36,7 @@
         /// </summary>
         public IReadOnlyList<CrossReferenceOffset> CrossReferenceOffsets { get; }
 
-        internal CrossReferenceTable(CrossReferenceType type, IReadOnlyDictionary<IndirectReference, long> objectOffsets, 
+        internal CrossReferenceTable(CrossReferenceType type, IReadOnlyDictionary<IndirectReference, int> objectOffsets, 
             TrailerDictionary trailer,
             IReadOnlyList<CrossReferenceOffset> crossReferenceOffsets)
         {
@@ -49,7 +49,7 @@
             Trailer = trailer ?? throw new ArgumentNullException(nameof(trailer));
             CrossReferenceOffsets = crossReferenceOffsets ?? throw new ArgumentNullException(nameof(crossReferenceOffsets));
 
-            var result = new Dictionary<IndirectReference, long>(capacity: objectOffsets.Count);
+            var result = new Dictionary<IndirectReference, int>(capacity: objectOffsets.Count);
             foreach (var objectOffset in objectOffsets)
             {
                 result[objectOffset.Key] = objectOffset.Value;
@@ -79,7 +79,7 @@
             /// </summary>
             /// <param name="current">The offset in bytes from the start of the document where the stream or table starts.</param>
             /// <param name="previous">The offset in bytes from the start of the document where the previous stream or table in a document starts.</param>
-            public CrossReferenceOffset(long current, long? previous)
+            public CrossReferenceOffset(int current, int? previous)
             {
                 Current = current;
                 Previous = previous;

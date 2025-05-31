@@ -16,16 +16,16 @@
 
         private readonly ILog log;
 
-        private List<long>? bfSearchStartXRefTablesOffsets;
-        private List<long>? bfSearchXRefTablesOffsets;
-        private List<long>? bfSearchXRefStreamsOffsets;
+        private List<int>? bfSearchStartXRefTablesOffsets;
+        private List<int>? bfSearchXRefTablesOffsets;
+        private List<int>? bfSearchXRefStreamsOffsets;
 
         public XrefOffsetValidator(ILog log)
         {
             this.log = log;
         }
 
-        public long CheckXRefOffset(long startXRefOffset, ISeekableTokenScanner scanner, IInputBytes inputBytes, bool isLenientParsing)
+        public int CheckXRefOffset(int startXRefOffset, ISeekableTokenScanner scanner, IInputBytes inputBytes, bool isLenientParsing)
         {
             // repair mode isn't available in non-lenient mode
             if (!isLenientParsing)
@@ -61,7 +61,7 @@
             return -1;
         }
 
-        private long CalculateXRefFixedOffset(long objectOffset, ISeekableTokenScanner scanner, IInputBytes inputBytes)
+        private int CalculateXRefFixedOffset(int objectOffset, ISeekableTokenScanner scanner, IInputBytes inputBytes)
         {
             if (objectOffset < 0)
             {
@@ -84,11 +84,11 @@
             return 0;
         }       
 
-        private long BruteForceSearchForXref(long xrefOffset, ISeekableTokenScanner scanner, IInputBytes reader)
+        private int BruteForceSearchForXref(int xrefOffset, ISeekableTokenScanner scanner, IInputBytes reader)
         {
-            long newOffset = -1;
-            long newOffsetTable = -1;
-            long newOffsetStream = -1;
+            int newOffset = -1;
+            int newOffsetTable = -1;
+            int newOffsetStream = -1;
 
             BruteForceSearchForTables(reader);
 
@@ -135,7 +135,7 @@
             else
             {
                 log.Warn("Trying to repair xref offset by looking for all startxref.");
-                if (TryBruteForceSearchForXrefFromStartxref(xrefOffset, scanner, reader, out long newOffsetFromStartxref))
+                if (TryBruteForceSearchForXrefFromStartxref(xrefOffset, scanner, reader, out int newOffsetFromStartxref))
                 {
                     newOffset = newOffsetFromStartxref;
                 }
@@ -144,20 +144,20 @@
             return newOffset;
         }
 
-        private bool TryBruteForceSearchForXrefFromStartxref(long xrefOffset, ISeekableTokenScanner scanner, IInputBytes reader, out long newOffset)
+        private bool TryBruteForceSearchForXrefFromStartxref(int xrefOffset, ISeekableTokenScanner scanner, IInputBytes reader, out int newOffset)
         {
             newOffset = -1;
             BruteForceSearchForStartxref(reader);
             long newStartXRefOffset = SearchNearestValue(bfSearchStartXRefTablesOffsets, xrefOffset);
             if (newStartXRefOffset < reader.Length)
             {
-                long tempNewOffset = -1;
+                int tempNewOffset = -1;
                 var startOffset = scanner.CurrentPosition;
                 scanner.Seek(newStartXRefOffset + 9);
 
                 if (scanner.MoveNext() && scanner.CurrentToken is NumericToken token)
                 {
-                    tempNewOffset = token.Long;
+                    tempNewOffset = token.Int;
                 }
 
                 if (tempNewOffset > -1)
@@ -189,7 +189,7 @@
             }
 
             // a pdf may contain more than one startxref entry
-            bfSearchStartXRefTablesOffsets = new List<long>();
+            bfSearchStartXRefTablesOffsets = new List<int>();
 
             var startOffset = bytes.CurrentOffset;
 
@@ -225,7 +225,7 @@
             }
 
             // a pdf may contain more than one xref entry
-            bfSearchXRefTablesOffsets = new List<long>();
+            bfSearchXRefTablesOffsets = new List<int>();
 
             var startOffset = bytes.CurrentOffset;
 
@@ -261,7 +261,7 @@
             }
 
             // a pdf may contain more than one /XRef entry
-            bfSearchXRefStreamsOffsets = new List<long>();
+            bfSearchXRefStreamsOffsets = new List<int>();
 
             var startOffset = bytes.CurrentOffset;
 
@@ -276,8 +276,8 @@
                 }
 
                 // search backwards for the beginning of the stream
-                long newOffset = -1;
-                long xrefOffset = bytes.CurrentOffset;
+                int newOffset = -1;
+                int xrefOffset = bytes.CurrentOffset;
 
                 bool objFound = false;
                 for (var i = 1; i < 40; i++)
@@ -351,16 +351,16 @@
             bytes.Seek(startOffset);
         }
 
-        private static long SearchNearestValue(List<long> values, long offset)
+        private static int SearchNearestValue(List<int> values, int offset)
         {
-            long newValue = -1;
-            long? currentDifference = null;
+            int newValue = -1;
+            int? currentDifference = null;
             int currentOffsetIndex = -1;
             int numberOfOffsets = values.Count;
             // find the nearest value
             for (int i = 0; i < numberOfOffsets; i++)
             {
-                long newDifference = offset - values[i];
+                int newDifference = offset - values[i];
                 // find the nearest offset
                 if (!currentDifference.HasValue || (Math.Abs(currentDifference.Value) > Math.Abs(newDifference)))
                 {

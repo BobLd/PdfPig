@@ -14,7 +14,7 @@
         /// <summary>
         /// The current position in the input.
         /// </summary>
-        long CurrentPosition { get; }
+        int CurrentPosition { get; }
 
         /// <summary>
         /// The length of the data represented by this scanner.

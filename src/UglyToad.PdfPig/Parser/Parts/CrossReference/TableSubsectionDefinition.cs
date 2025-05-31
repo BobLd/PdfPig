@@ -23,7 +23,7 @@
         /// <summary>
         /// The first object number in the table.
         /// </summary>
-        public long FirstNumber { get; }
+        public int FirstNumber { get; }
 
         /// <summary>
         /// The number of consecutive objects declared in the table.
@@ -33,7 +33,7 @@
         /// <summary>
         /// Create a new <see cref="TableSubsectionDefinition"/> to define a range of consecutive objects in the cross-reference table.
         /// </summary>
-        public TableSubsectionDefinition(long firstNumber, int count)
+        public TableSubsectionDefinition(int firstNumber, int count)
         {
             if (count < 0)
             {
@@ -62,7 +62,7 @@
 
             try
             {
-                var firstObjectId = long.Parse(parts[0], CultureInfo.InvariantCulture);
+                var firstObjectId = int.Parse(parts[0], CultureInfo.InvariantCulture);
                 var objectCount = int.Parse(parts[1], CultureInfo.InvariantCulture);
 
                 definition = new TableSubsectionDefinition(firstObjectId, objectCount);

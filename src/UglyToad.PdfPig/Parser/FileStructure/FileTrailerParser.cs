@@ -27,7 +27,7 @@
 
         internal static ReadOnlySpan<byte> StartXRefBytes => "startxref"u8;
 
-        public static long GetFirstCrossReferenceOffset(IInputBytes bytes, ISeekableTokenScanner scanner, bool isLenientParsing)
+        public static int GetFirstCrossReferenceOffset(IInputBytes bytes, ISeekableTokenScanner scanner, bool isLenientParsing)
         {
             if (bytes is null)
             {
@@ -72,10 +72,10 @@
                 throw new PdfDocumentFormatException($"Could not find the numeric value following 'startxref'. Searching from position {startXrefPosition}.");
             }
 
-            return numeric.Long;
+            return numeric.Int;
         }
 
-        private static long GetStartXrefPosition(IInputBytes bytes, int chunkSize)
+        private static int GetStartXrefPosition(IInputBytes bytes, int chunkSize)
         {
             // Initialize startpos to the end to get the loop below started
             var startPos = bytes.Length;
@@ -93,7 +93,7 @@
 
                 // Prepare to search this region; mark startXrefPos as "not found".
                 bytes.Seek(startPos);
-                var startXrefPos = -1L;
+                var startXrefPos = -1;
                 var index = 0;
 
                 // Starting scanning the file bytes.

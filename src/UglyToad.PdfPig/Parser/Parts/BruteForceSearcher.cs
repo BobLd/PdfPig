@@ -18,7 +18,7 @@
         /// </summary>
         /// <param name="bytes">The bytes of the document.</param>
         /// <returns>The object keys and offsets for the objects in this document.</returns>
-        public static IReadOnlyDictionary<IndirectReference, long> GetObjectLocations(IInputBytes bytes)
+        public static IReadOnlyDictionary<IndirectReference, int> GetObjectLocations(IInputBytes bytes)
         {
             if (bytes is null)
             {
@@ -29,7 +29,7 @@
 
             var lastEndOfFile = GetLastEndOfFileMarker(bytes);
 
-            var results = new Dictionary<IndirectReference, long>();
+            var results = new Dictionary<IndirectReference, int>();
 
             var generationBytes = new StringBuilder();
             var objectNumberBytes = new StringBuilder();
@@ -171,7 +171,7 @@
                     continue;
                 }
 
-                var obj = long.Parse(objectNumberBytes.ToString(), CultureInfo.InvariantCulture);
+                var obj = int.Parse(objectNumberBytes.ToString(), CultureInfo.InvariantCulture);
                 var generation = int.Parse(generationBytes.ToString(), CultureInfo.InvariantCulture);
 
                 results[new IndirectReference(obj, generation)] = bytes.CurrentOffset;

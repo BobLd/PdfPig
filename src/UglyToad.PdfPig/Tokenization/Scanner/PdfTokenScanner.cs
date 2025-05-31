@@ -38,14 +38,14 @@
         private readonly List<IToken> readTokens = [];
 
         // Store the previous 3 tokens and their positions so we can backtrack to find object numbers and stream dictionaries.
-        private readonly long[] previousTokenPositions = new long[3];
+        private readonly int[] previousTokenPositions = new int[3];
         private readonly IToken[] previousTokens = new IToken[3];
 
         public IToken? CurrentToken { get; private set; }
 
         private IndirectReference? callingObject;
 
-        public long CurrentPosition => coreTokenScanner.CurrentPosition;
+        public int CurrentPosition => coreTokenScanner.CurrentPosition;
 
         public long Length => coreTokenScanner.Length;
 
@@ -199,7 +199,7 @@
 
                 if (IsToken(coreTokenScanner, OperatorToken.StartStream, out var actualStartStreamPosition))
                 {
-                    var streamIdentifier = new IndirectReference(objectNumber.Long, generation.Int);
+                    var streamIdentifier = new IndirectReference(objectNumber.Int, generation.Int);
 
                     // Prevent an infinite loop where a stream's length references the stream or the stream's offset.
                     var getLengthFromFile = !isBruteForcing && !(callingObject.HasValue && callingObject.Value.Equals(streamIdentifier));
@@ -244,7 +244,7 @@
                 return false;
             }
 
-            var reference = new IndirectReference(objectNumber.Long, generation.Int);
+            var reference = new IndirectReference(objectNumber.Int, generation.Int);
 
             IToken token;
             if (readTokens.Count == 3 && readTokens[0] is NumericToken objNum
@@ -252,7 +252,7 @@
                                       && ReferenceEquals(readTokens[2], OperatorToken.R))
             {
                 // I have no idea if this can ever happen.
-                token = new IndirectReferenceToken(new IndirectReference(objNum.Long, genNum.Int));
+                token = new IndirectReferenceToken(new IndirectReference(objNum.Int, genNum.Int));
             }
             else
             {
@@ -799,7 +799,7 @@
             }
         }
 
-        private ObjectToken GetObjectFromStream(IndirectReference reference, long offset)
+        private ObjectToken GetObjectFromStream(IndirectReference reference, int offset)
         {
             var streamObjectNumber = offset * -1;
 
@@ -826,7 +826,7 @@
             return result;
         }
 
-        private IReadOnlyList<ObjectToken> ParseObjectStream(StreamToken stream, long offset)
+        private IReadOnlyList<ObjectToken> ParseObjectStream(StreamToken stream, int offset)
         {
             if (!stream.StreamDictionary.TryGet(NameToken.N, out var numberToken)
             || !(numberToken is NumericToken numberOfObjects))
@@ -840,14 +840,14 @@
                 throw new PdfDocumentFormatException($"Object stream dictionary did not provide first object offset {stream.StreamDictionary}.");
             }
 
-            long firstTokenOffset = firstTokenNum.Long;
+            int firstTokenOffset = firstTokenNum.Int;
 
             // Read the N integers
             var bytes = new MemoryInputBytes(stream.Decode(filterProvider, this));
 
             var scanner = new CoreTokenScanner(bytes, true, useLenientParsing: parsingOptions.UseLenientParsing);
 
-            var objects = new List<(long, long)>();
+            var objects = new List<(int, int)>();
 
             for (var i = 0; i < numberOfObjects.Int; i++)
             {
@@ -856,7 +856,7 @@
                 scanner.MoveNext();
                 var byteOffset = (NumericToken)scanner.CurrentToken;
 
-                objects.Add((objectNumber.Long, firstTokenOffset + byteOffset.Long));
+                objects.Add((objectNumber.Int, firstTokenOffset + byteOffset.Int));
             }
 
             var results = new List<ObjectToken>();

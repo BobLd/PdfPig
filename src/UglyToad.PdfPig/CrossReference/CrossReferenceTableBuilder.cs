@@ -28,13 +28,13 @@
             parts.Add(part);
         }
 
-        public CrossReferenceTable Build(long firstCrossReferenceOffset, long offsetCorrection, bool isLenientParsing, ILog log)
+        public CrossReferenceTable Build(int firstCrossReferenceOffset, int offsetCorrection, bool isLenientParsing, ILog log)
         {
             CrossReferenceType type = CrossReferenceType.Table;
             DictionaryToken trailerDictionary = new DictionaryToken(new Dictionary<NameToken, IToken>());
-            Dictionary<IndirectReference, long> objectOffsets = new Dictionary<IndirectReference, long>();
+            Dictionary<IndirectReference, int> objectOffsets = new Dictionary<IndirectReference, int>();
 
-            var xrefPartToBytePositionOrder = new List<long>();
+            var xrefPartToBytePositionOrder = new List<int>();
 
             var currentPart = parts.FirstOrDefault(x => x.Offset == firstCrossReferenceOffset);
             
@@ -66,7 +66,7 @@
 
                 while (currentPart.Dictionary != null)
                 {
-                    long prevBytePos = currentPart.GetPreviousOffset();
+                    int prevBytePos = currentPart.GetPreviousOffset();
                     if (prevBytePos == -1)
                     {
                         break;
@@ -123,7 +123,7 @@
                 {
                     var prev = x.GetPreviousOffset();
 
-                    return new CrossReferenceTable.CrossReferenceOffset(x.Offset, prev >= 0 ? prev : default(long?));
+                    return new CrossReferenceTable.CrossReferenceOffset(x.Offset, prev >= 0 ? prev : default(int?));
                 }).ToList());
         }
     }

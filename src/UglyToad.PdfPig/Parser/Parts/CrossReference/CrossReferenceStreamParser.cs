@@ -18,7 +18,7 @@
         /// <summary>
         /// Parses through the unfiltered stream and populates the xrefTable HashMap.
         /// </summary>
-        public CrossReferenceTablePart Parse(long streamOffset, long? fromTableAtOffset, StreamToken stream)
+        public CrossReferenceTablePart Parse(int streamOffset, int? fromTableAtOffset, StreamToken stream)
         {
             var decoded = stream.Decode(filterProvider).Span;
 
@@ -26,10 +26,10 @@
 
             var lineCount = decoded.Length / fieldSizes.LineLength;
             
-            long previousOffset = -1;
+            int previousOffset = -1;
             if (stream.StreamDictionary.TryGet(NameToken.Prev, out var prevToken) && prevToken is NumericToken prevNumeric)
             {
-                previousOffset = prevNumeric.Long;
+                previousOffset = prevNumeric.Int;
             }
 
             var builder = new CrossReferenceTablePartBuilder
@@ -85,7 +85,7 @@
             return builder.Build();
         }
 
-        private static void ReadNextStreamObject(int type, long objectNumber, CrossReferenceStreamFieldSize fieldSizes,
+        private static void ReadNextStreamObject(int type, int objectNumber, CrossReferenceStreamFieldSize fieldSizes,
             CrossReferenceTablePartBuilder builder, ReadOnlySpan<byte> lineBuffer)
         {
             switch (type)
@@ -137,7 +137,7 @@
             }
         }
 
-        private static IEnumerable<long> GetObjectNumbers(DictionaryToken dictionary)
+        private static IEnumerable<int> GetObjectNumbers(DictionaryToken dictionary)
         {
             //  The number one greater than the highest object number used in this section or in any section for which this is an update.
             if (!dictionary.TryGet(NameToken.Size, out var sizeToken) || !(sizeToken is NumericToken sizeNumeric))
@@ -145,7 +145,7 @@
                 throw new PdfDocumentFormatException($"The stream dictionary must contain a numeric size value: {dictionary}.");
             }
             
-            var objNums = new List<long>();
+            var objNums = new List<int>();
 
             if (dictionary.TryGet(NameToken.Index, out var indexToken) && indexToken is ArrayToken indexArrayToken)
             {

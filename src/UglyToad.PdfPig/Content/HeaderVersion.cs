@@ -11,9 +11,9 @@
         /// <summary>
         /// The offset in bytes from the start of the file to the start of the version comment.
         /// </summary>
-        public long OffsetInFile { get; }
+        public int OffsetInFile { get; }
 
-        public HeaderVersion(double version, string versionString, long offsetInFile)
+        public HeaderVersion(double version, string versionString, int offsetInFile)
         {
             Version = version;
             VersionString = versionString;

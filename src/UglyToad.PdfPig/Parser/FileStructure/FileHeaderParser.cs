@@ -91,7 +91,7 @@
             return result;
         }
 
-        private static bool TryBruteForceVersionLocation(long startPosition, IInputBytes inputBytes, [NotNullWhen(true)] out HeaderVersion? headerVersion)
+        private static bool TryBruteForceVersionLocation(int startPosition, IInputBytes inputBytes, [NotNullWhen(true)] out HeaderVersion? headerVersion)
         {
             headerVersion = null;
 

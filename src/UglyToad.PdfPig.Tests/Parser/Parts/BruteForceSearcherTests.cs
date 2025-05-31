@@ -33,7 +33,7 @@ startxref
 216
 %%EOF";
 
-        private static readonly long[] TestDataOffsets =
+        private static readonly int[] TestDataOffsets =
         {
             TestData.IndexOf("2 17 obj", StringComparison.OrdinalIgnoreCase),
             TestData.IndexOf("3 0 obj", StringComparison.OrdinalIgnoreCase),
@@ -105,7 +105,7 @@ endobj
 
             Assert.Equal(2, locations.Count);
 
-            var expectedLocations = new long[]
+            var expectedLocations = new int[]
             {
                 s.IndexOf("1 0 obj", StringComparison.OrdinalIgnoreCase),
                 s.IndexOf("11 0 obj", StringComparison.OrdinalIgnoreCase)
@@ -136,7 +136,7 @@ endobj";
 
             Assert.Equal(2, locations.Count);
 
-            var expectedLocations = new long[]
+            var expectedLocations = new int[]
             {
                 s.IndexOf("1 0 obj", StringComparison.OrdinalIgnoreCase),
                 s.IndexOf("5 0 obj", StringComparison.OrdinalIgnoreCase)
@@ -258,7 +258,7 @@ endobj
 
             Assert.Equal(3, locations.Count);
 
-            var expectedLocations = new long[]
+            var expectedLocations = new int[]
             {
                 s.IndexOf("1 0 obj", StringComparison.OrdinalIgnoreCase),
                 s.IndexOf("2 0 obj", StringComparison.OrdinalIgnoreCase),

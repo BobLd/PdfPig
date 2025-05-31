@@ -9,13 +9,13 @@
 
     internal static class CrossReferenceObjectOffsetValidator
     {
-        private const long MinimumSearchOffset = 6;
+        private const int MinimumSearchOffset = 6;
         
         /// <summary>
         /// Check that the offsets in the cross reference are correct.
         /// </summary>
         public static bool ValidateCrossReferenceOffsets(IInputBytes bytes, CrossReferenceTable crossReferenceTable, ILog log,
-            out IReadOnlyDictionary<IndirectReference, long> actualOffsets)
+            out IReadOnlyDictionary<IndirectReference, int> actualOffsets)
         {
             actualOffsets = crossReferenceTable.ObjectOffsets;
 
@@ -28,7 +28,7 @@
             if (bruteForceOffsets.Count > 0)
             {
                 // Pre-allocate capacity for at least the bruteForceOffsets, since we'll be adding all of them
-                var builderOffsets = new Dictionary<IndirectReference, long>(bruteForceOffsets.Count);
+                var builderOffsets = new Dictionary<IndirectReference, int>(bruteForceOffsets.Count);
 
                 // find all object streams
                 foreach (var entry in crossReferenceTable.ObjectOffsets)
@@ -53,7 +53,7 @@
             return false;
         }
         
-        private static bool ValidateXrefOffsets(IInputBytes bytes, IReadOnlyDictionary<IndirectReference, long> objectOffsets, ILog log)
+        private static bool ValidateXrefOffsets(IInputBytes bytes, IReadOnlyDictionary<IndirectReference, int> objectOffsets, ILog log)
         {
             if (objectOffsets is null)
             {

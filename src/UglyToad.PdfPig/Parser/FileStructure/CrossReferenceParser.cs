@@ -24,12 +24,12 @@
             this.crossReferenceStreamParser = crossReferenceStreamParser;
         }
         
-        public CrossReferenceTable Parse(IInputBytes bytes, bool isLenientParsing, long crossReferenceLocation,
-            long offsetCorrection,
+        public CrossReferenceTable Parse(IInputBytes bytes, bool isLenientParsing, int crossReferenceLocation,
+            int offsetCorrection,
             IPdfTokenScanner pdfScanner, 
             ISeekableTokenScanner tokenScanner)
         {
-            long fixedOffset = offsetValidator.CheckXRefOffset(crossReferenceLocation, tokenScanner, bytes, isLenientParsing);
+            int fixedOffset = offsetValidator.CheckXRefOffset(crossReferenceLocation, tokenScanner, bytes, isLenientParsing);
             if (fixedOffset > -1)
             {
                 crossReferenceLocation = fixedOffset;
@@ -40,7 +40,7 @@
             var table = new CrossReferenceTableBuilder();
 
             var prevSet = new HashSet<long>();
-            long previousCrossReferenceLocation = crossReferenceLocation;
+            int previousCrossReferenceLocation = crossReferenceLocation;
 
             var missedAttempts = 0;
 
@@ -217,7 +217,7 @@
                         }
                     }
 
-                    previousCrossReferenceLocation = storedCurrentTokenScannerPosition;
+                    previousCrossReferenceLocation = (int)storedCurrentTokenScannerPosition;
 
                     missedAttempts++;
 
@@ -256,9 +256,9 @@
         }
 
         private bool TryParseCrossReferenceStream(
-            long objByteOffset,
+            int objByteOffset,
             IPdfTokenScanner pdfScanner,
-            long? fromTableAtOffset,
+            int? fromTableAtOffset,
             [NotNullWhen(true)] out CrossReferenceTablePart? xrefTablePart)
         {
             xrefTablePart = null;
@@ -281,8 +281,8 @@
             return true;
         }
 
-        private bool TryBruteForceXrefTableLocate(IInputBytes bytes, long expectedOffset, 
-            out long actualOffset)
+        private bool TryBruteForceXrefTableLocate(IInputBytes bytes, int expectedOffset, 
+            out int actualOffset)
         {
             actualOffset = expectedOffset;
 

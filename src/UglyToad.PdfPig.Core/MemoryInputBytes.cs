@@ -27,7 +27,7 @@
 
         private int currentOffset;
         /// <inheritdoc />
-        public long CurrentOffset => currentOffset + 1;
+        public int CurrentOffset => currentOffset + 1;
 
         /// <inheritdoc />
         public bool MoveNext()

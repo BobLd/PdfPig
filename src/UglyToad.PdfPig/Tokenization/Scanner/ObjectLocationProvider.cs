@@ -19,14 +19,14 @@
 
         private readonly IInputBytes bytes;
 
-        private IReadOnlyDictionary<IndirectReference, long>? bruteForcedOffsets;
+        private IReadOnlyDictionary<IndirectReference, int>? bruteForcedOffsets;
 
         /// <summary>
         /// Indicates whether we now have a cross reference table.
         /// </summary>
         private bool loadedFromTable;
 
-        private readonly Dictionary<IndirectReference, long> offsets = new Dictionary<IndirectReference, long>();
+        private readonly Dictionary<IndirectReference, int> offsets = new Dictionary<IndirectReference, int>();
 
         public ObjectLocationProvider(Func<CrossReferenceTable?> crossReferenceTable, IInputBytes bytes)
         {
@@ -34,7 +34,7 @@
             this.bytes = bytes;
         }
 
-        public bool TryGetOffset(IndirectReference reference, out long offset)
+        public bool TryGetOffset(IndirectReference reference, out int offset)
         {
             if (!loadedFromTable)
             {
@@ -74,7 +74,7 @@
             return bruteForcedOffsets.TryGetValue(reference, out offset);
         }
 
-        public void UpdateOffset(IndirectReference reference, long offset)
+        public void UpdateOffset(IndirectReference reference, int offset)
         {
             offsets[reference] = offset;
         }

@@ -6,19 +6,19 @@
 
     internal class CrossReferenceTablePartBuilder
     {
-        private readonly Dictionary<IndirectReference, long> objects = new Dictionary<IndirectReference, long>();
+        private readonly Dictionary<IndirectReference, int> objects = new Dictionary<IndirectReference, int>();
 
-        public long Offset { get; set; }
+        public int Offset { get; set; }
 
-        public long Previous { get; set; }
+        public int Previous { get; set; }
 
         public DictionaryToken? Dictionary { get; set; }
 
         public CrossReferenceType XRefType { get; set; }
 
-        public long? TiedToPreviousAtOffset { get; set; }
+        public int? TiedToPreviousAtOffset { get; set; }
 
-        public void Add(long objectId, int generationNumber, long offset)
+        public void Add(int objectId, int generationNumber, int offset)
         {
             IndirectReference objKey = new IndirectReference(objectId, generationNumber);
 

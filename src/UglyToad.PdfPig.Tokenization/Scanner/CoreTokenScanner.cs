@@ -30,13 +30,13 @@
         /// <summary>
         /// The offset in the input data at which the <see cref="CurrentToken"/> starts.
         /// </summary>
-        public long CurrentTokenStart { get; private set; }
+        public int CurrentTokenStart { get; private set; }
 
         /// <inheritdoc />
         public IToken CurrentToken { get; private set; }
 
         /// <inheritdoc />
-        public long CurrentPosition => inputBytes.CurrentOffset;
+        public int CurrentPosition => inputBytes.CurrentOffset;
 
         /// <inheritdoc />
         public long Length => inputBytes.Length;

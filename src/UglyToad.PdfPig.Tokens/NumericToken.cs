@@ -149,6 +149,11 @@
         public int Int => (int)Data;
 
         /// <summary>
+        /// The value of this number as an <see langword="uint"/>.
+        /// </summary>
+        public uint UInt => (uint)Data;
+
+        /// <summary>
         /// The value of this number as a <see langword="long"/>.
         /// </summary>
         public long Long => (long)Data;
