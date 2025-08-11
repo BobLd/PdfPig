@@ -1,16 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-    <PropertyGroup>
-        <TargetFrameworks>net471;net8.0;net9.0</TargetFrameworks>
-        <IsTestProject>true</IsTestProject>
-        <IsPackable>false</IsPackable>
-        <DebugType>full</DebugType>
-        <LangVersion>12</LangVersion>
-        <SignAssembly>true</SignAssembly>
-        <AssemblyOriginatorKeyFile>..\pdfpig.snk</AssemblyOriginatorKeyFile>
-        <RuntimeFrameworkVersion Condition="'$(TargetFramework)'=='netcoreapp2.1'">2.1.30</RuntimeFrameworkVersion>
-        <ImplicitUsings>enable</ImplicitUsings>
-    </PropertyGroup>
+  <PropertyGroup>
+    <TargetFrameworks>net8.0</TargetFrameworks>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <DebugType>full</DebugType>
+    <LangVersion>12</LangVersion>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>..\pdfpig.snk</AssemblyOriginatorKeyFile>
+    <RuntimeFrameworkVersion Condition="'$(TargetFramework)'=='netcoreapp2.1'">2.1.30</RuntimeFrameworkVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
 
     <ItemGroup>
         <None Remove="Fonts\TrueType\*.ttf" />
