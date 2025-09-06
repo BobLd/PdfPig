@@ -9,6 +9,8 @@
     using UglyToad.PdfPig.Content;
     using UglyToad.PdfPig.Functions;
     using UglyToad.PdfPig.Util;
+    using Wacton.Unicolour;
+    using Wacton.Unicolour.Icc;
 
     /// <summary>
     /// Contains more document-specific information about the <see cref="ColorSpace"/>.
@@ -1223,12 +1225,18 @@
         public XmpMetadata? Metadata { get; }
 
         /// <summary>
+        /// TODO
+        /// </summary>
+        public Profile? IccProfile { get; }
+
+        /// <summary>
         /// Create a new <see cref="ICCBasedColorSpaceDetails"/>.
         /// </summary>
         internal ICCBasedColorSpaceDetails(int numberOfColorComponents,
             ColorSpaceDetails? alternateColorSpaceDetails,
             IReadOnlyList<double>? range,
-            XmpMetadata? metadata)
+            XmpMetadata? metadata,
+            Memory<byte> iccProfile)
             : base(ColorSpace.ICCBased)
         {
             if (numberOfColorComponents != 1 && numberOfColorComponents != 3 && numberOfColorComponents != 4)
@@ -1250,14 +1258,74 @@
                     $"Must consist of exactly {2 * numberOfColorComponents} (2 x NumberOfColorComponents), but was passed {range?.Count ?? 0}");
             }
             Metadata = metadata;
+
+            try
+            {
+                //var iccConfig = new IccConfiguration(iccProfile.ToArray(), Intent.RelativeColorimetric);
+                //IccProfile = new Configuration(iccConfig: iccConfig);
+
+                IccProfile = new Profile(iccProfile.ToArray());
+                IccProfile.ErrorIfUnsupported();
+            }
+            catch (Exception e)
+            {
+                IccProfile = null;
+                System.Diagnostics.Debug.WriteLine(e);
+            }
         }
 
         /// <inheritdoc/>
         internal override double[] Process(params double[] values)
         {
             // TODO - use ICC profile
+            if (IccProfile is null)
+            {
+                return AlternateColorSpace.Process(values);
+            }
 
-            return AlternateColorSpace.Process(values);
+            var xyz = IccProfile.ToXyz(values, XyzConfiguration.D50, Intent.RelativeColorimetric);
+            var rgbL = RgbLinear.FromXyz(xyz, RgbConfiguration.StandardRgb, XyzConfiguration.D50);
+            var rgb = Rgb.FromRgbLinear(rgbL, RgbConfiguration.StandardRgb, DynamicRange.High);
+
+            switch (NumberOfColorComponents)
+            {
+                case 3:
+                    return rgb.ToArray();
+
+                case 4:
+
+                    return Channels.UncalibratedFromRgb(rgb).Values;
+            }
+
+            throw new Exception();
+        }
+
+        public static (double C, double M, double Y, double K) RgbToCmyk(double r, double g, double b)
+        {
+            // Normalize input if needed
+            r = Math.Max(0, Math.Min(1, r));
+            g = Math.Max(0, Math.Min(1, g));
+            b = Math.Max(0, Math.Min(1, b));
+
+            double c = 1 - r;
+            double m = 1 - g;
+            double y = 1 - b;
+            double k = Math.Min(c, Math.Min(m, y));
+
+            if (k >= 1.0)
+            {
+                // Black
+                return (0, 0, 0, 1);
+            }
+            else
+            {
+                return (
+                    (c - k) / (1 - k),
+                    (m - k) / (1 - k),
+                    (y - k) / (1 - k),
+                    k
+                );
+            }
         }
 
         /// <inheritdoc/>
@@ -1268,15 +1336,57 @@
                 throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values?.Length ?? 0}", nameof(values));
             }
 
-            // TODO - use ICC profile
-
-            for (int c = 0; c < values.Length; c++)
+            if (IccProfile is null)
             {
-                int i = 2 * c;
-                values[c] = PdfFunction.ClipToRange(values[c], Range[i], Range[i + 1]);
+                for (int c = 0; c < values.Length; c++)
+                {
+                    int i = 2 * c;
+                    values[c] = PdfFunction.ClipToRange(values[c], Range[i], Range[i + 1]);
+                }
+
+                return AlternateColorSpace.GetColor(values);
             }
 
-            return AlternateColorSpace.GetColor(values);
+
+            var xyz = IccProfile.ToXyz(values, XyzConfiguration.D50, Intent.RelativeColorimetric);
+            var rgbL = RgbLinear.FromXyz(xyz, RgbConfiguration.StandardRgb, XyzConfiguration.D50);
+            var rgb = Rgb.FromRgbLinear(rgbL, RgbConfiguration.StandardRgb, DynamicRange.High);
+
+            switch (NumberOfColorComponents)
+            {
+                case 3:
+                    return new RGBColor(rgb.R, rgb.G, rgb.B);
+
+                case 4:
+
+                    var cmyk = Channels.UncalibratedFromRgb(rgb).Values;
+                    return new CMYKColor(cmyk[0], cmyk[1], cmyk[2], cmyk[3]);
+            }
+
+            throw new Exception();
+
+            /*
+            switch (NumberOfColorComponents)
+            {
+                case 3:
+                    return new RGBColor(navyCmyk.Rgb.R, navyCmyk.Rgb.G, navyCmyk.Rgb.B);
+
+                case 4:
+                    if (navyCmyk.Icc.ColourSpace.Equals("CMYK"))
+                    {
+                        var cmyk = RgbToCmyk(navyCmyk.Rgb.R, navyCmyk.Rgb.G, navyCmyk.Rgb.B);
+                        return new CMYKColor(cmyk.C, cmyk.M, cmyk.Y, cmyk.K);
+                    }
+                    else
+                    {
+                        throw new Exception("TODO");
+                    }
+                    break;
+
+                default:
+                    throw new Exception("TODO");
+            }
+            */
         }
 
         /// <inheritdoc/>
@@ -1295,7 +1405,7 @@
         internal override Span<byte> Transform(Span<byte> decoded)
         {
             // TODO - use ICC profile
-
+            
             return AlternateColorSpace.Transform(decoded);
         }
     }
