@@ -1,5 +1,6 @@
 ﻿namespace UglyToad.PdfPig.Graphics.Colors
 {
+    using SkiaSharp;
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
@@ -1223,12 +1224,18 @@
         public XmpMetadata? Metadata { get; }
 
         /// <summary>
+        /// ICC profile data.
+        /// </summary>
+        public SKColorSpace? Profile { get; }
+        
+        /// <summary>
         /// Create a new <see cref="ICCBasedColorSpaceDetails"/>.
         /// </summary>
         internal ICCBasedColorSpaceDetails(int numberOfColorComponents,
             ColorSpaceDetails? alternateColorSpaceDetails,
             IReadOnlyList<double>? range,
-            XmpMetadata? metadata)
+            XmpMetadata? metadata,
+            Memory<byte> profile)
             : base(ColorSpace.ICCBased)
         {
             if (numberOfColorComponents != 1 && numberOfColorComponents != 3 && numberOfColorComponents != 4)
@@ -1249,7 +1256,17 @@
                 throw new ArgumentOutOfRangeException(nameof(range), range,
                     $"Must consist of exactly {2 * numberOfColorComponents} (2 x NumberOfColorComponents), but was passed {range?.Count ?? 0}");
             }
+            
             Metadata = metadata;
+
+            try
+            {
+                Profile = SKColorSpace.CreateIcc(profile.Span);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
         }
 
         /// <inheritdoc/>
@@ -1265,18 +1282,54 @@
         {
             if (values is null || values.Length != NumberOfColorComponents)
             {
-                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values?.Length ?? 0}", nameof(values));
+                throw new ArgumentException(
+                    $"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values?.Length ?? 0}",
+                    nameof(values));
             }
 
-            // TODO - use ICC profile
-
-            for (int c = 0; c < values.Length; c++)
+            if (Profile is null)
             {
-                int i = 2 * c;
-                values[c] = PdfFunction.ClipToRange(values[c], Range[i], Range[i + 1]);
+                for (int c = 0; c < values.Length; c++)
+                {
+                    int i = 2 * c;
+                    values[c] = PdfFunction.ClipToRange(values[c], Range[i], Range[i + 1]);
+                }
+
+                return AlternateColorSpace.GetColor(values);
             }
 
-            return AlternateColorSpace.GetColor(values);
+            // Define source and destination color spaces
+            var srcColorSpace = SKColorSpace.CreateSrgb(); // Assume input is in sRGB
+            var destColorSpace = Profile;
+
+            // Create an SKBitmap with source color space (1x1 for single color)
+            var srcBitmapInfo = new SKImageInfo(1, 1, SKImageInfo.PlatformColorType, SKAlphaType.Premul, srcColorSpace);
+            using var srcBitmap = new SKBitmap(srcBitmapInfo);
+
+            // Set the pixel to the desired color (e.g., red in sRGB)
+            if (NumberOfColorComponents == 1)
+            {
+                byte v = (byte)(values[0] * 255.0);
+                srcBitmap.SetPixel(0, 0, new SKColor(v, v, v, 255));
+            }
+            else
+            {
+                srcBitmap.SetPixel(0, 0, new SKColor((byte)(values[0] * 255.0), (byte)(values[1] * 255.0), (byte)(values[2] * 255.0), 255));
+            }
+
+            // Create destination bitmap with target color space
+            var destBitmapInfo = new SKImageInfo(1, 1, SKImageInfo.PlatformColorType, SKAlphaType.Premul,
+                destColorSpace);
+            using var destBitmap = new SKBitmap(destBitmapInfo);
+
+            // Use Canvas to perform color space conversion via draw
+            using var canvas = new SKCanvas(destBitmap);
+            canvas.DrawBitmap(srcBitmap, 0, 0);
+
+            // Read the converted pixel value
+            SKColor convertedColor = destBitmap.GetPixel(0, 0);
+
+            return new RGBColor(convertedColor.Red / 255.0, convertedColor.Green / 255.0, convertedColor.Blue / 255.0);
         }
 
         /// <inheritdoc/>
