@@ -195,6 +195,8 @@
 
         public TransformationMatrix GetFontMatrix()
         {
+            // TODO - Improve that
+            
             var scale = 1000.0;
 
             if (font?.TableRegister.HeaderTable != null)
@@ -336,6 +338,26 @@
             }
 
             return widths[index];
+        }
+
+        public double GetDescent()
+        {
+            if (font is null)
+            {
+                return DefaultTransformation.TransformY(descriptor!.Descent);
+            }
+
+            return GetFontMatrix().TransformY(font.TableRegister.HorizontalHeaderTable.Descent);
+        }
+
+        public double GetAscent()
+        {
+            if (font is null)
+            {
+                return DefaultTransformation.TransformY(descriptor!.Ascent);
+            }
+
+            return GetFontMatrix().TransformY(font.TableRegister.HorizontalHeaderTable.Ascent);
         }
 
         /// <inheritdoc/>

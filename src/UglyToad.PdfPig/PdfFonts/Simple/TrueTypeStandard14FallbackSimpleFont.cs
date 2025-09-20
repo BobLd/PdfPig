@@ -137,6 +137,16 @@
             return DefaultTransformation;
         }
 
+        public double GetDescent()
+        {
+            return GetFontMatrix().TransformY(fontMetrics.Descender);
+        }
+
+        public double GetAscent()
+        {
+            return GetFontMatrix().TransformY(fontMetrics.Ascender);
+        }
+
         /// <inheritdoc/>
         public bool TryGetPath(int characterCode, [NotNullWhen(true)] out IReadOnlyList<PdfSubpath>? path)
         {
