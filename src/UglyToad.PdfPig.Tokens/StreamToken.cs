@@ -60,6 +60,15 @@
 
             return Data.Span.SequenceEqual(other.Data.Span);
         }
+        
+        /// <inheritdoc />
+        public override int GetHashCode()
+        {
+            var hashCode = new HashCode();
+            hashCode.Add(StreamDictionary);
+            hashCode.Add(Data);
+            return hashCode.ToHashCode();
+        }
 
         /// <inheritdoc />
         public override string ToString()

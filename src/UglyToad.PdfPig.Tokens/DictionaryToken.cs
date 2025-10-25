@@ -15,6 +15,8 @@
         /// </summary>
         public IReadOnlyDictionary<string, IToken> Data { get; }
 
+        private readonly int _hash;
+
         /// <summary>
         /// Create a new <see cref="DictionaryToken"/>.
         /// </summary>
@@ -34,13 +36,27 @@
             }
 
             Data = result;
+            _hash = ComputeHash();
         }
 
         private DictionaryToken(IReadOnlyDictionary<string, IToken> data)
         {
             Data = data;
+            _hash = ComputeHash();
         }
 
+        private int ComputeHash()
+        {
+            var hashCode = new HashCode();
+            foreach (var kvp in Data)
+            {
+                hashCode.Add(kvp.Key);
+                hashCode.Add(kvp.Value);
+            }
+
+            return hashCode.ToHashCode();
+        }
+        
         /// <summary>
         /// Try and get the entry with a given name.
         /// </summary>
@@ -198,10 +214,15 @@
         }
 
         /// <inheritdoc />
+        public override int GetHashCode()
+        {
+            return _hash;
+        }
+
+        /// <inheritdoc />
         public override string ToString()
         {
             return string.Join(", ", Data.Select(x => $"<{x.Key}, {x.Value}>"));
         }
-       
     }
 }

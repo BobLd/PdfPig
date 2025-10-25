@@ -1,7 +1,5 @@
 ﻿namespace UglyToad.PdfPig.PdfFonts.Parser.Handlers
 {
-    using System;
-    using System.Diagnostics.CodeAnalysis;
     using CidFonts;
     using Cmap;
     using Composite;
@@ -11,6 +9,9 @@
     using Logging;
     using Parts;
     using PdfPig.Parser.Parts;
+    using System;
+    using System.Diagnostics.CodeAnalysis;
+    using System.Text;
     using Tokenization.Scanner;
     using Tokens;
     using Util;
@@ -77,7 +78,18 @@
                 {
                     if (toUnicodeStream?.Decode(filterProvider, scanner) is { } decodedUnicodeCMap)
                     {
-                        toUnicodeCMap = CMapCache.Parse(new MemoryInputBytes(decodedUnicodeCMap));
+                        if (CMapCache.TryGetNameFast(decodedUnicodeCMap.Span, out string? cmapName))
+                        {
+                            if (!_cmapCache.TryGetValue(cmapName!, out toUnicodeCMap))
+                            {
+                                toUnicodeCMap = CMapCache.Parse(new MemoryInputBytes(decodedUnicodeCMap));
+                                _cmapCache[cmapName!] = toUnicodeCMap;
+                            }
+                        }
+                        else
+                        {
+                            toUnicodeCMap = CMapCache.Parse(new MemoryInputBytes(decodedUnicodeCMap));
+                        }
                     }
                 }
                 else if (DirectObjectFinder.TryGet<NameToken>(toUnicodeValue, scanner, out var toUnicodeName)
@@ -98,6 +110,8 @@
             return font;
         }
 
+        private readonly Dictionary<string, CMap> _cmapCache = new Dictionary<string, CMap>();
+        
         private static bool TryGetFirstDescendant(DictionaryToken dictionary, [NotNullWhen(true)] out IToken? descendant)
         {
             descendant = null;

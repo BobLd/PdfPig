@@ -5,6 +5,7 @@
     using System.Diagnostics.CodeAnalysis;
     using Core;
     using Parser;
+    using System.Text;
 
     internal static class CMapCache
     {
@@ -46,6 +47,29 @@
             var result = CMapParser.Parse(bytes);
 
             return result;
+        }
+
+        private static ReadOnlySpan<byte> cmapNameTag => @"/CMapName "u8;
+
+        public static bool TryGetNameFast(ReadOnlySpan<byte> bytes, out string? name)
+        {
+            name = null;
+            int nameIndex = bytes.IndexOf(cmapNameTag);
+            
+            if (nameIndex <= -1)
+            {
+                return false;
+            }
+
+            int nameEndIndex = bytes.Slice(nameIndex + cmapNameTag.Length).IndexOf("def"u8);
+
+            if (nameEndIndex <= -1)
+            {
+                return false;
+            }
+
+            name = Encoding.UTF8.GetString(bytes.Slice(nameIndex + cmapNameTag.Length, nameEndIndex - 1));
+            return true;
         }
     }
 }
