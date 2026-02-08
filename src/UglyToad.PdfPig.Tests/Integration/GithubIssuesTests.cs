@@ -8,9 +8,18 @@
     using SkiaSharp;
     using UglyToad.PdfPig.AcroForms;
     using UglyToad.PdfPig.AcroForms.Fields;
+    using UglyToad.PdfPig.Fonts.SystemFonts;
+    using UglyToad.PdfPig.Fonts.TrueType;
 
     public class GithubIssuesTests
     {
+        [Fact]
+        public void IssuesXXXX()
+        {
+            TrueTypeFont trueTypeFont = SystemFontFinder.Instance.GetTrueTypeFont("ZapfDingbats"); // TODO - Get font name mappings, 
+            Assert.NotNull(trueTypeFont);
+        }
+
         [Fact]
         public void Issues1238()
         {

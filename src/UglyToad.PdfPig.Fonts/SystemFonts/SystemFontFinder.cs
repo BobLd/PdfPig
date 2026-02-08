@@ -2,13 +2,14 @@
 
 namespace UglyToad.PdfPig.Fonts.SystemFonts
 {
+    using Core;
+    using Standard14Fonts;
     using System;
+    using System.Buffers.Binary;
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Runtime.InteropServices;
-    using Core;
-    using Standard14Fonts;
     using TrueType;
     using TrueType.Parser;
 
@@ -211,6 +212,12 @@ namespace UglyToad.PdfPig.Fonts.SystemFonts
 
             foreach (var systemFontRecord in nameCandidates)
             {
+                string test = Path.GetFileName(systemFontRecord.Path);
+                if (test.Contains("msgothic"))
+                {
+
+                }
+
                 if (TryGetTrueTypeFont(name, systemFontRecord, out var font))
                 {
                     return font;
@@ -245,8 +252,75 @@ namespace UglyToad.PdfPig.Fonts.SystemFonts
 
                 return TryReadFile(record.Path, true, name, out font);
             }
+            else if (record.Type == SystemFontType.TrueTypeCollection)
+            {
+                var bytes = File.ReadAllBytes(record.Path);
+                var test = ParseTtcFonts(bytes);
+            }
 
             return false;
+        }
+
+        public static IReadOnlyList<TrueTypeFont> ParseTtcFonts(byte[] input, int maxFonts = int.MaxValue)
+        {
+            var bytes = input;
+            if (bytes.Length < 12 || bytes[0] != 0x74 || bytes[1] != 0x74 || bytes[2] != 0x63 || bytes[3] != 0x66)
+            {
+                // Not TTC, return single font as list
+                //return new[] { TrueTypeFontParser.Parse(input) };
+                throw new InvalidOperationException("Input data is not a valid TrueType Collection (TTC) file.");
+            }
+
+            // TTC detected: ttcf at offset 0
+            uint version = BinaryPrimitives.ReadUInt32BigEndian(bytes.AsSpan(4, 4));
+            if (version != 0x00010000 && version != 0x00020000)
+            {
+                throw new InvalidOperationException($"Unsupported TTC version: {version:X8}");
+            }
+
+            uint numFonts = BinaryPrimitives.ReadUInt32BigEndian(bytes.AsSpan(8, 4));
+            if (numFonts == 0)
+            {
+                throw new InvalidOperationException("TTC contains no fonts.");
+            }
+
+            var offsets = new List<uint>((int)Math.Min(numFonts, maxFonts));
+            for (int i = 0; i < numFonts && offsets.Count < maxFonts; i++)
+            {
+                uint offset = BinaryPrimitives.ReadUInt32BigEndian(bytes.AsSpan(12 + i * 4, 4));
+                if (offset > 0)
+                {
+                    offsets.Add(offset);
+                }
+            }
+
+            var subInput = new TrueTypeDataBytes(bytes);
+
+            var fonts = new List<TrueTypeFont>(offsets.Count);
+            foreach (uint offset in offsets)
+            {
+                if (offset >= bytes.Length)
+                {
+                    continue; // Invalid offset, skip
+                }
+
+                // Slice bytes from offset to end (TTF starts at offset)
+                //var subBytes = bytes.Skip((int)offset).ToArray();
+                //var subInput = new TrueTypeDataBytes(subBytes);
+                try
+                {
+                    subInput.Seek(offset);
+                    var font = TrueTypeFontParser.Parse(subInput);
+                    fonts.Add(font);
+                }
+                catch (Exception ex)
+                {
+                    // Log or handle parse error for this sub-font
+                    Console.WriteLine($"Failed to parse TTC font at offset {offset}: {ex.Message}");
+                }
+            }
+
+            return fonts.AsReadOnly();
         }
 
         private bool TryReadFile(string fileName, bool readNameFirst, string fontName, out TrueTypeFont font)
@@ -256,7 +330,7 @@ namespace UglyToad.PdfPig.Fonts.SystemFonts
             var bytes = File.ReadAllBytes(fileName);
 
             var data = new TrueTypeDataBytes(new MemoryInputBytes(bytes));
-
+            
             if (readNameFirst)
             {
                 var name = TrueTypeFontParser.GetNameTable(data);
