@@ -21,6 +21,27 @@
         }
 
         [Fact]
+        public void IssuesYYYY()
+        {
+            var path = IntegrationHelpers.GetDocumentPath("jtehm-melillo-2679746.pdf");
+
+            using (var document = PdfDocument.Open(path, new ParsingOptions() { UseLenientParsing = true }))
+            {
+                var page = document.GetPage(1);
+                foreach (var letter in page.Letters)
+                {
+                    var font = letter.GetFont();
+                    if (font.Name.Data.Contains("TimesLT"))
+                    {
+                        font.TryGetPath(117, out var test);
+                    }
+
+                    
+                }
+            }
+        }
+
+        [Fact]
         public void Issues1238()
         {
             var path = IntegrationHelpers.GetDocumentPath("6.Secrets.to.Startup.Success.PDFDrive.pdf");
