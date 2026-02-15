@@ -62,7 +62,7 @@
                     subPathClipping.CloseSubpath();
                 }
 
-                if (!clipper.AddPath(subPathClipping.ToClipperPolygon().ToList(), ClipperPolyType.Clip, true))
+                if (!clipper.AddPath(subPathClipping.ToClipperPolygon(), ClipperPolyType.Clip, true))
                 {
                     log?.Error("ClippingExtensions.Clip(): failed to add clipping subpath.");
                 }
@@ -95,7 +95,7 @@
                     subPathSubject.CloseSubpath();
                 }
 
-                if (!clipper.AddPath(subPathSubject.ToClipperPolygon().ToList(), ClipperPolyType.Subject, subjectClose))
+                if (!clipper.AddPath(subPathSubject.ToClipperPolygon(), ClipperPolyType.Subject, subjectClose))
                 {
                     log?.Error("ClippingExtensions.Clip(): failed to add subject subpath for clipping.");
                 }
@@ -175,23 +175,23 @@
         /// Converts a path to a set of points for the Clipper algorithm to use.
         /// Allows duplicate points as they will be removed by Clipper.
         /// </summary>
-        internal static IEnumerable<ClipperIntPoint> ToClipperPolygon(this PdfSubpath pdfPath)
+        internal static List<ClipperIntPoint> ToClipperPolygon(this PdfSubpath pdfPath)
         {
             if (pdfPath.Commands.Count == 0)
             {
-                yield break;
+                return new List<ClipperIntPoint>();
             }
 
+            var result = new List<ClipperIntPoint>();
             ClipperIntPoint movePoint;
             if (pdfPath.Commands[0] is Move move)
             {
                 movePoint = move.Location.ToClipperIntPoint();
-
-                yield return movePoint;
+                result.Add(movePoint);
 
                 if (pdfPath.Commands.Count == 1)
                 {
-                    yield break;
+                    return result;
                 }
             }
             else
@@ -209,30 +209,35 @@
 
                 if (command is Line line)
                 {
-                    yield return line.From.ToClipperIntPoint();
-                    yield return line.To.ToClipperIntPoint();
+                    result.Add(line.From.ToClipperIntPoint());
+                    result.Add(line.To.ToClipperIntPoint());
                 }
                 else if (command is BezierCurve curve)
                 {
                     foreach (var lineB in curve.ToLines(LinesInCurve))
                     {
-                        yield return lineB.From.ToClipperIntPoint();
-                        yield return lineB.To.ToClipperIntPoint();
+                        result.Add(lineB.From.ToClipperIntPoint());
+                        result.Add(lineB.To.ToClipperIntPoint());
                     }
                 }
                 else if (command is Close)
                 {
-                    yield return movePoint;
+                    result.Add(movePoint);
                 }
             }
+
+            return result;
         }
 
-        internal static IEnumerable<ClipperIntPoint> ToClipperPolygon(this PdfRectangle rectangle)
+        internal static List<ClipperIntPoint> ToClipperPolygon(this PdfRectangle rectangle)
         {
-            yield return rectangle.BottomLeft.ToClipperIntPoint();
-            yield return rectangle.TopLeft.ToClipperIntPoint();
-            yield return rectangle.TopRight.ToClipperIntPoint();
-            yield return rectangle.BottomRight.ToClipperIntPoint();
+            return new List<ClipperIntPoint>(4)
+            {
+                rectangle.BottomLeft.ToClipperIntPoint(),
+                rectangle.TopLeft.ToClipperIntPoint(),
+                rectangle.TopRight.ToClipperIntPoint(),
+                rectangle.BottomRight.ToClipperIntPoint()
+            };
         }
 
         internal static ClipperIntPoint ToClipperIntPoint(this PdfPoint point)

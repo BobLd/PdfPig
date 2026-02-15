@@ -204,10 +204,16 @@
         {
             if (points is null)
             {
-                throw new ArgumentException("MinimumAreaRectangle(): points cannot be null.", nameof(points));
+                throw new ArgumentNullException(nameof(points), "MinimumAreaRectangle(): points cannot be null.");
             }
 
-            return MinimumAreaRectangle(points.ToArray());
+            var pointsArray = points.ToArray();
+            if (pointsArray.Length == 0)
+            {
+                throw new ArgumentException("MinimumAreaRectangle(): points must contain at least one point.", nameof(points));
+            }
+
+            return ParametricPerpendicularProjection(GrahamScan(pointsArray).ToArray());
         }
 
         /// <summary>
@@ -217,12 +223,12 @@
         /// <param name="points">The points.</param>
         public static PdfRectangle MinimumAreaRectangle(PdfPoint[] points)
         {
-            if (points?.Any() != true)
+            if (points is null || points.Length == 0)
             {
                 throw new ArgumentException("MinimumAreaRectangle(): points cannot be null and must contain at least one point.", nameof(points));
             }
 
-            return ParametricPerpendicularProjection(GrahamScan(points.Distinct()).ToArray());
+            return ParametricPerpendicularProjection(GrahamScan(points).ToArray());
         }
 
         /// <summary>
@@ -239,8 +245,17 @@
 
             // Fitting a line through the points
             // to find the orientation (slope)
-            double x0 = points.Average(p => p.X);
-            double y0 = points.Average(p => p.Y);
+            double xSum = 0;
+            double ySum = 0;
+            for (int i = 0; i < points.Count; i++)
+            {
+                var p = points[i];
+                xSum += p.X;
+                ySum += p.Y;
+            }
+
+            double x0 = xSum / points.Count;
+            double y0 = ySum / points.Count;
             double sumProduct = 0;
             double sumDiffSquaredX = 0;
 
@@ -265,11 +280,21 @@
                 sin, cos, 0,
                 0, 0, 1);
 
-            var transformedPoints = points.Select(p => inverseRotation.Transform(p)).ToArray();
-            var aabb = new PdfRectangle(transformedPoints.Min(p => p.X),
-                                        transformedPoints.Min(p => p.Y),
-                                        transformedPoints.Max(p => p.X),
-                                        transformedPoints.Max(p => p.Y));
+            double minX = double.MaxValue;
+            double minY = double.MaxValue;
+            double maxX = double.MinValue;
+            double maxY = double.MinValue;
+
+            for (int i = 0; i < points.Count; i++)
+            {
+                var p = inverseRotation.Transform(points[i]);
+                if (p.X < minX) minX = p.X;
+                if (p.X > maxX) maxX = p.X;
+                if (p.Y < minY) minY = p.Y;
+                if (p.Y > maxY) maxY = p.Y;
+            }
+
+            var aabb = new PdfRectangle(minX, minY, maxX, maxY);
 
             // Rotate back the AABB to obtain to oriented bounding box (OBB)
             var rotateBack = new TransformationMatrix(
@@ -370,7 +395,7 @@
                     stack.Push(point);
                 }
 
-                return stack;
+                return stack.ToList();
             }
             finally
             {
@@ -423,28 +448,38 @@
                        point.Y < rectangle.Top;
             }
 
-            static double area(in PdfPoint p1, PdfPoint p2, PdfPoint p3)
+            // For rotated rectangles, we use the cross product to check if the point is on the same side of all edges.
+            // For a rectangle, we check against all 4 edges.
+            // Since PdfRectangle points are in cyclic order, we can check ccw or cw.
+            // Using the same logic as ccw() but with a small epsilon for the border.
+
+            bool s1 = CrossProduct(rectangle.BottomLeft, rectangle.TopLeft, point) >= -epsilon;
+            bool s2 = CrossProduct(rectangle.TopLeft, rectangle.TopRight, point) >= -epsilon;
+            bool s3 = CrossProduct(rectangle.TopRight, rectangle.BottomRight, point) >= -epsilon;
+            bool s4 = CrossProduct(rectangle.BottomRight, rectangle.BottomLeft, point) >= -epsilon;
+
+            bool inside = (s1 && s2 && s3 && s4) || (!s1 && !s2 && !s3 && !s4);
+
+            if (!inside) return false;
+
+            if (!includeBorder)
             {
-                return Math.Abs((p2.X * p1.Y - p1.X * p2.Y) + (p3.X * p2.Y - p2.X * p3.Y) +
-                                (p1.X * p3.Y - p3.X * p1.Y)) / 2.0;
-            }
-
-            var area1 = area(rectangle.BottomLeft, point, rectangle.TopLeft);
-            var area2 = area(rectangle.TopLeft, point, rectangle.TopRight);
-            var area3 = area(rectangle.TopRight, point, rectangle.BottomRight);
-            var area4 = area(rectangle.BottomRight, point, rectangle.BottomLeft);
-
-            var sum = area1 + area2 + area3 + area4; // sum is always greater or equal to area
-
-            if (sum - rectangle.Area > epsilon) return false;
-
-            if (area1 < epsilon || area2 < epsilon || area3 < epsilon || area4 < epsilon)
-            {
-                // point is on the rectangle
-                return includeBorder;
+                // If it's on any edge, return false
+                if (Math.Abs(CrossProduct(rectangle.BottomLeft, rectangle.TopLeft, point)) < epsilon ||
+                    Math.Abs(CrossProduct(rectangle.TopLeft, rectangle.TopRight, point)) < epsilon ||
+                    Math.Abs(CrossProduct(rectangle.TopRight, rectangle.BottomRight, point)) < epsilon ||
+                    Math.Abs(CrossProduct(rectangle.BottomRight, rectangle.BottomLeft, point)) < epsilon)
+                {
+                    return false;
+                }
             }
 
             return true;
+        }
+
+        private static double CrossProduct(PdfPoint p1, PdfPoint p2, PdfPoint p3)
+        {
+            return (p2.X - p1.X) * (p3.Y - p1.Y) - (p2.Y - p1.Y) * (p3.X - p1.X);
         }
 
         /// <summary>
@@ -471,63 +506,41 @@
         {
             if (Math.Abs(rectangle.Rotation) < epsilon && Math.Abs(other.Rotation) < epsilon)
             {
-                if (rectangle.Left > other.Right || other.Left > rectangle.Right)
-                {
-                    return false;
-                }
-
-                if (rectangle.Top < other.Bottom || other.Top < rectangle.Bottom)
-                {
-                    return false;
-                }
-
-                return true;
+                return rectangle.Left <= other.Right && other.Left <= rectangle.Right &&
+                       rectangle.Bottom <= other.Top && other.Bottom <= rectangle.Top;
             }
-            else
-            {
-                var r1 = rectangle.Normalise();
-                var r2 = other.Normalise();
-                if (Math.Abs(r1.Rotation) < epsilon && Math.Abs(r2.Rotation) < epsilon)
-                {
-                    // check rotation to avoid stackoverflow
-                    if (!r1.IntersectsWith(r2))
-                    {
-                        return false;
-                    }
-                }
 
-                if (rectangle.Contains(other.BottomLeft)) return true;
-                if (rectangle.Contains(other.TopRight)) return true;
-                if (rectangle.Contains(other.TopLeft)) return true;
-                if (rectangle.Contains(other.BottomRight)) return true;
+            // Separating Axis Theorem (SAT)
+            // Axes to check: 2 from rectangle, 2 from other
+            if (IsSeparated(rectangle.BottomLeft, rectangle.TopLeft, rectangle, other)) return false;
+            if (IsSeparated(rectangle.TopLeft, rectangle.TopRight, rectangle, other)) return false;
+            if (IsSeparated(other.BottomLeft, other.TopLeft, rectangle, other)) return false;
+            if (IsSeparated(other.TopLeft, other.TopRight, rectangle, other)) return false;
 
-                if (other.Contains(rectangle.BottomLeft)) return true;
-                if (other.Contains(rectangle.TopRight)) return true;
-                if (other.Contains(rectangle.TopLeft)) return true;
-                if (other.Contains(rectangle.BottomRight)) return true;
+            return true;
+        }
 
-                if (IntersectsWith(rectangle.BottomLeft, rectangle.BottomRight, other.BottomLeft, other.BottomRight)) return true;
-                if (IntersectsWith(rectangle.BottomLeft, rectangle.BottomRight, other.BottomRight, other.TopRight)) return true;
-                if (IntersectsWith(rectangle.BottomLeft, rectangle.BottomRight, other.TopRight, other.TopLeft)) return true;
-                if (IntersectsWith(rectangle.BottomLeft, rectangle.BottomRight, other.TopLeft, other.BottomLeft)) return true;
+        private static bool IsSeparated(PdfPoint p1, PdfPoint p2, PdfRectangle r1, PdfRectangle r2)
+        {
+            // Axis is perpendicular to the edge (p1, p2)
+            double nx = p1.Y - p2.Y;
+            double ny = p2.X - p1.X;
 
-                if (IntersectsWith(rectangle.BottomRight, rectangle.TopRight, other.BottomLeft, other.BottomRight)) return true;
-                if (IntersectsWith(rectangle.BottomRight, rectangle.TopRight, other.BottomRight, other.TopRight)) return true;
-                if (IntersectsWith(rectangle.BottomRight, rectangle.TopRight, other.TopRight, other.TopLeft)) return true;
-                if (IntersectsWith(rectangle.BottomRight, rectangle.TopRight, other.TopLeft, other.BottomLeft)) return true;
+            GetProjectionRange(nx, ny, r1, out double min1, out double max1);
+            GetProjectionRange(nx, ny, r2, out double min2, out double max2);
 
-                if (IntersectsWith(rectangle.TopRight, rectangle.TopLeft, other.BottomLeft, other.BottomRight)) return true;
-                if (IntersectsWith(rectangle.TopRight, rectangle.TopLeft, other.BottomRight, other.TopRight)) return true;
-                if (IntersectsWith(rectangle.TopRight, rectangle.TopLeft, other.TopRight, other.TopLeft)) return true;
-                if (IntersectsWith(rectangle.TopRight, rectangle.TopLeft, other.TopLeft, other.BottomLeft)) return true;
+            return max1 < min2 - epsilon || max2 < min1 - epsilon;
+        }
 
-                if (IntersectsWith(rectangle.TopLeft, rectangle.BottomLeft, other.BottomLeft, other.BottomRight)) return true;
-                if (IntersectsWith(rectangle.TopLeft, rectangle.BottomLeft, other.BottomRight, other.TopRight)) return true;
-                if (IntersectsWith(rectangle.TopLeft, rectangle.BottomLeft, other.TopRight, other.TopLeft)) return true;
-                if (IntersectsWith(rectangle.TopLeft, rectangle.BottomLeft, other.TopLeft, other.BottomLeft)) return true;
+        private static void GetProjectionRange(double nx, double ny, PdfRectangle r, out double min, out double max)
+        {
+            double p1 = r.BottomLeft.X * nx + r.BottomLeft.Y * ny;
+            double p2 = r.TopLeft.X * nx + r.TopLeft.Y * ny;
+            double p3 = r.TopRight.X * nx + r.TopRight.Y * ny;
+            double p4 = r.BottomRight.X * nx + r.BottomRight.Y * ny;
 
-                return false;
-            }
+            min = Math.Min(Math.Min(p1, p2), Math.Min(p3, p4));
+            max = Math.Max(Math.Max(p1, p2), Math.Max(p3, p4));
         }
 
         /// <summary>
@@ -539,7 +552,7 @@
         public static bool IntersectsWith(this PdfPath path, PdfRectangle rectangle, bool includeBorder = false)
         {
             // NB, For later dev: Might not work for concave outer path, as it can contain all the points of the inner rectangle, but have overlapping edges.
-            var clipperPaths = path.Select(sp => sp.ToClipperPolygon().ToList()).ToList();
+            var clipperPaths = path.Select(sp => sp.ToClipperPolygon()).ToList();
             var fillType = path.FillingRule == FillingRule.NonZeroWinding ? ClipperPolyFillType.NonZero : ClipperPolyFillType.EvenOdd;
             foreach (var point in rectangle.ToClipperPolygon())
             {
@@ -616,7 +629,7 @@
         public static List<PdfLine> Intersect(this PdfRectangle rectangle, List<PdfLine> lines)
         {
             var clipper = new Clipper();
-            clipper.AddPath(rectangle.ToClipperPolygon().ToList(), ClipperPolyType.Clip, true);
+            clipper.AddPath(rectangle.ToClipperPolygon(), ClipperPolyType.Clip, true);
 
             foreach (var line in lines)
             {
@@ -849,9 +862,9 @@
         private static PdfPoint[]? Intersect(PdfRectangle rectangle, PdfPoint pl1, PdfPoint pl2)
         {
             var clipper = new Clipper();
-            clipper.AddPath(rectangle.ToClipperPolygon().ToList(), ClipperPolyType.Clip, true);
+            clipper.AddPath(rectangle.ToClipperPolygon(), ClipperPolyType.Clip, true);
 
-            clipper.AddPath([pl1.ToClipperIntPoint(), pl2.ToClipperIntPoint()], ClipperPolyType.Subject, false);
+            clipper.AddPath(new List<ClipperIntPoint> { pl1.ToClipperIntPoint(), pl2.ToClipperIntPoint() }, ClipperPolyType.Subject, false);
 
             var solutions = new ClipperPolyTree();
             if (clipper.Execute(ClipperClipType.Intersection, solutions))
@@ -889,7 +902,7 @@
         public static bool IntersectsWith(PdfRectangle rectangle, PdfPoint pl1, PdfPoint pl2)
         {
             var clipper = new Clipper();
-            clipper.AddPath(rectangle.ToClipperPolygon().ToList(), ClipperPolyType.Clip, true);
+            clipper.AddPath(rectangle.ToClipperPolygon(), ClipperPolyType.Clip, true);
 
             clipper.AddPath(new List<ClipperIntPoint>() { pl1.ToClipperIntPoint(), pl2.ToClipperIntPoint() }, ClipperPolyType.Subject, false);
 
@@ -1056,8 +1069,14 @@
             double d = alpha + C;
 
             var solution = SolveCubicEquation(a, b, c, d);
+            var results = new List<double>(solution.count);
+            if (solution.count >= 1 && !double.IsNaN(solution.x1) && solution.x1 >= -epsilon && (solution.x1 - 1) <= epsilon) results.Add(solution.x1);
+            if (solution.count >= 2 && !double.IsNaN(solution.x2) && solution.x2 >= -epsilon && (solution.x2 - 1) <= epsilon) results.Add(solution.x2);
+            if (solution.count >= 3 && !double.IsNaN(solution.x3) && solution.x3 >= -epsilon && (solution.x3 - 1) <= epsilon) results.Add(solution.x3);
 
-            return solution.Where(s => !double.IsNaN(s) && s >= -epsilon && (s - 1) <= epsilon).OrderBy(s => s).ToArray();
+            if (results.Count == 0) return [];
+            results.Sort();
+            return results.ToArray();
         }
         #endregion
 
@@ -1176,7 +1195,7 @@
         public static bool Contains(this PdfSubpath subpath, PdfPoint point, bool includeBorder = false)
         {
             return PointInPaths(point.ToClipperIntPoint(),
-                new List<List<ClipperIntPoint>>() { subpath.ToClipperPolygon().ToList() },
+                new List<List<ClipperIntPoint>>() { subpath.ToClipperPolygon() },
                 ClipperPolyFillType.EvenOdd,
                 includeBorder);
         }
@@ -1191,7 +1210,7 @@
         public static bool Contains(this PdfSubpath subpath, PdfRectangle rectangle, bool includeBorder = false)
         {
             // NB, For later dev: Might not work for concave outer subpath, as it can contain all the points of the rectangle, but have overlapping edges.
-            var clipperPaths = new List<List<ClipperIntPoint>>() { subpath.ToClipperPolygon().ToList() };
+            var clipperPaths = new List<List<ClipperIntPoint>>() { subpath.ToClipperPolygon() };
             foreach (var point in rectangle.ToClipperPolygon())
             {
                 if (!PointInPaths(point, clipperPaths, ClipperPolyFillType.EvenOdd, includeBorder)) return false;
@@ -1210,7 +1229,7 @@
         public static bool Contains(this PdfSubpath subpath, PdfSubpath other, bool includeBorder = false)
         {
             // NB, For later dev: Might not work for concave outer subpath, as it can contain all the points of the inner subpath, but have overlapping edges.
-            var clipperPaths = new List<List<ClipperIntPoint>>() { subpath.ToClipperPolygon().ToList() };
+            var clipperPaths = new List<List<ClipperIntPoint>>() { subpath.ToClipperPolygon() };
             foreach (var pt in other.ToClipperPolygon())
             {
                 if (!PointInPaths(pt, clipperPaths, ClipperPolyFillType.EvenOdd, includeBorder)) return false;
@@ -1224,7 +1243,7 @@
         /// <param name="path"></param>
         public static double GetArea(this PdfPath path)
         {
-            var clipperPaths = path.Select(sp => sp.ToClipperPolygon().ToList()).ToList();
+            var clipperPaths = path.Select(sp => sp.ToClipperPolygon()).ToList();
             var simplifieds = Clipper.SimplifyPolygons(clipperPaths, path.FillingRule == FillingRule.NonZeroWinding ? ClipperPolyFillType.NonZero : ClipperPolyFillType.EvenOdd);
             double sum = 0;
             foreach (var simplified in simplifieds)
@@ -1242,7 +1261,7 @@
         /// <param name="includeBorder">If set to false, will return false if the point belongs to the path's border.</param>
         public static bool Contains(this PdfPath path, PdfPoint point, bool includeBorder = false)
         {
-            var clipperPaths = path.Select(sp => sp.ToClipperPolygon().ToList()).ToList();
+            var clipperPaths = path.Select(sp => sp.ToClipperPolygon()).ToList();
             return PointInPaths(point.ToClipperIntPoint(),
                 clipperPaths,
                 path.FillingRule == FillingRule.NonZeroWinding ? ClipperPolyFillType.NonZero : ClipperPolyFillType.EvenOdd,
@@ -1258,7 +1277,7 @@
         public static bool Contains(this PdfPath path, PdfRectangle rectangle, bool includeBorder = false)
         {
             // NB, For later dev: Might not work for concave outer path, as it can contain all the points of the inner rectangle, but have overlapping edges.
-            var clipperPaths = path.Select(sp => sp.ToClipperPolygon().ToList()).ToList();
+            var clipperPaths = path.Select(sp => sp.ToClipperPolygon()).ToList();
             var fillType = path.FillingRule == FillingRule.NonZeroWinding ? ClipperPolyFillType.NonZero : ClipperPolyFillType.EvenOdd;
             foreach (var point in rectangle.ToClipperPolygon())
             {
@@ -1277,7 +1296,7 @@
         public static bool Contains(this PdfPath path, PdfSubpath subpath, bool includeBorder = false)
         {
             // NB, For later dev: Might not work for concave outer path, as it can contain all the points of the inner subpath, but have overlapping edges.
-            var clipperPaths = path.Select(sp => sp.ToClipperPolygon().ToList()).ToList();
+            var clipperPaths = path.Select(sp => sp.ToClipperPolygon()).ToList();
             var fillType = path.FillingRule == FillingRule.NonZeroWinding ? ClipperPolyFillType.NonZero : ClipperPolyFillType.EvenOdd;
             foreach (var p in subpath.ToClipperPolygon())
             {
@@ -1295,7 +1314,7 @@
         public static bool Contains(this PdfPath path, PdfPath other, bool includeBorder = false)
         {
             // NB, For later dev: Might not work for concave outer path, as it can contain all the points of the inner path, but have overlapping edges.
-            var clipperPaths = path.Select(sp => sp.ToClipperPolygon().ToList()).ToList();
+            var clipperPaths = path.Select(sp => sp.ToClipperPolygon()).ToList();
             var fillType = path.FillingRule == FillingRule.NonZeroWinding ? ClipperPolyFillType.NonZero : ClipperPolyFillType.EvenOdd;
             foreach (var subpath in other)
             {
@@ -1340,7 +1359,7 @@
         /// <param name="b">bx^2</param>
         /// <param name="c">cx</param>
         /// <param name="d">d</param>
-        private static double[] SolveCubicEquation(double a, double b, double c, double d)
+        private static (double x1, double x2, double x3, int count) SolveCubicEquation(double a, double b, double c, double d)
         {
             if (Math.Abs(a) <= epsilon)
             {
@@ -1352,9 +1371,9 @@
                     double OneOverTwiceB = 1 / (2.0 * b);
                     double x = (-c + sqrtDetQ) * OneOverTwiceB;
                     double x0 = (-c - sqrtDetQ) * OneOverTwiceB;
-                    return [x, x0];
+                    return (x, x0, double.NaN, 2);
                 }
-                return []; // no real roots
+                return (double.NaN, double.NaN, double.NaN, 0); // no real roots
             }
 
             double aSquared = a * a;
@@ -1388,7 +1407,9 @@
                     // complex roots only have real part
                     // the real part is the same for both roots
                     x2 = -SPlusT / 2 - bOver3a;
+                    return (x1, x2, double.NaN, 2);
                 }
+                return (x1, double.NaN, double.NaN, 1);
             }
             else // Casus irreducibilis
             {
@@ -1401,9 +1422,8 @@
                 x1 = vietTrigonometricSolution(p, q, 0) - bOver3a;
                 x2 = vietTrigonometricSolution(p, q, 1) - bOver3a;
                 x3 = vietTrigonometricSolution(p, q, 2) - bOver3a;
+                return (x1, x2, x3, 3);
             }
-
-            return [x1, x2, x3];
         }
 
         internal static string ToSvg(this PdfSubpath p, double height)
