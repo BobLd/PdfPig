@@ -254,7 +254,9 @@
                             metadata = new XmpMetadata(metadataStream, filterProvider, scanner);
                         }
 
-                        return new ICCBasedColorSpaceDetails(numeric.Int, alternateColorSpaceDetails, range, metadata);
+                        var profileData = streamToken.Decode(filterProvider, scanner);
+
+                        return new ICCBasedColorSpaceDetails(numeric.Int, alternateColorSpaceDetails, range, metadata, profileData);
                     }
                 case ColorSpace.Indexed:
                     {

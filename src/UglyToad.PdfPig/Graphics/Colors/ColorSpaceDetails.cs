@@ -1223,12 +1223,21 @@
         public XmpMetadata? Metadata { get; }
 
         /// <summary>
+        /// Gets the raw profile data as a block of memory.
+        /// </summary>
+        /// <remarks>The returned memory contains the profile data in its original binary format. The
+        /// caller is responsible for interpreting the contents according to the expected profile
+        /// specification.</remarks>
+        public Memory<byte> ProfileData { get; }
+
+        /// <summary>
         /// Create a new <see cref="ICCBasedColorSpaceDetails"/>.
         /// </summary>
         internal ICCBasedColorSpaceDetails(int numberOfColorComponents,
             ColorSpaceDetails? alternateColorSpaceDetails,
             IReadOnlyList<double>? range,
-            XmpMetadata? metadata)
+            XmpMetadata? metadata,
+            Memory<byte> profileData)
             : base(ColorSpace.ICCBased)
         {
             if (numberOfColorComponents != 1 && numberOfColorComponents != 3 && numberOfColorComponents != 4)
@@ -1250,6 +1259,7 @@
                     $"Must consist of exactly {2 * numberOfColorComponents} (2 x NumberOfColorComponents), but was passed {range?.Count ?? 0}");
             }
             Metadata = metadata;
+            ProfileData = profileData;
         }
 
         /// <inheritdoc/>
