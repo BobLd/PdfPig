@@ -213,6 +213,20 @@
         }
 
         /// <inheritdoc/>
+        public virtual void BeginText()
+        {
+            TextMatrices.TextMatrix = TransformationMatrix.Identity;
+            TextMatrices.TextLineMatrix = TransformationMatrix.Identity;
+        }
+
+        /// <inheritdoc/>
+        public virtual void EndText()
+        {
+            TextMatrices.TextMatrix = TransformationMatrix.Identity;
+            TextMatrices.TextLineMatrix = TransformationMatrix.Identity;
+        }
+
+        /// <inheritdoc/>
         public void ShowText(IInputBytes bytes)
         {
             TextSequence++;
