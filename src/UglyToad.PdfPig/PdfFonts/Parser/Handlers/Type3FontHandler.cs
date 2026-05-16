@@ -1,5 +1,6 @@
 ﻿namespace UglyToad.PdfPig.PdfFonts.Parser.Handlers
 {
+    using System.Collections.Generic;
     using Cmap;
     using Core;
     using Fonts;
@@ -52,9 +53,35 @@
 
             var name = GetFontName(dictionary);
 
+            var charProcs = ReadCharProcs(dictionary);
+            DictionaryToken? resources = null;
+            if (dictionary.TryGet(NameToken.Resources, scanner, out DictionaryToken? resourceDict))
+            {
+                resources = resourceDict;
+            }
+
             return new Type3Font(name, boundingBox, fontMatrix, encoding!,
                 firstCharacter,
-                lastCharacter, widths, toUnicodeCMap!);
+                lastCharacter, widths, toUnicodeCMap!, charProcs, resources);
+        }
+
+        private IReadOnlyDictionary<string, StreamToken>? ReadCharProcs(DictionaryToken dictionary)
+        {
+            if (!dictionary.TryGet(NameToken.CharProcs, scanner, out DictionaryToken? charProcsDictionary))
+            {
+                return null;
+            }
+
+            var result = new Dictionary<string, StreamToken>(charProcsDictionary.Data.Count);
+            foreach (var entry in charProcsDictionary.Data)
+            {
+                if (DirectObjectFinder.TryGet(entry.Value, scanner, out StreamToken? charProcStream)
+                    && charProcStream is not null)
+                {
+                    result[entry.Key] = charProcStream;
+                }
+            }
+            return result;
         }
 
         private NameToken GetFontName(DictionaryToken dictionary)
