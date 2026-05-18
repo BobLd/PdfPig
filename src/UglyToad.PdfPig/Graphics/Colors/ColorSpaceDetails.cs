@@ -1,10 +1,10 @@
 ﻿namespace UglyToad.PdfPig.Graphics.Colors
 {
+    using Core;
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
-    using System.Runtime.InteropServices;
     using Tokens;
     using UglyToad.PdfPig.Content;
     using UglyToad.PdfPig.Functions;
@@ -51,9 +51,36 @@
         public abstract IColor GetColor(params double[] values);
 
         /// <summary>
+        /// Intent-aware <see cref="GetColor(double[])"/>. Used by the
+        /// rendering pipeline when the graphics-state rendering intent is
+        /// known. Default implementation ignores intent; only color spaces
+        /// that wrap or are an ICC profile need to override.
+        /// </summary>
+        internal virtual IColor GetColor(double[] values, RenderingIntent intent)
+            => GetColor(values);
+
+        /// <summary>
         /// Get the color, without check and caching.
         /// </summary>
         internal abstract double[] Process(params double[] values);
+
+        /// <summary>
+        /// Intent-aware <see cref="Process(double[])"/>. Default ignores
+        /// intent.
+        /// </summary>
+        internal virtual double[] Process(double[] values, RenderingIntent intent)
+            => Process(values);
+
+        /// <summary>
+        /// Map indexed colour-table component values, normalised to [0, 1]
+        /// into this colour space's native input range. Per ISO 32000-1 §8.6.6.3
+        /// each colour-table byte is scaled to the range of the corresponding
+        /// component in the base colour space. The default is the identity, which
+        /// is correct for device and CIE RGB/Gray/CMYK spaces (already [0, 1]);
+        /// <see cref="LabColorSpaceDetails"/> overrides this because its
+        /// components are L* in [0, 100] and a*/b* in the space's declared range.
+        /// </summary>
+        internal virtual double[] FromIndexedNormalized(double[] normalized) => normalized;
 
         /// <summary>
         /// Get the color that initialize the current stroking or nonstroking colour.
@@ -64,6 +91,15 @@
         /// Transform image bytes.
         /// </summary>
         internal abstract Span<byte> Transform(Span<byte> decoded);
+
+        /// <summary>
+        /// Intent-aware <see cref="Transform(Span{byte})"/>. Used by
+        /// <see cref="Images.ColorSpaceDetailsByteConverter"/> when the
+        /// image's <see cref="Content.IPdfImage.RenderingIntent"/> is known.
+        /// Default ignores intent.
+        /// </summary>
+        internal virtual Span<byte> Transform(Span<byte> decoded, RenderingIntent intent)
+            => Transform(decoded);
 
         /// <summary>
         /// Convert to byte.
@@ -321,6 +357,10 @@
 
         /// <inheritdoc/>
         internal override double[] Process(params double[] values)
+            => Process(values, RenderingIntent.RelativeColorimetric);
+
+        /// <inheritdoc/>
+        internal override double[] Process(double[] values, RenderingIntent intent)
         {
             var csBytes = UnwrapIndexedColorSpaceBytes([(byte)values[0]]);
 
@@ -331,7 +371,7 @@
                 scaledCsBytes[i] = csBytes[i] / 255.0;
             }
 
-            return BaseColorSpace.Process(scaledCsBytes);
+            return BaseColorSpace.Process(BaseColorSpace.FromIndexedNormalized(scaledCsBytes), intent);
         }
 
         /// <inheritdoc/>
@@ -353,8 +393,32 @@
                     scaledCsBytes[i] = csBytes[i] / 255.0;
                 }
 
-                return BaseColorSpace.GetColor(scaledCsBytes);
+                return BaseColorSpace.GetColor(BaseColorSpace.FromIndexedNormalized(scaledCsBytes));
             });
+        }
+
+        /// <inheritdoc/>
+        internal override IColor GetColor(double[] values, RenderingIntent intent)
+        {
+            if (values is null || values.Length != NumberOfColorComponents)
+            {
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values?.Length ?? 0}", nameof(values));
+            }
+
+            // The instance cache is keyed by index value only, which is correct for the
+            // intent-less call path. For intent-aware calls we skip the local cache and
+            // rely on the BaseColorSpace's own intent-aware caches (the per-intent
+            // transform cache inside IIccProfile for ICC-based bases).
+            var csBytes = UnwrapIndexedColorSpaceBytes([(byte)values[0]]);
+
+            var scaledCsBytes = new double[csBytes.Length];
+
+            for (int i = 0; i < csBytes.Length; i++)
+            {
+                scaledCsBytes[i] = csBytes[i] / 255.0;
+            }
+
+            return BaseColorSpace.GetColor(BaseColorSpace.FromIndexedNormalized(scaledCsBytes), intent);
         }
 
         internal Span<byte> UnwrapIndexedColorSpaceBytes(Span<byte> input)
@@ -453,9 +517,13 @@
         /// </para>
         /// </summary>
         internal override Span<byte> Transform(Span<byte> decoded)
+            => Transform(decoded, RenderingIntent.RelativeColorimetric);
+
+        /// <inheritdoc/>
+        internal override Span<byte> Transform(Span<byte> decoded, RenderingIntent intent)
         {
             var unwraped = UnwrapIndexedColorSpaceBytes(decoded);
-            return BaseColorSpace.Transform(unwraped);
+            return BaseColorSpace.Transform(unwraped, intent);
         }
     }
 
@@ -472,7 +540,11 @@
         public override int NumberOfColorComponents { get; }
 
         /// <inheritdoc/>
-        public override int BaseNumberOfColorComponents => AlternateColorSpace.NumberOfColorComponents;
+        // Mirror the alternate's *base* component count, not its declared count:
+        // when the alternate is an ICCBased space whose profile resolves to sRGB
+        // output, Transform emits 3 (RGB) components, so consumers sizing the
+        // transformed buffer must see 3 here, not the profile's 4 (CMYK) inputs.
+        public override int BaseNumberOfColorComponents => AlternateColorSpace.BaseNumberOfColorComponents;
 
         /// <summary>
         /// Specifies name objects specifying the individual colour components. The length of the array shall
@@ -527,13 +599,21 @@
 
         /// <inheritdoc/>
         internal override double[] Process(params double[] values)
+            => Process(values, RenderingIntent.RelativeColorimetric);
+
+        /// <inheritdoc/>
+        internal override double[] Process(double[] values, RenderingIntent intent)
         {
             var evaled = TintFunction.Eval(values);
-            return AlternateColorSpace.Process(evaled);
+            return AlternateColorSpace.Process(evaled, intent);
         }
 
         /// <inheritdoc/>
         public override IColor GetColor(params double[] values)
+            => GetColor(values, RenderingIntent.RelativeColorimetric);
+
+        /// <inheritdoc/>
+        internal override IColor GetColor(double[] values, RenderingIntent intent)
         {
             if (values is null || values.Length != NumberOfColorComponents)
             {
@@ -544,11 +624,15 @@
 
             // TODO - caching
             var evaled = TintFunction.Eval(values);
-            return AlternateColorSpace.GetColor(evaled);
+            return AlternateColorSpace.GetColor(evaled, intent);
         }
 
         /// <inheritdoc/>
         internal override Span<byte> Transform(Span<byte> decoded)
+            => Transform(decoded, RenderingIntent.RelativeColorimetric);
+
+        /// <inheritdoc/>
+        internal override Span<byte> Transform(Span<byte> decoded, RenderingIntent intent)
         {
             var cache = new Dictionary<int, double[]>();
             var transformed = new List<byte>();
@@ -565,7 +649,7 @@
 
                 if (!cache.TryGetValue(key, out double[]? colors))
                 {
-                    colors = Process(comps);
+                    colors = Process(comps, intent);
                     cache[key] = colors;
                 }
 
@@ -576,7 +660,7 @@
             }
 
 #if NET
-            return CollectionsMarshal.AsSpan(transformed);
+            return System.Runtime.InteropServices.CollectionsMarshal.AsSpan(transformed);
 #else
             return transformed.ToArray();
 #endif
@@ -654,7 +738,11 @@
         public override int NumberOfColorComponents => 1;
 
         /// <inheritdoc/>
-        public override int BaseNumberOfColorComponents => AlternateColorSpace.NumberOfColorComponents;
+        // Mirror the alternate's *base* component count (see DeviceN): an
+        // ICCBased alternate that resolves to an sRGB profile makes Transform
+        // emit 3 (RGB) components, so report that rather than the profile's
+        // declared input count.
+        public override int BaseNumberOfColorComponents => AlternateColorSpace.BaseNumberOfColorComponents;
 
         /// <summary>
         /// Specifies the name of the colorant that this Separation color space is intended to represent.
@@ -702,9 +790,13 @@
 
         /// <inheritdoc/>
         internal override double[] Process(params double[] values)
+            => Process(values, RenderingIntent.RelativeColorimetric);
+
+        /// <inheritdoc/>
+        internal override double[] Process(double[] values, RenderingIntent intent)
         {
             var evaled = TintFunction.Eval(values[0]);
-            return AlternateColorSpace.Process(evaled);
+            return AlternateColorSpace.Process(evaled, intent);
         }
 
         /// <inheritdoc/>
@@ -725,7 +817,25 @@
         }
 
         /// <inheritdoc/>
+        internal override IColor GetColor(double[] values, RenderingIntent intent)
+        {
+            if (values is null || values.Length != NumberOfColorComponents)
+            {
+                throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values?.Length ?? 0}", nameof(values));
+            }
+
+            // Skip the instance cache for intent-aware calls; the ICCBased
+            // backend has its own per-intent transform cache.
+            var evaled = TintFunction.Eval(values[0]);
+            return AlternateColorSpace.GetColor(evaled, intent);
+        }
+
+        /// <inheritdoc/>
         internal override Span<byte> Transform(Span<byte> values)
+            => Transform(values, RenderingIntent.RelativeColorimetric);
+
+        /// <inheritdoc/>
+        internal override Span<byte> Transform(Span<byte> values, RenderingIntent intent)
         {
             var colorCache = new Dictionary<int, double[]>(values.Length);
             var transformed = new List<byte>(values.Length);
@@ -735,7 +845,7 @@
                 byte b = values[i];
                 if (!colorCache.TryGetValue(b, out double[]? colors))
                 {
-                    colors = Process(b / 255.0);
+                    colors = Process([b / 255.0], intent);
                     colorCache[b] = colors;
                 }
 
@@ -746,7 +856,7 @@
             }
 
 #if NET
-            return CollectionsMarshal.AsSpan(transformed);
+            return System.Runtime.InteropServices.CollectionsMarshal.AsSpan(transformed);
 #else
             return transformed.ToArray();
 #endif
@@ -1112,7 +1222,13 @@
 
             for (var i = 0; i < decoded.Length; i += 3)
             {
-                var rgbPixel = Process(decoded[i] / 255.0, decoded[i + 1] / 255.0, decoded[i + 2] / 255.0);
+                // Image samples carry the default Lab Decode (ISO 32000-1
+                // §8.9.5.2): normalise to [0,1] then scale to L*∈[0,100] and
+                // a*/b* to the space's Range before the Lab→RGB conversion.
+                // (Mirrors PDFBox PDLab.toRGBImage; without the range scaling a
+                // sample byte would be fed to Process as L*∈[0,1] → near-black.)
+                var lab = FromIndexedNormalized([decoded[i] / 255.0, decoded[i + 1] / 255.0, decoded[i + 2] / 255.0]);
+                var rgbPixel = Process(lab);
                 transformed[index++] = ConvertToByte(rgbPixel[0]);
                 transformed[index++] = ConvertToByte(rgbPixel[1]);
                 transformed[index++] = ConvertToByte(rgbPixel[2]);
@@ -1147,6 +1263,21 @@
 
             var (R, G, B) = colorSpaceTransformer.TransformToRGB((X, Y, Z));
             return [R, G, B];
+        }
+
+        /// <inheritdoc/>
+        internal override double[] FromIndexedNormalized(double[] normalized)
+        {
+            // ISO 32000-1 §8.6.6.3: each indexed colour-table byte (already
+            // normalised here to [0, 1]) is scaled to the component's range.
+            // For Lab that is L* in [0, 100] and a*/b* in the space's Range
+            // (Matrix = [a_min a_max b_min b_max]).
+            return
+            [
+                normalized[0] * 100.0,
+                Matrix[0] + normalized[1] * (Matrix[1] - Matrix[0]),
+                Matrix[2] + normalized[2] * (Matrix[3] - Matrix[2]),
+            ];
         }
 
         /// <inheritdoc/>
@@ -1185,6 +1316,8 @@
     /// </summary>
     public sealed class ICCBasedColorSpaceDetails : ColorSpaceDetails
     {
+        private readonly bool useProfile;
+
         /// <summary>
         /// The number of color components in the color space described by the ICC profile data.
         /// This numbers shall match the number of components actually in the ICC profile.
@@ -1193,7 +1326,7 @@
         public override int NumberOfColorComponents { get; }
 
         /// <inheritdoc/>
-        public override int BaseNumberOfColorComponents => NumberOfColorComponents;
+        public override int BaseNumberOfColorComponents { get; }
 
         /// <summary>
         /// An alternate color space that can be used in case the one specified in the stream data is not
@@ -1223,12 +1356,25 @@
         public XmpMetadata? Metadata { get; }
 
         /// <summary>
+        /// The resolved ICC profile, or <c>null</c> when no
+        /// <see cref="IIccProfileService"/> was configured (or the service
+        /// could not parse the profile). When non-null, color conversions
+        /// produce sRGB output and <see cref="BaseType"/> reports
+        /// <see cref="ColorSpace.DeviceRGB"/>. Use
+        /// <see cref="GetTransform(RenderingIntent)"/> to obtain an
+        /// intent-bound transform.
+        /// </summary>
+        public IIccProfile? IccProfile { get; }
+
+        /// <summary>
         /// Create a new <see cref="ICCBasedColorSpaceDetails"/>.
         /// </summary>
         internal ICCBasedColorSpaceDetails(int numberOfColorComponents,
             ColorSpaceDetails? alternateColorSpaceDetails,
             IReadOnlyList<double>? range,
-            XmpMetadata? metadata)
+            XmpMetadata? metadata,
+            Memory<byte> profile,
+            IIccProfileService? iccProfileService)
             : base(ColorSpace.ICCBased)
         {
             if (numberOfColorComponents != 1 && numberOfColorComponents != 3 && numberOfColorComponents != 4)
@@ -1241,7 +1387,16 @@
                 (NumberOfColorComponents == 1 ? DeviceGrayColorSpaceDetails.Instance :
                 NumberOfColorComponents == 3 ? DeviceRgbColorSpaceDetails.Instance : DeviceCmykColorSpaceDetails.Instance);
 
-            BaseType = AlternateColorSpace.BaseType;
+            Metadata = metadata;
+
+            if (iccProfileService is not null && !profile.IsEmpty &&
+                iccProfileService.TryGetProfile(profile, NumberOfColorComponents, out var p))
+            {
+                IccProfile = p;
+            }
+
+            useProfile = IccProfile is not null;
+
             Range = range ??
                 Enumerable.Range(0, numberOfColorComponents).Select(x => new[] { 0.0, 1.0 }).SelectMany(x => x).ToArray();
             if (Range.Count != 2 * numberOfColorComponents)
@@ -1249,34 +1404,95 @@
                 throw new ArgumentOutOfRangeException(nameof(range), range,
                     $"Must consist of exactly {2 * numberOfColorComponents} (2 x NumberOfColorComponents), but was passed {range?.Count ?? 0}");
             }
-            Metadata = metadata;
+
+            BaseType = useProfile ? ColorSpace.DeviceRGB : AlternateColorSpace.BaseType;
+            BaseNumberOfColorComponents = useProfile ? 3 : NumberOfColorComponents;
+        }
+
+        /// <summary>
+        /// Resolve an <see cref="IIccTransform"/> for the given rendering
+        /// intent. Returns <c>null</c> when no profile is wired or the
+        /// backend cannot honour the intent. Repeated calls with the same
+        /// intent return the same instance (cache lives on the profile).
+        /// </summary>
+        public IIccTransform? GetTransform(RenderingIntent intent)
+        {
+            if (IccProfile is null)
+            {
+                return null;
+            }
+
+            return IccProfile.TryGetTransform(intent, out var t) ? t : null;
         }
 
         /// <inheritdoc/>
         internal override double[] Process(params double[] values)
-        {
-            // TODO - use ICC profile
+            => Process(values, RenderingIntent.RelativeColorimetric);
 
-            return AlternateColorSpace.Process(values);
+        /// <summary>
+        /// Intent-aware <see cref="Process(double[])"/> overload used by
+        /// the rendering pipeline when the graphics-state intent is known.
+        /// </summary>
+        internal override double[] Process(double[] values, RenderingIntent intent)
+        {
+            if (!useProfile)
+            {
+                return AlternateColorSpace.Process(values, intent);
+            }
+
+            var t = GetTransform(intent) ?? GetTransform(RenderingIntent.RelativeColorimetric);
+            if (t is null)
+            {
+                return AlternateColorSpace.Process(values, intent);
+            }
+
+            var (r, g, b) = t.ToRgb(values);
+            return [r, g, b];
         }
 
         /// <inheritdoc/>
         public override IColor GetColor(params double[] values)
+            => GetColor(values, RenderingIntent.RelativeColorimetric);
+
+        /// <summary>
+        /// Intent-aware <see cref="GetColor(double[])"/> overload.
+        /// Callers that have intent context (the graphics-state intent in
+        /// <see cref="Graphics.ColorSpaceContext"/>) should use this
+        /// overload; the param-less version is kept for backward
+        /// compatibility and uses the PDF default
+        /// (<see cref="RenderingIntent.RelativeColorimetric"/>).
+        /// </summary>
+        internal override IColor GetColor(double[] values, RenderingIntent intent)
         {
             if (values is null || values.Length != NumberOfColorComponents)
             {
                 throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values?.Length ?? 0}", nameof(values));
             }
 
-            // TODO - use ICC profile
+            if (useProfile)
+            {
+                var t = GetTransform(intent) ?? GetTransform(RenderingIntent.RelativeColorimetric);
+                if (t is not null)
+                {
+                    // Pass values straight to the transform: it normalises and
+                    // clamps device channels itself (e.g. the ICC L*a*b* encoding
+                    // for a Lab-input profile). Applying the default [0, 1] Range
+                    // clip here would destroy non-[0, 1] inputs such as real Lab
+                    // values. This mirrors the unclipped Process(...) path.
+                    var (r, g, b) = t.ToRgb(values);
+                    return new RGBColor(r, g, b);
+                }
+            }
 
+            // No profile (or no usable transform): fall back to the alternate
+            // colour space, clamping to the declared component Range first.
             for (int c = 0; c < values.Length; c++)
             {
                 int i = 2 * c;
                 values[c] = PdfFunction.ClipToRange(values[c], Range[i], Range[i + 1]);
             }
 
-            return AlternateColorSpace.GetColor(values);
+            return AlternateColorSpace.GetColor(values, intent);
         }
 
         /// <inheritdoc/>
@@ -1293,10 +1509,30 @@
 
         /// <inheritdoc/>
         internal override Span<byte> Transform(Span<byte> decoded)
-        {
-            // TODO - use ICC profile
+            => Transform(decoded, RenderingIntent.RelativeColorimetric);
 
-            return AlternateColorSpace.Transform(decoded);
+        /// <summary>
+        /// Intent-aware sample-buffer transform. Used by
+        /// <see cref="Images.ColorSpaceDetailsByteConverter"/> when the
+        /// image's <see cref="Content.IPdfImage.RenderingIntent"/> is known.
+        /// </summary>
+        internal override Span<byte> Transform(Span<byte> decoded, RenderingIntent intent)
+        {
+            if (!useProfile)
+            {
+                return AlternateColorSpace.Transform(decoded, intent);
+            }
+
+            var t = GetTransform(intent) ?? GetTransform(RenderingIntent.RelativeColorimetric);
+            if (t is null)
+            {
+                return AlternateColorSpace.Transform(decoded, intent);
+            }
+
+            int pixelCount = decoded.Length / NumberOfColorComponents;
+            byte[] dst = new byte[pixelCount * 3];
+            t.Transform(decoded, dst);
+            return dst;
         }
     }
 

@@ -5,6 +5,7 @@
     using System.Linq;
     using Colors;
     using Content;
+    using Core;
     using Tokens;
 
     internal class ColorSpaceContext : IColorSpaceContext
@@ -40,14 +41,16 @@
                 return;
             }
 
+            var state = currentStateFunc();
             if (patternName != null && CurrentStrokingColorSpace.Type == ColorSpace.Pattern)
             {
-                currentStateFunc().CurrentStrokingColor = ((PatternColorSpaceDetails)CurrentStrokingColorSpace).GetColor(patternName);
+                state.CurrentStrokingColor = ((PatternColorSpaceDetails)CurrentStrokingColorSpace).GetColor(patternName);
                 // TODO - use operands values for Uncoloured Tiling Patterns
             }
             else
             {
-                currentStateFunc().CurrentStrokingColor = CurrentStrokingColorSpace.GetColor(operands.ToArray());
+                state.CurrentStrokingColor = GetColorWithIntent(
+                    CurrentStrokingColorSpace, operands.ToArray(), state.RenderingIntent);
             }
         }
 
@@ -87,15 +90,25 @@
                 return;
             }
 
+            var state = currentStateFunc();
             if (patternName != null && CurrentNonStrokingColorSpace.Type == ColorSpace.Pattern)
             {
-                currentStateFunc().CurrentNonStrokingColor = ((PatternColorSpaceDetails)CurrentNonStrokingColorSpace).GetColor(patternName);
+                state.CurrentNonStrokingColor = ((PatternColorSpaceDetails)CurrentNonStrokingColorSpace).GetColor(patternName);
                 // TODO - use operands values for Uncoloured Tiling Patterns
             }
             else
             {
-                currentStateFunc().CurrentNonStrokingColor = CurrentNonStrokingColorSpace.GetColor(operands.ToArray());
+                state.CurrentNonStrokingColor = GetColorWithIntent(
+                    CurrentNonStrokingColorSpace, operands.ToArray(), state.RenderingIntent);
             }
+        }
+
+        private static IColor GetColorWithIntent(ColorSpaceDetails details, double[] values, RenderingIntent intent)
+        {
+            // Virtual dispatch — ICCBased and its wrappers (Indexed, Separation,
+            // DeviceN) override the intent-aware overload; other color spaces fall
+            // through to the intent-less default.
+            return details.GetColor(values, intent);
         }
 
         public void SetNonStrokingColorGray(double gray)

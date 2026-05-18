@@ -48,6 +48,8 @@
             this.parsingOptions = parsingOptions;
         }
 
+        public IIccProfileService? IccProfileService => parsingOptions.IccProfileService;
+
         public void LoadResourceDictionary(DictionaryToken resourceDictionary)
         {
             lastLoadedFont = (null, null);
@@ -309,6 +311,11 @@
 
             if (name.TryMapToColorSpace(out ColorSpace colorspaceActual))
             {
+                if (TryGetDefaultSubstitute(colorspaceActual, out NameToken? substituteName))
+                {
+                    return GetColorSpaceDetails(substituteName, dictionary);
+                }
+
                 // TODO - We need to find a way to store profile that have an actual dictionary, e.g. ICC profiles - without parsing them again
                 return ColorSpaceDetailsParser.GetColorSpaceDetails(colorspaceActual, dictionary, scanner, this, filterProvider);
             }
@@ -335,6 +342,30 @@
             }
 
             throw new InvalidOperationException($"Could not find color space for token '{name}'.");
+        }
+
+        private static readonly NameToken DefaultGrayName = NameToken.Create("DefaultGray");
+        private static readonly NameToken DefaultRgbName  = NameToken.Create("DefaultRGB");
+        private static readonly NameToken DefaultCmykName = NameToken.Create("DefaultCMYK");
+
+        private bool TryGetDefaultSubstitute(ColorSpace requested, [NotNullWhen(true)] out NameToken? substituteName)
+        {
+            NameToken? candidate = requested switch
+            {
+                ColorSpace.DeviceGray => DefaultGrayName,
+                ColorSpace.DeviceRGB  => DefaultRgbName,
+                ColorSpace.DeviceCMYK => DefaultCmykName,
+                _ => null
+            };
+
+            if (candidate is not null && namedColorSpaces.TryGetValue(candidate, out _))
+            {
+                substituteName = candidate;
+                return true;
+            }
+
+            substituteName = null;
+            return false;
         }
 
         public bool TryGetXObject(NameToken name, [NotNullWhen(true)] out StreamToken? stream)
