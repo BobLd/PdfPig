@@ -2,6 +2,7 @@
 {
     using Content;
     using Graphics.Colors;
+    using Graphics.Core;
     using System;
 
     /// <summary>
@@ -10,12 +11,20 @@
     public static class ColorSpaceDetailsByteConverter
     {
         /// <summary>
-        /// Converts the output bytes (if available) of <see cref="IPdfImage.TryGetBytesAsMemory"/>
-        /// to actual pixel values using the <see cref="IPdfImage.ColorSpaceDetails"/>. For most images this doesn't
-        /// change the data but for <see cref="ColorSpace.Indexed"/> it will convert the bytes which are indexes into the
-        /// real pixel data into the real pixel data.
+        /// Convert decoded sample bytes through the color space.
+        /// Equivalent to <see cref="Convert(ColorSpaceDetails, Span{byte}, int, int, int, RenderingIntent)"/>
+        /// with intent = <see cref="RenderingIntent.RelativeColorimetric"/>.
         /// </summary>
         public static Span<byte> Convert(ColorSpaceDetails details, Span<byte> decoded, int bitsPerComponent, int imageWidth, int imageHeight)
+            => Convert(details, decoded, bitsPerComponent, imageWidth, imageHeight, RenderingIntent.RelativeColorimetric);
+
+        /// <summary>
+        /// Convert decoded sample bytes through the color space using the
+        /// supplied rendering intent. Intent is only consulted for
+        /// <see cref="ICCBasedColorSpaceDetails"/>; other color spaces
+        /// ignore it.
+        /// </summary>
+        public static Span<byte> Convert(ColorSpaceDetails details, Span<byte> decoded, int bitsPerComponent, int imageWidth, int imageHeight, RenderingIntent intent)
         {
             if (decoded.IsEmpty)
             {
@@ -51,7 +60,10 @@
                 }
             }
 
-            return details.Transform(decoded);
+            // Virtual dispatch — ICCBased and its wrappers (Indexed, Separation,
+            // DeviceN) override the intent-aware overload; other color spaces
+            // ignore the intent.
+            return details.Transform(decoded, intent);
         }
 
         private static Span<byte> UnpackComponents(Span<byte> input, int bitsPerComponent, ColorSpace colorSpace)
