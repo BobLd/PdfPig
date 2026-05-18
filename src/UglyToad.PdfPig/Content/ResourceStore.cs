@@ -48,6 +48,8 @@
             this.parsingOptions = parsingOptions;
         }
 
+        public IIccProfileService? IccProfileService => parsingOptions.IccProfileService;
+
         public void LoadResourceDictionary(DictionaryToken resourceDictionary)
         {
             lastLoadedFont = (null, null);

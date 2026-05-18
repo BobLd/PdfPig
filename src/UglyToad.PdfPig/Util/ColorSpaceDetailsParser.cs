@@ -1,5 +1,6 @@
 ﻿namespace UglyToad.PdfPig.Util
 {
+    using System;
     using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
     using System.Linq;
@@ -10,7 +11,7 @@
     using Tokenization.Scanner;
     using Tokens;
     using UglyToad.PdfPig.Functions;
-
+    
     internal static class ColorSpaceMapper
     {
         public static bool TryMap(NameToken name, IResourceStore resourceStore, out ColorSpace colorSpaceResult)
@@ -254,7 +255,26 @@
                             metadata = new XmpMetadata(metadataStream, filterProvider, scanner);
                         }
 
-                        return new ICCBasedColorSpaceDetails(numeric.Int, alternateColorSpaceDetails, range, metadata);
+                        Memory<byte> profileBytes = Memory<byte>.Empty;
+                        if (resourceStore.IccProfileService is not null)
+                        {
+                            try
+                            {
+                                profileBytes = streamToken.Decode(filterProvider, scanner);
+                            }
+                            catch
+                            {
+                                // swallow; fallback path covers it.
+                            }
+                        }
+
+                        return new ICCBasedColorSpaceDetails(
+                            numeric.Int,
+                            alternateColorSpaceDetails,
+                            range,
+                            metadata,
+                            profileBytes,
+                            resourceStore.IccProfileService);
                     }
                 case ColorSpace.Indexed:
                     {

@@ -66,5 +66,12 @@
         /// Get the shading corresponding to the name.
         /// </summary>
         Shading GetShading(NameToken name);
+
+        /// <summary>
+        /// The configured ICC profile service (from <see cref="ParsingOptions.IccProfileService"/>),
+        /// or <c>null</c> when ICC-based color spaces should fall back to their
+        /// alternate color space.
+        /// </summary>
+        IIccProfileService? IccProfileService { get; }
     }
 }

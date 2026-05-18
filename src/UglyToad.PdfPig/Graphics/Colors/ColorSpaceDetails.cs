@@ -1,10 +1,10 @@
 ﻿namespace UglyToad.PdfPig.Graphics.Colors
 {
+    using Core;
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
-    using System.Runtime.InteropServices;
     using Tokens;
     using UglyToad.PdfPig.Content;
     using UglyToad.PdfPig.Functions;
@@ -1185,6 +1185,8 @@
     /// </summary>
     public sealed class ICCBasedColorSpaceDetails : ColorSpaceDetails
     {
+        private readonly bool useProfile;
+
         /// <summary>
         /// The number of color components in the color space described by the ICC profile data.
         /// This numbers shall match the number of components actually in the ICC profile.
@@ -1193,7 +1195,7 @@
         public override int NumberOfColorComponents { get; }
 
         /// <inheritdoc/>
-        public override int BaseNumberOfColorComponents => NumberOfColorComponents;
+        public override int BaseNumberOfColorComponents { get; }
 
         /// <summary>
         /// An alternate color space that can be used in case the one specified in the stream data is not
@@ -1223,12 +1225,24 @@
         public XmpMetadata? Metadata { get; }
 
         /// <summary>
+        /// The resolved ICC transform, or <c>null</c> when no
+        /// <see cref="IIccProfileService"/> was configured (or the service
+        /// could not parse the profile). When non-null, color conversions
+        /// produce sRGB output and <see cref="BaseType"/> reports
+        /// <see cref="ColorSpace.DeviceRGB"/>.
+        /// </summary>
+        public IIccTransform? IccTransform { get; }
+
+        /// <summary>
         /// Create a new <see cref="ICCBasedColorSpaceDetails"/>.
         /// </summary>
         internal ICCBasedColorSpaceDetails(int numberOfColorComponents,
             ColorSpaceDetails? alternateColorSpaceDetails,
             IReadOnlyList<double>? range,
-            XmpMetadata? metadata)
+            XmpMetadata? metadata,
+            Memory<byte> profile,
+            IIccProfileService? iccProfileService,
+            RenderingIntent intent = RenderingIntent.RelativeColorimetric)
             : base(ColorSpace.ICCBased)
         {
             if (numberOfColorComponents != 1 && numberOfColorComponents != 3 && numberOfColorComponents != 4)
@@ -1241,7 +1255,6 @@
                 (NumberOfColorComponents == 1 ? DeviceGrayColorSpaceDetails.Instance :
                 NumberOfColorComponents == 3 ? DeviceRgbColorSpaceDetails.Instance : DeviceCmykColorSpaceDetails.Instance);
 
-            BaseType = AlternateColorSpace.BaseType;
             Range = range ??
                 Enumerable.Range(0, numberOfColorComponents).Select(x => new[] { 0.0, 1.0 }).SelectMany(x => x).ToArray();
             if (Range.Count != 2 * numberOfColorComponents)
@@ -1249,15 +1262,30 @@
                 throw new ArgumentOutOfRangeException(nameof(range), range,
                     $"Must consist of exactly {2 * numberOfColorComponents} (2 x NumberOfColorComponents), but was passed {range?.Count ?? 0}");
             }
+
             Metadata = metadata;
+
+            if (iccProfileService is not null && !profile.IsEmpty &&
+                iccProfileService.TryGetTransform(profile, NumberOfColorComponents, intent, out var t))
+            {
+                IccTransform = t;
+            }
+
+            useProfile = IccTransform is not null;
+            BaseType = useProfile ? ColorSpace.DeviceRGB : AlternateColorSpace.BaseType;
+            BaseNumberOfColorComponents = useProfile ? 3 : NumberOfColorComponents;
         }
 
         /// <inheritdoc/>
         internal override double[] Process(params double[] values)
         {
-            // TODO - use ICC profile
+            if (!useProfile)
+            {
+                return AlternateColorSpace.Process(values);
+            }
 
-            return AlternateColorSpace.Process(values);
+            var (r, g, b) = IccTransform!.ToRgb(values);
+            return [r, g, b];
         }
 
         /// <inheritdoc/>
@@ -1268,15 +1296,19 @@
                 throw new ArgumentException($"Invalid number of inputs, expecting {NumberOfColorComponents} but got {values?.Length ?? 0}", nameof(values));
             }
 
-            // TODO - use ICC profile
-
             for (int c = 0; c < values.Length; c++)
             {
                 int i = 2 * c;
                 values[c] = PdfFunction.ClipToRange(values[c], Range[i], Range[i + 1]);
             }
 
-            return AlternateColorSpace.GetColor(values);
+            if (!useProfile)
+            {
+                return AlternateColorSpace.GetColor(values);
+            }
+
+            var (r, g, b) = IccTransform!.ToRgb(values);
+            return new RGBColor(r, g, b);
         }
 
         /// <inheritdoc/>
@@ -1294,9 +1326,15 @@
         /// <inheritdoc/>
         internal override Span<byte> Transform(Span<byte> decoded)
         {
-            // TODO - use ICC profile
+            if (!useProfile)
+            {
+                return AlternateColorSpace.Transform(decoded);
+            }
 
-            return AlternateColorSpace.Transform(decoded);
+            int pixelCount = decoded.Length / NumberOfColorComponents;
+            byte[] dst = new byte[pixelCount * 3];
+            IccTransform!.Transform(decoded, dst);
+            return dst;
         }
     }
 

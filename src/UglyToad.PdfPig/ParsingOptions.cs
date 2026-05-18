@@ -1,6 +1,7 @@
 ﻿namespace UglyToad.PdfPig
 {
     using Filters;
+    using Graphics.Colors;
     using System.Collections.Generic;
     using Logging;
 
@@ -63,5 +64,12 @@
         /// Filter provider to use while parsing the document. The <see cref="DefaultFilterProvider"/> will be used if set to <c>null</c>.
         /// </summary>
         public IFilterProvider? FilterProvider { get; set; } = null;
+
+        /// <summary>
+        /// Service used to convert <c>/ICCBased</c> color space samples to sRGB.
+        /// When <c>null</c> (default), ICC-based color spaces fall back silently
+        /// to their declared alternate color space.
+        /// </summary>
+        public IIccProfileService? IccProfileService { get; set; } = null;
     }
 }
