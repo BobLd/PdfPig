@@ -1,5 +1,6 @@
 ﻿namespace UglyToad.PdfPig.Tests.Tokenization
 {
+    using PdfPig.Core;
     using PdfPig.Tokenization;
     using PdfPig.Tokens;
 
@@ -145,6 +146,55 @@
             Assert.True(result);
 
             Assert.Equal("Hex#", AssertNameToken(token).Data);
+        }
+
+        [Fact]
+        public void ReadsGbkEncodedCjkName()
+        {
+            // "/ABCDEE+黑体" where 黑体 is written as raw GBK (codepage 936) bytes
+            // BA DA = 黑, CC E5 = 体. Not valid UTF-8, so it must be detected as GBK.
+            var raw = new byte[] { (byte)'/', (byte)'A', (byte)'B', (byte)'C', (byte)'D', (byte)'E', (byte)'E', (byte)'+', 0xBA, 0xDA, 0xCC, 0xE5 };
+            var input = new MemoryInputBytes(raw);
+            input.MoveNext();
+
+            var result = tokenizer.TryTokenize(input.CurrentByte, input, out var token);
+
+            Assert.True(result);
+            Assert.Equal("ABCDEE+黑体", AssertNameToken(token).Data);
+        }
+
+        [Fact]
+        public void ReadsGbkEncodedCjkNameWithTrailingAscii()
+        {
+            // "/ABCDEE+微软雅黑,Bold" with the CJK part as raw GBK bytes.
+            var raw = new byte[]
+            {
+                (byte)'/', (byte)'A', (byte)'B', (byte)'C', (byte)'D', (byte)'E', (byte)'E', (byte)'+',
+                0xCE, 0xA2, 0xC8, 0xED, 0xD1, 0xC5, 0xBA, 0xDA,
+                (byte)',', (byte)'B', (byte)'o', (byte)'l', (byte)'d'
+            };
+            var input = new MemoryInputBytes(raw);
+            input.MoveNext();
+
+            var result = tokenizer.TryTokenize(input.CurrentByte, input, out var token);
+
+            Assert.True(result);
+            Assert.Equal("ABCDEE+微软雅黑,Bold", AssertNameToken(token).Data);
+        }
+
+        [Fact]
+        public void IsolatedHighByteFallsBackToWindows1252()
+        {
+            // "/Café" where é is a single raw 0xE9 (Latin-1/Windows-1252) byte, not a valid GBK
+            // double-byte sequence. Must NOT be mis-decoded as GBK.
+            var raw = new byte[] { (byte)'/', (byte)'C', (byte)'a', (byte)'f', 0xE9 };
+            var input = new MemoryInputBytes(raw);
+            input.MoveNext();
+
+            var result = tokenizer.TryTokenize(input.CurrentByte, input, out var token);
+
+            Assert.True(result);
+            Assert.Equal("Café", AssertNameToken(token).Data);
         }
 
         private static NameToken AssertNameToken(IToken token)

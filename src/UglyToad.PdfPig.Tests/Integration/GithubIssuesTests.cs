@@ -12,19 +12,31 @@
     public class GithubIssuesTests
     {
         [Fact]
-        public void Issues1309()
+        public void Issues1266()
         {
-            var path = IntegrationHelpers.GetDocumentPath("LKR824191.pdf");
+            var path = IntegrationHelpers.GetDocumentPath("issues-1266.pdf");
 
             using (var document = PdfDocument.Open(path, new ParsingOptions() { UseLenientParsing = true, UseActualText = true }))
             {
                 var page = document.GetPage(1);
-                var words = NearestNeighbourWordExtractor.Instance.GetWords(page.Letters);
-                var blocks = DocstrumBoundingBoxes.Instance.GetBlocks(words);
-                Assert.Equal(23, blocks.Count);
 
-                var text = blocks[13].Text;
-                Assert.Equal("-5,15 -5,15 -1,24 -6,39", text);
+                // The /BaseFont names of the embedded CJK fonts are written as raw GBK (codepage 936)
+                // bytes, which were previously decoded as windows-1252 and produced mojibake
+                // (e.g. "ABCDEE+ºÚÌå"). They should now be decoded correctly as Chinese. See issue #1266.
+                var fontNames = page.Letters
+                    .Select(l => l.FontName)
+                    .Distinct()
+                    .OrderBy(n => n, System.StringComparer.Ordinal)
+                    .ToArray();
+
+                Assert.Equal(new[]
+                {
+                    "ABCDEE+微软雅黑",        // Microsoft YaHei
+                    "ABCDEE+微软雅黑,Bold",
+                    "ABCDEE+黑体",            // SimHei
+                    "Times New Roman",
+                    "Times New Roman,Bold",
+                }, fontNames);
             }
         }
 
