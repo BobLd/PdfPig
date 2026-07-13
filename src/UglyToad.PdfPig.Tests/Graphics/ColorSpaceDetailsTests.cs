@@ -171,6 +171,26 @@
         }
 
         [Fact]
+        public void DeviceNGetColorIsCached()
+        {
+            var cs = new DeviceNColorSpaceDetails(
+                new[] { NameToken.Create("C1") },
+                DeviceGrayColorSpaceDetails.Instance,
+                CreateTestFunction());
+
+            var values = new[] { 0.3 };
+            var color1 = cs.GetColor(values);
+
+            // Mutating the caller's array after the call must not corrupt the cache.
+            values[0] = 0.9;
+
+            var color2 = cs.GetColor(0.3);
+
+            Assert.Same(color1, color2);
+            Assert.NotEqual(color1, cs.GetColor(0.7));
+        }
+
+        [Fact]
         public void DeviceNNotEqualWhenNamesOrderDiffers()
         {
             var func = CreateTestFunction();

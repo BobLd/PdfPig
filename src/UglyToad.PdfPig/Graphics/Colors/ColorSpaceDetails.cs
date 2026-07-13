@@ -702,6 +702,8 @@
     /// </summary>
     public sealed class DeviceNColorSpaceDetails : ColorSpaceDetails
     {
+        private readonly ConcurrentDictionary<double[], IColor> cache = new ConcurrentDictionary<double[], IColor>(DoubleArrayEqualityComparer.Instance);
+
         /// <summary>
         /// <inheritdoc/>
         /// <para>The 'N' in DeviceN.</para>
@@ -779,9 +781,18 @@
 
             // TODO - use attributes
 
-            // TODO - caching
+            if (cache.TryGetValue(values, out var color))
+            {
+                return color;
+            }
+
             var evaled = TintFunction.Eval(values);
-            return AlternateColorSpace.GetColor(evaled);
+            color = AlternateColorSpace.GetColor(evaled);
+
+            // The caller owns the values array and may mutate it after this call, so key on a copy.
+            cache.TryAdd(values.ToArray(), color);
+
+            return color;
         }
 
         /// <inheritdoc/>
@@ -876,6 +887,37 @@
             return Names.SequenceEqual(cs.Names) &&
                    TintFunction.Equals(cs.TintFunction) &&
                    AlternateColorSpace.Equals(cs.AlternateColorSpace);
+        }
+
+        private sealed class DoubleArrayEqualityComparer : IEqualityComparer<double[]>
+        {
+            public static readonly DoubleArrayEqualityComparer Instance = new DoubleArrayEqualityComparer();
+
+            public bool Equals(double[]? x, double[]? y)
+            {
+                if (ReferenceEquals(x, y))
+                {
+                    return true;
+                }
+
+                if (x is null || y is null)
+                {
+                    return false;
+                }
+
+                return x.AsSpan().SequenceEqual(y);
+            }
+
+            public int GetHashCode(double[] obj)
+            {
+                var hash = new HashCode();
+                foreach (var value in obj)
+                {
+                    hash.Add(value);
+                }
+
+                return hash.ToHashCode();
+            }
         }
 
         /// <summary>
@@ -1035,7 +1077,7 @@
         /// <inheritdoc/>
         internal override Span<byte> Transform(Span<byte> values)
         {
-            var colorCache = new Dictionary<int, double[]>(values.Length);
+            var colorCache = new Dictionary<byte, double[]>(values.Length);
             var transformed = new List<byte>(values.Length);
 
             for (var i = 0; i < values.Length; ++i)
