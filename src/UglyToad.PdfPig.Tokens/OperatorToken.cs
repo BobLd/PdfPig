@@ -173,6 +173,12 @@
             };
         }
 
+        
+        public override bool Equals(object? obj)
+        {
+            return obj is IToken token && Equals(token);
+        }
+
         /// <inheritdoc />
         public bool Equals(IToken obj)
         {
@@ -181,7 +187,7 @@
                 return true;
             }
 
-            if (!(obj is OperatorToken other))
+            if (obj is not OperatorToken other)
             {
                 return false;
             }

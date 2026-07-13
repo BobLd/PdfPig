@@ -176,6 +176,18 @@
         {
             return decoded;
         }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Type, NumberOfColorComponents);
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj)
+        {
+            return obj is DeviceGrayColorSpaceDetails;
+        }
     }
 
     /// <summary>
@@ -247,6 +259,18 @@
         {
             return decoded;
         }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Type, NumberOfColorComponents);
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj)
+        {
+            return obj is DeviceRgbColorSpaceDetails;
+        }
     }
 
     /// <summary>
@@ -291,7 +315,8 @@
             {
                 return CMYKColor.Black;
             }
-            else if (c == 0 && m == 0 && y == 0 && k == 0)
+            
+            if (c == 0 && m == 0 && y == 0 && k == 0)
             {
                 return CMYKColor.White;
             }
@@ -322,6 +347,18 @@
         internal override Span<byte> Transform(Span<byte> decoded)
         {
             return decoded;
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Type, NumberOfColorComponents);
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj)
+        {
+            return obj is DeviceCmykColorSpaceDetails;
         }
     }
 
@@ -624,6 +661,39 @@
             var unwraped = UnwrapIndexedColorSpaceBytes(decoded);
             return BaseColorSpace.Transform(unwraped);
         }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add(Type);
+            hash.Add(BaseColorSpace);
+            hash.Add(HiVal);
+            foreach (var b in colorTable)
+            {
+                hash.Add(b);
+            }
+
+            return hash.ToHashCode();
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj)
+        {
+            if (ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+            
+            if (obj is not IndexedColorSpaceDetails cs)
+            {
+                return false;
+            }
+            
+            return HiVal == cs.HiVal &&
+                   colorTable.SequenceEqual(cs.colorTable) &&
+                   BaseColorSpace.Equals(cs.BaseColorSpace);
+        }
     }
 
     /// <summary>
@@ -764,10 +834,54 @@
             GetRgbViaTint(TintFunction, AlternateColorSpace, values, out r, out g, out b);
         }
 
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add(Type);
+            hash.Add(Attributes);
+            foreach (var name in Names)
+            {
+                hash.Add(name);
+            }
+
+            hash.Add(AlternateColorSpace);
+            hash.Add(TintFunction);
+            return hash.ToHashCode();
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj)
+        {
+            if (ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            if (obj is not DeviceNColorSpaceDetails cs)
+            {
+                return false;
+            }
+
+            if (Attributes.HasValue != cs.Attributes.HasValue)
+            {
+                return false;
+            }
+
+            if (Attributes.HasValue && !Attributes.Value.Equals(cs.Attributes!.Value))
+            {
+                return false;
+            }
+
+            return Names.SequenceEqual(cs.Names) &&
+                   TintFunction.Equals(cs.TintFunction) &&
+                   AlternateColorSpace.Equals(cs.AlternateColorSpace);
+        }
+
         /// <summary>
         /// DeviceN Color Space Attributes.
         /// </summary>
-        public readonly struct DeviceNColorSpaceAttributes
+        public readonly struct DeviceNColorSpaceAttributes : IEquatable<DeviceNColorSpaceAttributes>
         {
             /// <summary>
             /// A name specifying the preferred treatment for the colour space. Values shall be <c>DeviceN</c> or <c>NChannel</c>. Default value: <c>DeviceN</c>.
@@ -809,6 +923,27 @@
                 Colorants = colorants;
                 Process = process;
                 MixingHints = mixingHints;
+            }
+
+            /// <inheritdoc/>
+            public override int GetHashCode()
+            {
+                return HashCode.Combine(Subtype, Colorants, Process, MixingHints);
+            }
+
+            /// <inheritdoc/>
+            public override bool Equals(object? obj)
+            {
+                return obj is DeviceNColorSpaceAttributes other && Equals(other);
+            }
+            
+            /// <inheritdoc/>
+            public bool Equals(DeviceNColorSpaceAttributes other)
+            {
+                return Subtype.Equals(other.Subtype) &&
+                       Equals(Colorants, other.Colorants) &&
+                       Equals(Process, other.Process) &&
+                       Equals(MixingHints, other.MixingHints);
             }
         }
     }
@@ -937,6 +1072,30 @@
         {
             GetRgbViaTint(TintFunction, AlternateColorSpace, values.Slice(0, 1), out r, out g, out b);
         }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Type, Name, AlternateColorSpace, TintFunction);
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj)
+        {
+            if (ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            if (obj is not SeparationColorSpaceDetails cs)
+            {
+                return false;
+            }
+
+            return Name == cs.Name &&
+                   TintFunction.Equals(cs.TintFunction) &&
+                   AlternateColorSpace.Equals(cs.AlternateColorSpace);
+        }
     }
 
     /// <summary>
@@ -1059,6 +1218,43 @@
         {
             double a = values[0];
             (r, g, b) = colorSpaceTransformer.TransformToRGB((a, a, a));
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add(Type);
+            foreach (var b in WhitePoint)
+            {
+                hash.Add(b);
+            }
+
+            foreach (var b in BlackPoint)
+            {
+                hash.Add(b);
+            }
+
+            hash.Add(Gamma);
+            return hash.ToHashCode();
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj)
+        {
+            if (ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            if (obj is not CalGrayColorSpaceDetails cs)
+            {
+                return false;
+            }
+
+            return Gamma.Equals(cs.Gamma) &&
+                   WhitePoint.SequenceEqual(cs.WhitePoint) &&
+                   BlackPoint.SequenceEqual(cs.BlackPoint);
         }
     }
 
@@ -1204,6 +1400,53 @@
         public override void GetRgb(ReadOnlySpan<double> values, out double r, out double g, out double b)
         {
             (r, g, b) = colorSpaceTransformer.TransformToRGB((values[0], values[1], values[2]));
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add(Type);
+            foreach (var b in WhitePoint)
+            {
+                hash.Add(b);
+            }
+
+            foreach (var b in BlackPoint)
+            {
+                hash.Add(b);
+            }
+
+            foreach (var b in Gamma)
+            {
+                hash.Add(b);
+            }
+
+            foreach (var b in Matrix)
+            {
+                hash.Add(b);
+            }
+
+            return hash.ToHashCode();
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj)
+        {
+            if (ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            if (obj is not CalRGBColorSpaceDetails cs)
+            {
+                return false;
+            }
+
+            return Gamma.SequenceEqual(cs.Gamma) &&
+                   WhitePoint.SequenceEqual(cs.WhitePoint) &&
+                   BlackPoint.SequenceEqual(cs.BlackPoint) &&
+                   Matrix.SequenceEqual(cs.Matrix);
         }
     }
 
@@ -1356,6 +1599,48 @@
             double Z = WhitePoint[2] * LabColorSpaceDetails.g(N);
 
             (r, g, b) = colorSpaceTransformer.TransformToRGB((X, Y, Z));
+        }
+
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add(Type);
+            foreach (var b in WhitePoint)
+            {
+                hash.Add(b);
+            }
+
+            foreach (var b in BlackPoint)
+            {
+                hash.Add(b);
+            }
+
+            foreach (var b in Matrix)
+            {
+                hash.Add(b);
+            }
+
+            return hash.ToHashCode();
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj)
+        {
+            if (ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            if (obj is not LabColorSpaceDetails cs)
+            {
+                return false;
+            }
+
+            return WhitePoint.SequenceEqual(cs.WhitePoint) &&
+                   BlackPoint.SequenceEqual(cs.BlackPoint) &&
+                   Matrix.SequenceEqual(cs.Matrix);
         }
     }
 
@@ -1510,6 +1795,45 @@
             // TODO - use ICC profile
 
             return AlternateColorSpace.Transform(decoded);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add(Type);
+            hash.Add(NumberOfColorComponents);
+            hash.Add(AlternateColorSpace);
+            hash.Add(Metadata);
+            foreach (var b in Range)
+            {
+                hash.Add(b);
+            }
+
+            return hash.ToHashCode();
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj)
+        {
+            if (ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            if (obj is not ICCBasedColorSpaceDetails cs)
+            {
+                return false;
+            }
+
+            if (!Equals(Metadata, cs.Metadata))
+            {
+                return false;
+            }
+
+            return NumberOfColorComponents == cs.NumberOfColorComponents &&
+                   Range.SequenceEqual(cs.Range) &&
+                   AlternateColorSpace.Equals(cs.AlternateColorSpace);
         }
     }
 

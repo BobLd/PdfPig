@@ -16,12 +16,12 @@
         /// <summary>
         /// <see langword="null"/>.
         /// </summary>
-        public object Data { get; } = null;
+        public object Data { get; } = null!;
 
         private NullToken() { }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is NullToken;
         }
@@ -31,7 +31,7 @@
         /// </summary>
         protected bool Equals(NullToken other)
         {
-            return Equals(Data, other.Data);
+            return other is not null;
         }
 
         /// <inheritdoc />

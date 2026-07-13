@@ -11,7 +11,7 @@
     /// Wraps an XML based Extensible Metadata Platform (XMP) document. These XML documents are embedded in PDFs to provide metadata
     /// about objects (the entire document, images, etc). They can be present as plain text or encoded/encrypted streams.
     /// </summary>
-    public class XmpMetadata
+    public sealed class XmpMetadata : IEquatable<XmpMetadata>
     {
         private readonly ILookupFilterProvider filterProvider;
         private readonly IPdfTokenScanner pdfTokenScanner;
@@ -44,6 +44,34 @@
         public XDocument GetXDocument()
         {
             return XDocument.Parse(OtherEncodings.BytesAsLatin1String(GetXmlBytes()));
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj)
+        {
+            return ReferenceEquals(this, obj) || obj is XmpMetadata other && Equals(other);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(XmpMetadata? other)
+        {
+            if (other is null)
+            {
+                return false;
+            }
+
+            if (ReferenceEquals(this, other))
+            {
+                return true;
+            }
+
+            return MetadataStreamToken.Equals(other.MetadataStreamToken);
+        }
+        
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return MetadataStreamToken.GetHashCode();
         }
     }
 }

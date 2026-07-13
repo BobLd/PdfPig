@@ -8,7 +8,7 @@
     /// <summary>
     /// This class represents a function in a PDF document.
     /// </summary>
-    public abstract class PdfFunction
+    public abstract class PdfFunction : IEquatable<PdfFunction>
     {
         /// <summary>
         /// The function dictionary.
@@ -67,10 +67,8 @@
             {
                 return FunctionStream.StreamDictionary;
             }
-            else
-            {
-                return FunctionDictionary;
-            }
+            
+            return FunctionDictionary;
         }
 
         /// <summary>
@@ -260,7 +258,8 @@
             {
                 return rangeMin;
             }
-            else if (x > rangeMax)
+            
+            if (x > rangeMax)
             {
                 return rangeMax;
             }
@@ -281,6 +280,54 @@
         protected static double Interpolate(double x, double xRangeMin, double xRangeMax, double yRangeMin, double yRangeMax)
         {
             return yRangeMin + ((x - xRangeMin) * (yRangeMax - yRangeMin) / (xRangeMax - xRangeMin));
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            if (FunctionStream is not null)
+            {
+                return HashCode.Combine(FunctionType, RangeValues, FunctionStream);
+            }
+
+            return HashCode.Combine(FunctionType, RangeValues, FunctionDictionary);
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj)
+        {
+            return obj is PdfFunction func && Equals(func);
+        }
+
+        /// <inheritdoc/>
+        public virtual bool Equals(PdfFunction? other)
+        {
+            if (other is null)
+            {
+                return false;
+            }
+
+            if (ReferenceEquals(this, other))
+            {
+                return true;
+            }
+
+            if (!FunctionType.Equals(other.FunctionType) || !DomainValues.Equals(other.DomainValues))
+            {
+                return false;
+            }
+
+            if (!Equals(RangeValues, other.RangeValues))
+            {
+                return false;
+            }
+
+            if (FunctionStream is not null)
+            {
+                return FunctionStream.Equals(other.FunctionStream);
+            }
+
+            return Equals(FunctionDictionary, other.FunctionDictionary);
         }
     }
 

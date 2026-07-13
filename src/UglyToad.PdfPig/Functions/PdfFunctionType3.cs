@@ -143,5 +143,42 @@ namespace UglyToad.PdfPig.Functions
         {
             return new PdfRange(encodeValuesCache, n);
         }
+
+        public override int GetHashCode()
+        {
+            HashCode hash = new HashCode();
+            hash.Add(base.GetHashCode());
+            hash.Add(Bounds);
+            hash.Add(Encode);
+            
+            foreach (var func in FunctionsArray)
+            {
+                hash.Add(func);
+            }
+
+            return hash.ToHashCode();
+        }
+
+        public override bool Equals(PdfFunction? other)
+        {
+            if (ReferenceEquals(this, other))
+            {
+                return true;
+            }
+
+            if (!base.Equals(other))
+            {
+                return false;
+            }
+
+            if (other is not PdfFunctionType3 func)
+            {
+                return false;
+            }
+
+            return Bounds.Equals(func.Bounds) &&
+                   Encode.Equals(func.Encode) &&
+                   FunctionsArray.SequenceEqual(func.FunctionsArray);
+        }
     }
 }

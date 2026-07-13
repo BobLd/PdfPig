@@ -81,5 +81,32 @@ namespace UglyToad.PdfPig.Functions
                 + "C1: " + C1 + " "
                 + "N: " + N + "}";
         }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(base.GetHashCode(), C0, C1, N);
+        }
+        
+        public override bool Equals(PdfFunction? other)
+        {
+            if (ReferenceEquals(this, other))
+            {
+                return true;
+            }
+
+            if (!base.Equals(other))
+            {
+                return false;
+            }
+
+            if (other is not PdfFunctionType2 func)
+            {
+                return false;
+            }
+
+            return C0.Equals(func.C0) &&
+                   C1.Equals(func.C1) &&
+                   N.Equals(func.N);
+        }
     }
 }

@@ -345,5 +345,49 @@ namespace UglyToad.PdfPig.Functions
 
             return numberOfOutputValues;
         }
+
+        public override int GetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add(base.GetHashCode());
+            hash.Add(BitsPerSample);
+            hash.Add(Order);
+            hash.Add(Size);
+            foreach (var value in encodeValuesCache)
+            {
+                hash.Add(value);
+            }
+
+            foreach (var value in decodeValuesCache)
+            {
+                hash.Add(value);
+            }
+
+            return hash.ToHashCode();
+        }
+
+        public override bool Equals(PdfFunction? other)
+        {
+            if (ReferenceEquals(this, other))
+            {
+                return true;
+            }
+
+            if (!base.Equals(other))
+            {
+                return false;
+            }
+
+            if (other is not PdfFunctionType0 func)
+            {
+                return false;
+            }
+
+            return BitsPerSample == func.BitsPerSample &&
+                   Order == func.Order &&
+                   Size.Equals(func.Size) &&
+                   encodeValuesCache.SequenceEqual(func.encodeValuesCache) &&
+                   decodeValuesCache.SequenceEqual(func.decodeValuesCache);
+        }
     }
 }

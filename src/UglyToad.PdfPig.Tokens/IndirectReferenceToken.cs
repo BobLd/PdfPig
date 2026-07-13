@@ -21,6 +21,17 @@
             Data = data;
         }
 
+        public override int GetHashCode()
+        {
+            return Data.GetHashCode();
+        }
+
+        /// <inheritdoc />
+        public override bool Equals(object? obj)
+        {
+            return obj is IToken token && Equals(token);
+        }
+
         /// <inheritdoc />
         public bool Equals(IToken obj)
         {
@@ -29,7 +40,7 @@
                 return true;
             }
 
-            if (!(obj is IndirectReferenceToken other))
+            if (obj is not IndirectReferenceToken other)
             {
                 return false;
             }

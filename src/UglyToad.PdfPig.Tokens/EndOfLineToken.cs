@@ -15,6 +15,18 @@
         }
 
         /// <inheritdoc />
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(typeof(EndOfLineToken));
+        }
+
+        /// <inheritdoc />
+        public override bool Equals(object? obj)
+        {
+            return obj is IToken token && Equals(token);
+        }
+
+        /// <inheritdoc />
         public bool Equals(IToken obj)
         {
             if (ReferenceEquals(this, obj))
