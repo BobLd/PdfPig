@@ -798,8 +798,13 @@
         /// <inheritdoc/>
         internal override Span<byte> Transform(Span<byte> decoded)
         {
-            var cache = new Dictionary<int, double[]>();
-            var transformed = new List<byte>();
+            // This is cached locally
+            // TODO - Investigate using the shared cache, especially as CS are cached too
+            var transformCache = new Dictionary<int, double[]>();
+            var transformed = new byte[decoded.Length * AlternateColorSpace.NumberOfColorComponents];
+
+            int k = 0;
+            
             for (var i = 0; i < decoded.Length; i += NumberOfColorComponents)
             {
                 int key = 0;
@@ -811,23 +816,19 @@
                     comps[n] = b / 255.0;
                 }
 
-                if (!cache.TryGetValue(key, out double[]? colors))
+                if (!transformCache.TryGetValue(key, out double[]? colors))
                 {
                     colors = Process(comps);
-                    cache[key] = colors;
+                    transformCache[key] = colors;
                 }
 
                 for (int c = 0; c < colors.Length; c++)
                 {
-                    transformed.Add(ConvertToByte(colors[c]));
+                    transformed[k++] = ConvertToByte(colors[c]);
                 }
             }
 
-#if NET
-            return CollectionsMarshal.AsSpan(transformed);
-#else
-            return transformed.ToArray();
-#endif
+            return transformed;
         }
 
         /// <inheritdoc/>
