@@ -4,7 +4,7 @@
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Linq;
-
+    
     using Colors;
     using Content;
     using Core;
@@ -18,6 +18,7 @@
     using PdfPig.Core;
     using Tokenization.Scanner;
     using Tokens;
+    using Colors.Icc;
     using Util;
     using XObjects;
 
@@ -132,7 +133,8 @@
             UserSpaceUnit userSpaceUnit,
             PageRotationDegrees rotation,
             in TransformationMatrix initialMatrix,
-            ParsingOptions parsingOptions)
+            ParsingOptions parsingOptions,
+            DictionaryToken? pageDictionary)
         {
             this.PageNumber = pageNumber;
             this.ResourceStore = resourceStore;
@@ -147,8 +149,25 @@
             {
                 CurrentTransformationMatrix = initialMatrix,
                 CurrentClippingPath = GetInitialClipping(cropBox, rotation),
-                ColorSpaceContext = new ColorSpaceContext(GetCurrentState, resourceStore)
+                ColorSpaceContext = new ColorSpaceContext(GetCurrentState, resourceStore),
+                OutputIntent = ResolvePageOutputIntent(pageDictionary)
             });
+        }
+
+        /// <summary>
+        /// Resolve the output intent in effect for this processor's content: a page-level
+        /// <c>/OutputIntents</c> entry (PDF 2.0, Table 31) overrides the document catalog's.
+        /// </summary>
+        private OutputIntent? ResolvePageOutputIntent(DictionaryToken? pageDictionary)
+        {
+            if (pageDictionary is null)
+            {
+                return ResourceStore.OutputIntent;
+            }
+
+            var pageLevel = OutputIntentParser.Create(pageDictionary, PdfScanner, FilterProvider,
+                ResourceStore.IccProfileService);
+            return pageLevel ?? ResourceStore.OutputIntent;
         }
 
         /// <summary>
@@ -957,7 +976,7 @@
                     "Begin inline image (BI) command encountered while another inline image was active.");
             }
 
-            InlineImageBuilder = new InlineImageBuilder();
+            InlineImageBuilder = new InlineImageBuilder(ParsingOptions);
         }
 
         /// <inheritdoc/>

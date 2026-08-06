@@ -94,7 +94,8 @@
                     userSpaceUnit,
                     rotation,
                     initialMatrix,
-                    ParsingOptions);
+                    ParsingOptions,
+                    dictionary);
 
                 TextOnlyPageContent content = context.Process(pageNumber, operations);
 
@@ -115,7 +116,8 @@
                 UserSpaceUnit userSpaceUnit,
                 PageRotationDegrees rotation,
                 TransformationMatrix initialMatrix,
-                ParsingOptions parsingOptions)
+                ParsingOptions parsingOptions,
+                DictionaryToken pageDictionary)
                 : base(pageNumber,
                     resourceStore,
                     pdfScanner,
@@ -125,7 +127,8 @@
                     userSpaceUnit,
                     rotation,
                     initialMatrix,
-                    parsingOptions)
+                    parsingOptions,
+                    pageDictionary)
             {
             }
 

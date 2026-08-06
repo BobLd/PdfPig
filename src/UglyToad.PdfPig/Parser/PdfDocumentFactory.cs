@@ -14,6 +14,7 @@
     using Filters;
     using Fonts.SystemFonts;
     using Graphics;
+    using Graphics.Colors.Icc;
     using Outline;
     using Parts;
     using PdfFonts;
@@ -23,6 +24,7 @@
     using Tokenization.Scanner;
     using Tokens;
     using UglyToad.PdfPig.PdfFonts.Cmap;
+    using Util;
 
     internal static class PdfDocumentFactory
     {
@@ -209,7 +211,16 @@
                 type1Handler,
                 new Type3FontHandler(pdfScanner, encodingReader, cmapCache));
 
-            var resourceContainer = new ResourceStore(pdfScanner, fontFactory, filterProvider, parsingOptions);
+            // Resolved lazily: parsing the output intent means inflating and parsing the destination ICC
+            // profile, which is routinely megabytes, and a caller that only reads metadata, the page count
+            // or the outline never needs it.
+            var outputIntent = new Lazy<OutputIntent?>(() => OutputIntentParser.Create(
+                rootDictionary,
+                pdfScanner,
+                filterProvider,
+                parsingOptions.IccProfileService));
+
+            var resourceContainer = new ResourceStore(pdfScanner, fontFactory, filterProvider, parsingOptions, outputIntent);
 
             var information = DocumentInformationFactory.Create(
                 pdfScanner,

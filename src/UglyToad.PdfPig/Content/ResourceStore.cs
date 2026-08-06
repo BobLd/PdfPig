@@ -5,12 +5,13 @@
     using System.Diagnostics.CodeAnalysis;
     using System.Linq;
     using Core;
+    using Filters;
     using Graphics.Colors;
     using Parser.Parts;
     using PdfFonts;
     using Tokenization.Scanner;
     using Tokens;
-    using Filters;
+    using Graphics.Colors.Icc;
     using Util;
 
     internal sealed class ResourceStore : IResourceStore
@@ -31,6 +32,11 @@
         private readonly Dictionary<NameToken, ColorSpaceDetails> loadedNamedColorSpaceDetails = new Dictionary<NameToken, ColorSpaceDetails>();
         private readonly Dictionary<(NameToken? Name, IToken ColorSpace), ColorSpaceDetails> loadedColorSpaceDetailsCache = new Dictionary<(NameToken?, IToken), ColorSpaceDetails>();
 
+        // Unlike the colour space caches above this is NOT cleared per resource dictionary: it is keyed by
+        // the profile stream's indirect reference, which is unique document-wide, so it stays valid across
+        // resource dictionary switches. That is the point of it - see IccProfileByteCache.
+        private readonly IccProfileByteCache iccProfileByteCache = new IccProfileByteCache();
+
         private readonly Dictionary<NameToken, DictionaryToken> markedContentProperties = new Dictionary<NameToken, DictionaryToken>();
 
         private readonly Dictionary<NameToken, Shading> shadingsProperties = new Dictionary<NameToken, Shading>();
@@ -46,15 +52,27 @@
 
         private (NameToken? name, IFont? font) lastLoadedFont;
 
+        public IIccProfileService? IccProfileService => parsingOptions.IccProfileService;
+
+        private readonly Lazy<OutputIntent?> outputIntent;
+
+        /// <summary>
+        /// Forces resolution of the document's output intent on first access. Deliberately lazy: resolving it
+        /// inflates and parses the destination ICC profile, and only content rendering ever reads it.
+        /// </summary>
+        public OutputIntent? OutputIntent => outputIntent.Value;
+
         public ResourceStore(IPdfTokenScanner scanner,
             IFontFactory fontFactory,
             ILookupFilterProvider filterProvider,
-            ParsingOptions parsingOptions)
+            ParsingOptions parsingOptions,
+            Lazy<OutputIntent?> outputIntent)
         {
             this.scanner = scanner;
             this.fontFactory = fontFactory;
             this.filterProvider = filterProvider;
             this.parsingOptions = parsingOptions;
+            this.outputIntent = outputIntent;
         }
 
         public void LoadResourceDictionary(DictionaryToken resourceDictionary)
@@ -378,7 +396,7 @@
             // Null color space for images
             if (name is null)
             {
-                return ColorSpaceDetailsParser.GetColorSpaceDetails(null, dictionary, scanner, this, filterProvider);
+                return ColorSpaceDetailsParser.GetColorSpaceDetails(null, dictionary, scanner, this, filterProvider, iccProfileByteCache);
             }
 
             if (name.TryMapToColorSpace(out ColorSpace colorSpaceActual))
@@ -388,7 +406,7 @@
                     return ResolveDefaultSubstitute(substituteName, dictionary);
                 }
 
-                return ColorSpaceDetailsParser.GetColorSpaceDetails(colorSpaceActual, dictionary, scanner, this, filterProvider);
+                return ColorSpaceDetailsParser.GetColorSpaceDetails(colorSpaceActual, dictionary, scanner, this, filterProvider, iccProfileByteCache);
             }
 
             // Named color spaces
@@ -402,12 +420,12 @@
             {
                 if (namedColorSpace.Data is null)
                 {
-                    return ColorSpaceDetailsParser.GetColorSpaceDetails(mapped, dictionary, scanner, this, filterProvider);
+                    return ColorSpaceDetailsParser.GetColorSpaceDetails(mapped, dictionary, scanner, this, filterProvider, iccProfileByteCache);
                 }
                 
                 if (namedColorSpace.Data is ArrayToken array)
                 {
-                    var csd = ColorSpaceDetailsParser.GetColorSpaceDetails(mapped, dictionary.With(NameToken.ColorSpace, array), scanner, this, filterProvider);
+                    var csd = ColorSpaceDetailsParser.GetColorSpaceDetails(mapped, dictionary.With(NameToken.ColorSpace, array), scanner, this, filterProvider, iccProfileByteCache);
                     loadedNamedColorSpaceDetails[name] = csd;
                     return csd;
                 }

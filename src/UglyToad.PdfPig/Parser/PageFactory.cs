@@ -1,7 +1,5 @@
 ﻿namespace UglyToad.PdfPig.Parser
 {
-    using System;
-    using System.Collections.Generic;
     using Annotations;
     using Content;
     using Core;
@@ -10,6 +8,9 @@
     using Graphics;
     using Graphics.Operations;
     using Outline.Destinations;
+    using System;
+    using System.Collections;
+    using System.Collections.Generic;
     using Tokenization.Scanner;
     using Tokens;
 
@@ -51,7 +52,8 @@
                     Array.Empty<MarkedContentElement>(),
                     PdfScanner,
                     FilterProvider,
-                    ResourceStore);
+                    ResourceStore,
+                    ParsingOptions);
 
                 return new Page(pageNumber,
                     dictionary,
@@ -73,7 +75,8 @@
                 userSpaceUnit,
                 rotation,
                 initialMatrix,
-                ParsingOptions);
+                ParsingOptions,
+                dictionary);
 
             PageContent content = context.Process(pageNumber, operations);
 

@@ -25,7 +25,8 @@
                 {
                     UseLenientParsing = true,
                     SkipMissingFonts = true,
-                });
+                },
+                null);
         }
 
         [Fact]

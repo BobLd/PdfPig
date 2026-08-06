@@ -35,7 +35,8 @@ namespace UglyToad.PdfPig.Tests.Integration
                 {
                     UseLenientParsing = true,
                     SkipMissingFonts = true,
-                });
+                },
+                null);
 
             store.LoadResourceDictionary(resources);
 

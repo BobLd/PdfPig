@@ -17,6 +17,8 @@
     /// </summary>
     public sealed class InlineImageBuilder
     {
+        private readonly ParsingOptions _options;
+        
         /// <summary>
         /// Inline image properties.
         /// </summary>
@@ -27,6 +29,11 @@
         /// </summary>
         public Memory<byte> Bytes { get; internal set; }
 
+        public InlineImageBuilder(ParsingOptions options)
+        {
+            _options = options;
+        }
+        
         internal InlineImage CreateInlineImage(
             in TransformationMatrix transformationMatrix,
             ILookupFilterProvider filterProvider,
@@ -76,7 +83,7 @@
                 XObjectContentRecord softMaskImageRecord = new XObjectContentRecord(XObjectType.Image, sMaskToken, TransformationMatrix.Identity,
                     defaultRenderingIntent, DeviceGrayColorSpaceDetails.Instance);
 
-                softMaskImage = XObjectFactory.ReadImage(softMaskImageRecord, tokenScanner, filterProvider, resourceStore);
+                softMaskImage = XObjectFactory.ReadImage(softMaskImageRecord, tokenScanner, filterProvider, resourceStore, _options);
             }
 
             if (!isMask)

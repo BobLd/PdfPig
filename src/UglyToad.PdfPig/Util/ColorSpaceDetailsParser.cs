@@ -41,6 +41,7 @@
             IPdfTokenScanner scanner,
             IResourceStore resourceStore,
             ILookupFilterProvider filterProvider,
+            IccProfileByteCache iccProfileCache,
             bool cannotRecurse = false)
         {
             if ((imageDictionary.TryGet(NameToken.ImageMask, scanner, out BooleanToken isImageMask) && isImageMask.Data) ||
@@ -53,7 +54,7 @@
                     return DeviceGrayColorSpaceDetails.Instance;
                 }
 
-                var colorSpaceDetails = GetColorSpaceDetails(colorSpace, imageDictionary.Without(NameToken.Filter).Without(NameToken.F), scanner, resourceStore, filterProvider, true);
+                var colorSpaceDetails = GetColorSpaceDetails(colorSpace, imageDictionary.Without(NameToken.Filter).Without(NameToken.F), scanner, resourceStore, filterProvider, iccProfileCache, true);
                 return IndexedColorSpaceDetails.Stencil(colorSpaceDetails);
             }
 
@@ -237,7 +238,7 @@
                             ColorSpaceMapper.TryMap(alternateColorSpaceNameToken, resourceStore, out var alternateColorSpace))
                         {
                             alternateColorSpaceDetails =
-                                GetColorSpaceDetails(alternateColorSpace, imageDictionary, scanner, resourceStore, filterProvider, true);
+                                GetColorSpaceDetails(alternateColorSpace, imageDictionary, scanner, resourceStore, filterProvider, iccProfileCache, true);
                         }
 
                         // Range is optional
@@ -254,7 +255,14 @@
                             metadata = new XmpMetadata(metadataStream, filterProvider, scanner);
                         }
 
-                        return new ICCBasedColorSpaceDetails(numeric.Int, alternateColorSpaceDetails, range, metadata);
+                        // The decode goes through the document-scoped cache: this colour space is re-parsed
+                        // on every resource dictionary load and embedded profiles are routinely megabytes.
+                        // See IccProfileByteCache.
+                        ReadOnlyMemory<byte> profileBytes = resourceStore.IccProfileService is not null
+                            ? iccProfileCache.GetOrDecode(second, streamToken, filterProvider, scanner)
+                            : ReadOnlyMemory<byte>.Empty;
+
+                        return new ICCBasedColorSpaceDetails(numeric.Int, alternateColorSpaceDetails, range, metadata, profileBytes, resourceStore.IccProfileService);
                     }
                 case ColorSpace.Indexed:
                     {
@@ -282,7 +290,8 @@
                             imageDictionary,
                             scanner,
                             filterProvider,
-                            resourceStore);
+                            resourceStore,
+                            iccProfileCache);
 
                         if (baseDetails is UnsupportedColorSpaceDetails)
                         {
@@ -351,7 +360,8 @@
                                     imageDictionary,
                                     scanner,
                                     filterProvider,
-                                    resourceStore);
+                                    resourceStore,
+                                    iccProfileCache);
                             }
                         }
                         return new PatternColorSpaceDetails(resourceStore.GetPatterns(), underlyingColourSpace);
@@ -380,7 +390,8 @@
                             imageDictionary,
                             scanner,
                             filterProvider,
-                            resourceStore);
+                            resourceStore,
+                            iccProfileCache);
 
                         PdfFunction function;
                         var func = colorSpaceArray[3];
@@ -424,7 +435,8 @@
                             imageDictionary,
                             scanner,
                             filterProvider,
-                            resourceStore);
+                            resourceStore,
+                            iccProfileCache);
 
                         var func = colorSpaceArray[3];
                         PdfFunction tintFunc = PdfFunctionParser.Create(func, scanner, filterProvider);
@@ -477,7 +489,8 @@
             DictionaryToken dictionary,
             IPdfTokenScanner scanner,
             ILookupFilterProvider filterProvider,
-            IResourceStore resourceStore)
+            IResourceStore resourceStore,
+            IccProfileByteCache iccProfileCache)
         {
             if (DirectObjectFinder.TryGet(csToken, scanner, out NameToken? alternateNameToken)
                 && ColorSpaceMapper.TryMap(alternateNameToken, resourceStore, out var baseColorSpaceName))
@@ -497,6 +510,7 @@
                     scanner,
                     resourceStore,
                     filterProvider,
+                    iccProfileCache,
                     true);
             }
 
@@ -519,6 +533,7 @@
                     scanner,
                     resourceStore,
                     filterProvider,
+                    iccProfileCache,
                     true);
             }
 
