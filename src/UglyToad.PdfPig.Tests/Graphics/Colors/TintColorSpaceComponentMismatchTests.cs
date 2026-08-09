@@ -136,6 +136,8 @@ namespace UglyToad.PdfPig.Tests.Graphics.Colors
                 3,
                 DeviceRgbColorSpaceDetails.Instance,
                 [0.0, 0.5, 0.0, 0.5, 0.0, 0.5],
+                null,
+                ReadOnlyMemory<byte>.Empty,
                 null);
 
             double[] values = [1.0, 1.0, 1.0];

@@ -1,5 +1,6 @@
 ﻿namespace UglyToad.PdfPig.Graphics.Colors
 {
+    using Core;
     using System;
     using UglyToad.PdfPig.Functions;
 
@@ -37,11 +38,11 @@
         /// typical case where the alternate colour space has at most <see cref="MaxStackallocComponents"/> components.
         /// </summary>
         public static void GetRgbViaTint(PdfFunction tint, ColorSpaceDetails alternate,
-            ReadOnlySpan<double> tintInput, out double r, out double g, out double b)
+            ReadOnlySpan<double> tintInput, RenderingIntent intent, out double r, out double g, out double b)
         {
             int max = Math.Max(tint.MaxOutputComponentCount, alternate.NumberOfColorComponents);
             Span<double> buffer = max <= 32 ? stackalloc double[max] : new double[max];
-            alternate.GetRgb(EvalTint(tint, alternate, tintInput, buffer), out r, out g, out b);
+            alternate.GetRgb(EvalTint(tint, alternate, tintInput, buffer), intent, out r, out g, out b);
         }
 
         /// <summary>
@@ -51,11 +52,11 @@
         /// colour space renders the same whichever path it is reached through.
         /// </summary>
         public static IColor GetColorViaTint(PdfFunction tint, ColorSpaceDetails alternate,
-            ReadOnlySpan<double> tintInput)
+            ReadOnlySpan<double> tintInput, RenderingIntent intent)
         {
             int max = Math.Max(tint.MaxOutputComponentCount, alternate.NumberOfColorComponents);
             Span<double> buffer = max <= 32 ? stackalloc double[max] : new double[max];
-            return alternate.GetColor(EvalTint(tint, alternate, tintInput, buffer));
+            return alternate.GetColor(EvalTint(tint, alternate, tintInput, buffer), intent);
         }
     }
 }

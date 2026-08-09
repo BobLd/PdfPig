@@ -94,7 +94,7 @@
             Assert.Null(details.IccProfile);
             Assert.Null(details.GetTransform(RenderingIntent.RelativeColorimetric));
 
-            var (r, g, b) = details.GetColor(0.5, 0.5, 0.5).ToRGBValues();
+            var (r, g, b) = details.GetColor([0.5, 0.5, 0.5]).ToRGBValues();
             Assert.Equal(0.5, r);
             Assert.Equal(0.5, g);
             Assert.Equal(0.5, b);
@@ -134,7 +134,7 @@
             var details = new ICCBasedColorSpaceDetails(4, DeviceCmykColorSpaceDetails.Instance,
                 null, null, new byte[] { 0xAB }, new StubService(profile));
 
-            var (r, g, b) = details.GetColor(0.1, 0.2, 0.3, 0.4).ToRGBValues();
+            var (r, g, b) = details.GetColor([0.1, 0.2, 0.3, 0.4]).ToRGBValues();
             Assert.Equal(0.25, r);
             Assert.Equal(0.50, g);
             Assert.Equal(0.75, b);

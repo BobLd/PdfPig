@@ -1,6 +1,7 @@
 ﻿namespace UglyToad.PdfPig.Graphics.Colors
 {
     using System;
+    using UglyToad.PdfPig.Graphics.Core;
 
     /// <summary>
     /// Contains more document-specific information about the <see cref="ColorSpace"/>.
@@ -40,7 +41,13 @@
         /// <summary>
         /// Get the color.
         /// </summary>
-        public abstract IColor GetColor(ReadOnlySpan<double> values);
+        public virtual IColor GetColor(ReadOnlySpan<double> values)
+            => GetColor(values, RenderingIntent.RelativeColorimetric);
+
+        /// <summary>
+        /// Intent-aware <see cref="GetColor(ReadOnlySpan{double})"/>.
+        /// </summary>
+        public abstract IColor GetColor(ReadOnlySpan<double> values, RenderingIntent intent);
 
         /// <summary>
         /// Get the color as an unboxed RGB triple. Avoids allocating an <see cref="IColor"/> and bypasses the
@@ -50,12 +57,30 @@
         /// <param name="r">The red component, in [0, 1].</param>
         /// <param name="g">The green component, in [0, 1].</param>
         /// <param name="b">The blue component, in [0, 1].</param>
-        public abstract void GetRgb(ReadOnlySpan<double> values, out double r, out double g, out double b);
+        public virtual void GetRgb(ReadOnlySpan<double> values, out double r, out double g, out double b)
+            => GetRgb(values, RenderingIntent.RelativeColorimetric, out r, out g, out b);
+
+        /// <summary>
+        /// Get the color as an unboxed RGB triple. Avoids allocating an <see cref="IColor"/> and bypasses the
+        /// virtual dispatch through <see cref="IColor.ToRGBValues"/>. Each component is in [0, 1].
+        /// </summary>
+        /// <param name="values">The component values, in this colour space.</param>
+        /// <param name="intent">Rendering intent.</param>
+        /// <param name="r">The red component, in [0, 1].</param>
+        /// <param name="g">The green component, in [0, 1].</param>
+        /// <param name="b">The blue component, in [0, 1].</param>
+        public abstract void GetRgb(ReadOnlySpan<double> values, RenderingIntent intent, out double r, out double g, out double b);
 
         /// <summary>
         /// Get the color, without check and caching.
         /// </summary>
-        internal abstract double[] Process(params double[] values);
+        internal virtual double[] Process(params double[] values)
+            => Process(values, RenderingIntent.RelativeColorimetric);
+
+        /// <summary>
+        /// Intent-aware <see cref="Process(double[])"/>.
+        /// </summary>
+        internal abstract double[] Process(double[] values, RenderingIntent intent);
 
         /// <summary>
         /// Get the color that initialize the current stroking or nonstroking colour.
@@ -65,7 +90,13 @@
         /// <summary>
         /// Transform image bytes.
         /// </summary>
-        internal abstract Span<byte> Transform(Span<byte> decoded);
+        internal virtual Span<byte> Transform(Span<byte> decoded)
+            => Transform(decoded, RenderingIntent.RelativeColorimetric);
+
+        /// <summary>
+        /// Intent-aware <see cref="Transform(System.Span{byte})"/>.
+        /// </summary>
+        internal abstract Span<byte> Transform(Span<byte> decoded, RenderingIntent intent);
 
         /// <summary>
         /// Decode raw 8-bit encoded component samples (e.g. an Indexed colour space's colour-table
