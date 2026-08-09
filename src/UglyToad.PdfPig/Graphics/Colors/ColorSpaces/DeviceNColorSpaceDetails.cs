@@ -188,7 +188,8 @@
 
             public readonly RenderingIntent Intent;
         }
-
+        
+#if NET9_0_OR_GREATER
         private readonly ref struct TintKeyRef
         {
             public TintKeyRef(ReadOnlySpan<double> values, RenderingIntent intent)
@@ -197,10 +198,11 @@
                 Intent = intent;
             }
 
-            public readonly ReadOnlySpan<double>  Values;
+            public readonly ReadOnlySpan<double> Values;
 
             public readonly RenderingIntent Intent;
         }
+#endif
 
         private sealed class TintKeyEqualityComparer : IEqualityComparer<TintKey>
 #if NET9_0_OR_GREATER

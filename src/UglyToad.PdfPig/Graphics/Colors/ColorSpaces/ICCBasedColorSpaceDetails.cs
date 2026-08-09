@@ -97,7 +97,6 @@
                 IccProfile = profile;
             }
             
-            BaseType = AlternateColorSpace.BaseType;
             Range = range ??
                 Enumerable.Range(0, numberOfColorComponents).Select(x => new[] { 0.0, 1.0 }).SelectMany(x => x).ToArray();
             if (Range.Count != 2 * numberOfColorComponents)
@@ -189,7 +188,7 @@
             }
 
 
-            return AlternateColorSpace.Process(values);
+            return AlternateColorSpace.Process(clipped, intent);
         }
         
         /// <inheritdoc/>
@@ -266,7 +265,7 @@
                 }
             }
 
-            return AlternateColorSpace.Transform(decoded);
+            return AlternateColorSpace.Transform(decoded, intent);
         }
     }
 }
