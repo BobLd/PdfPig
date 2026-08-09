@@ -108,12 +108,12 @@
 
             double index = values[0];
             var key = (index, intent);
-            
+
             if (cache.TryGetValue(key, out var color))
             {
                 return color;
             }
-            
+
             int components = BaseColorSpace.NumberOfColorComponents;
             Span<double> buffer = components <= 32 ? stackalloc double[components] : new double[components];
             DecodeTableEntry(ClampColorIndex(index), buffer);

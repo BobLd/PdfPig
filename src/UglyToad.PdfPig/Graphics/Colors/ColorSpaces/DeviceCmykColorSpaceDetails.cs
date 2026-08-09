@@ -45,7 +45,7 @@
             {
                 return CMYKColor.Black;
             }
-            
+
             if (c == 0 && m == 0 && y == 0 && k == 0)
             {
                 return CMYKColor.White;

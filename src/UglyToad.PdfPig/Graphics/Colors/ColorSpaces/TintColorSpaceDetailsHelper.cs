@@ -2,7 +2,7 @@
 {
     using Core;
     using System;
-    using UglyToad.PdfPig.Functions;
+    using Functions;
 
     /// <summary>
     /// <see cref="ColorSpaceDetails"/> that have a tint function: <see cref="SeparationColorSpaceDetails"/> and <see cref="DeviceNColorSpaceDetails"/>.
@@ -21,15 +21,14 @@
             int alternateComponents = alternate.NumberOfColorComponents;
             int written = tint.Eval(tintInput, buffer);
 
-            if (written < alternateComponents)
-            {
-                // A buggy tint function under-filled the buffer. Zero the trailing slots so the alternate
-                // space doesn't read uninitialised stack memory. A tint function that over-fills is trimmed
-                // by the slice below, so the alternate space always sees the component count it expects.
-                buffer.Slice(written, alternateComponents - written).Clear();
-            }
-
-            return buffer.Slice(0, alternateComponents);
+            // A tint function is free to under- or over-fill the buffer. Reconciling that here, through the
+            // same helper ICCBased.Process uses on its operands, is what stops the alternate space reading
+            // uninitialised stack memory and keeps every route into a colour space agreeing on what a
+            // component-count mismatch means. Source and destination are the same buffer, so the copy is a
+            // no-op and only the padding or the trim actually does anything.
+            var destination = buffer.Slice(0, alternateComponents);
+            ColorSpaceDetails.Normalise(buffer.Slice(0, written), destination);
+            return destination;
         }
 
         /// <summary>

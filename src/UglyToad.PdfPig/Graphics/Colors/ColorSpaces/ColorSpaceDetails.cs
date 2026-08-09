@@ -1,7 +1,7 @@
 ﻿namespace UglyToad.PdfPig.Graphics.Colors
 {
     using System;
-    using UglyToad.PdfPig.Graphics.Core;
+    using Core;
 
     /// <summary>
     /// Contains more document-specific information about the <see cref="ColorSpace"/>.
@@ -74,13 +74,32 @@
         /// <summary>
         /// Get the color, without check and caching.
         /// </summary>
-        internal virtual double[] Process(params double[] values)
-            => Process(values, RenderingIntent.RelativeColorimetric);
+        internal abstract double[] Process(double[] values, RenderingIntent intent);
 
         /// <summary>
-        /// Intent-aware <see cref="Process(double[])"/>.
+        /// Copy <paramref name="values"/> into <paramref name="destination"/> so that exactly
+        /// <paramref name="destination"/>'s length components are defined: a short input is zero-filled and
+        /// a surplus is dropped. Colour spaces are handed component vectors by several routes -- a tint
+        /// function's output, an operand array off the content stream -- none of which are obliged to match
+        /// the width the space consumes, and every route has to reconcile a mismatch the same way or the
+        /// same colour renders differently depending on how it was reached.
+        /// <para>
+        /// <paramref name="values"/> may overlap <paramref name="destination"/>, which is what lets a caller
+        /// normalise a buffer a function has just written into.
+        /// </para>
         /// </summary>
-        internal abstract double[] Process(double[] values, RenderingIntent intent);
+        internal static void Normalise(ReadOnlySpan<double> values, Span<double> destination)
+        {
+            if (values.Length >= destination.Length)
+            {
+                values.Slice(0, destination.Length).CopyTo(destination);
+            }
+            else
+            {
+                values.CopyTo(destination);
+                destination.Slice(values.Length).Clear();
+            }
+        }
 
         /// <summary>
         /// Get the color that initialize the current stroking or nonstroking colour.
@@ -89,12 +108,6 @@
 
         /// <summary>
         /// Transform image bytes.
-        /// </summary>
-        internal virtual Span<byte> Transform(Span<byte> decoded)
-            => Transform(decoded, RenderingIntent.RelativeColorimetric);
-
-        /// <summary>
-        /// Intent-aware <see cref="Transform(System.Span{byte})"/>.
         /// </summary>
         internal abstract Span<byte> Transform(Span<byte> decoded, RenderingIntent intent);
 

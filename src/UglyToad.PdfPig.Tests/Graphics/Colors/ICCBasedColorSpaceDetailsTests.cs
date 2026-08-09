@@ -92,7 +92,7 @@
             Assert.Equal(ColorSpace.DeviceRGB, details.BaseType);
             Assert.Equal(3, details.BaseNumberOfColorComponents);
             Assert.Null(details.IccProfile);
-            Assert.Null(details.GetTransform(RenderingIntent.RelativeColorimetric));
+            Assert.Null(details.GetTransformWithFallback(RenderingIntent.RelativeColorimetric));
 
             var (r, g, b) = details.GetColor([0.5, 0.5, 0.5]).ToRGBValues();
             Assert.Equal(0.5, r);
@@ -119,7 +119,7 @@
             Assert.Equal(ColorSpace.DeviceRGB, details.BaseType);
             Assert.Equal(3, details.BaseNumberOfColorComponents);
             Assert.NotNull(details.IccProfile);
-            Assert.NotNull(details.GetTransform(RenderingIntent.RelativeColorimetric));
+            Assert.NotNull(details.GetTransformWithFallback(RenderingIntent.RelativeColorimetric));
         }
 
         [Fact]
@@ -175,12 +175,16 @@
             Span<byte> input = stackalloc byte[8] { 10, 20, 30, 40, 50, 60, 70, 80 };
 
             // Default intent (RelativeColorimetric) → red.
-            var def = details.Transform(input);
+            var def = details.Transform(input, RenderingIntent.RelativeColorimetric);
             Assert.Equal(255, def[0]); Assert.Equal(0, def[1]); Assert.Equal(0, def[2]);
 
             // Explicit Saturation → green.
             var sat = details.Transform(input, RenderingIntent.Saturation);
             Assert.Equal(0, sat[0]); Assert.Equal(255, sat[1]); Assert.Equal(0, sat[2]);
+
+            // Missing intent, default to RelativeColorimetric → red.
+            var perc = details.Transform(input, RenderingIntent.Perceptual);
+            Assert.Equal(255, perc[0]); Assert.Equal(0, perc[1]); Assert.Equal(0, perc[2]);
         }
 
         [Fact]
@@ -211,14 +215,12 @@
             Span<byte> input = stackalloc byte[3] { 0, 1, 0 };
 
             // Default intent -> red.
-            var def = indexed.Transform(input.ToArray());
+            var def = indexed.Transform(input, RenderingIntent.RelativeColorimetric);
             Assert.Equal(9, def.Length); // 3 pixels * 3 bytes RGB
             Assert.Equal(255, def[0]); Assert.Equal(0, def[1]); Assert.Equal(0, def[2]);
 
-            // Saturation intent -> green. THIS is the case my first refactor missed:
-            // ColorSpaceDetailsByteConverter -> Indexed.Transform -> BaseColorSpace.Transform
-            // used to drop the intent at the Indexed boundary.
-            var sat = ((ColorSpaceDetails)indexed).Transform(input.ToArray(), RenderingIntent.Saturation);
+            // Saturation intent -> green.
+            var sat = indexed.Transform(input, RenderingIntent.Saturation);
             Assert.Equal(9, sat.Length);
             Assert.Equal(0, sat[0]); Assert.Equal(255, sat[1]); Assert.Equal(0, sat[2]);
         }
@@ -235,12 +237,13 @@
             var details = new ICCBasedColorSpaceDetails(3, DeviceRgbColorSpaceDetails.Instance,
                 null, null, new byte[] { 0x99 }, new StubService(profile));
 
-            // Direct GetTransform: returns null for unsupported intent.
-            Assert.Null(details.GetTransform(RenderingIntent.Perceptual));
+            // The unsupported intent resolves to the relative colorimetric transform rather than to null,
+            // which is what lets the conversion paths treat a non-null IccProfile as always convertible.
+            var fallback = details.GetTransformWithFallback(RenderingIntent.Perceptual);
+            Assert.NotNull(fallback);
 
             // GetColor with unsupported intent: falls back to RelativeColorimetric internally.
-            var (r, g, b) = details.GetColor(new double[] { 0.1, 0.2, 0.3 },
-                RenderingIntent.Perceptual).ToRGBValues();
+            var (r, g, b) = details.GetColor([0.1, 0.2, 0.3], RenderingIntent.Perceptual).ToRGBValues();
             Assert.Equal(0.4, r);
             Assert.Equal(0.5, g);
             Assert.Equal(0.6, b);
@@ -295,42 +298,41 @@
             // Range narrower than the operands: 8.6.5.5 makes these the valid bounds, and the profile
             // path used to hand the raw values straight to the transform.
             var (details, transform) = WithRange(3, DeviceRgbColorSpaceDetails.Instance,
-                new double[] { 0.0, 0.5, 0.0, 0.5, 0.0, 0.5 });
+                [0.0, 0.5, 0.0, 0.5, 0.0, 0.5]);
 
-            details.GetColor(new double[] { 0.9, -0.4, 0.25 }, RenderingIntent.RelativeColorimetric);
+            details.GetColor([0.9, -0.4, 0.25], RenderingIntent.RelativeColorimetric);
 
-            Assert.Equal(new[] { 0.5, 0.0, 0.25 }, transform.LastValues);
+            Assert.Equal([0.5, 0.0, 0.25], transform.LastValues);
         }
 
         [Fact]
         public void ProfilePath_GetRgbClipsComponentsToRange()
         {
             var (details, transform) = WithRange(3, DeviceRgbColorSpaceDetails.Instance,
-                new double[] { 0.0, 0.5, 0.0, 0.5, 0.0, 0.5 });
+                [0.0, 0.5, 0.0, 0.5, 0.0, 0.5]);
 
-            ((ColorSpaceDetails)details).GetRgb([0.9, -0.4, 0.25], RenderingIntent.RelativeColorimetric,
-                out _, out _, out _);
+            details.GetRgb([0.9, -0.4, 0.25], RenderingIntent.RelativeColorimetric, out _, out _, out _);
 
-            Assert.Equal(new[] { 0.5, 0.0, 0.25 }, transform.LastValues);
+            Assert.Equal([0.5, 0.0, 0.25], transform.LastValues);
         }
 
         [Fact]
         public void ProfilePath_ProcessClipsComponentsToRange()
         {
             var (details, transform) = WithRange(3, DeviceRgbColorSpaceDetails.Instance,
-                new double[] { 0.0, 0.5, 0.0, 0.5, 0.0, 0.5 });
+                [0.0, 0.5, 0.0, 0.5, 0.0, 0.5]);
 
-            ((ColorSpaceDetails)details).Process([0.9, -0.4, 0.25], RenderingIntent.RelativeColorimetric);
+            details.Process([0.9, -0.4, 0.25], RenderingIntent.RelativeColorimetric);
 
-            Assert.Equal(new[] { 0.5, 0.0, 0.25 }, transform.LastValues);
+            Assert.Equal([0.5, 0.0, 0.25], transform.LastValues);
         }
 
         [Fact]
         public void ProfileAndFallbackPathsAgreeOnOutOfRangeComponents()
         {
-            // The point of the fix: whether the profile resolves or not must not change what an
-            // out-of-range operand means. Both routes now see the same clipped components, so an
-            // identity-like transform and the alternate space produce the same colour.
+            // The profile resolves or not must not change what an out-of-range operand means.
+            // Both routes see the same clipped components, so an identity-like transform and
+            // the alternate space produce the same colour.
             double[] range = [0.0, 0.5, 0.0, 0.5, 0.0, 0.5];
             double[] operands = [0.9, -0.4, 0.25];
 
@@ -341,7 +343,7 @@
                 range, null, new byte[] { 0x01 }, iccService: null);
             var (r, g, b) = withoutProfile.GetColor(operands, RenderingIntent.RelativeColorimetric).ToRGBValues();
 
-            Assert.Equal(new[] { r, g, b }, transform.LastValues);
+            Assert.Equal([r, g, b], transform.LastValues);
         }
 
         [Fact]
@@ -350,11 +352,11 @@
             // Clipping must bound the components to the Lab domain without rescaling them: applying the
             // ICC.1 Lab encoding is the transform's job, since it is what actually decodes the profile.
             var (details, transform) = WithRange(3, DeviceRgbColorSpaceDetails.Instance,
-                new double[] { 0.0, 100.0, -128.0, 127.0, -128.0, 127.0 }, isLabInput: true);
+                [0.0, 100.0, -128.0, 127.0, -128.0, 127.0], isLabInput: true);
 
-            details.GetColor(new double[] { 55.0, -20.0, 300.0 }, RenderingIntent.RelativeColorimetric);
+            details.GetColor([55.0, -20.0, 300.0], RenderingIntent.RelativeColorimetric);
 
-            Assert.Equal(new[] { 55.0, -20.0, 127.0 }, transform.LastValues);
+            Assert.Equal([55.0, -20.0, 127.0], transform.LastValues);
         }
 
         [Fact]
@@ -364,9 +366,9 @@
             // must be a no-op here, which is why no rendered output moves.
             var (details, transform) = WithRange(4, DeviceCmykColorSpaceDetails.Instance, range: null!);
 
-            details.GetColor(new double[] { 0.1, 0.2, 0.3, 0.4 }, RenderingIntent.RelativeColorimetric);
+            details.GetColor([0.1, 0.2, 0.3, 0.4], RenderingIntent.RelativeColorimetric);
 
-            Assert.Equal(new[] { 0.1, 0.2, 0.3, 0.4 }, transform.LastValues);
+            Assert.Equal([0.1, 0.2, 0.3, 0.4], transform.LastValues);
         }
 
         [Fact]
@@ -380,26 +382,22 @@
             var (details, transform) = WithRange(3, DeviceRgbColorSpaceDetails.Instance, range: null!,
                 isLabInput: true);
 
-            details.GetColor(new double[] { 100.0, 0.0, 0.0 }, RenderingIntent.RelativeColorimetric);
-            Assert.Equal(new[] { 100.0, 0.0, 0.0 }, transform.LastValues);
+            details.GetColor([100.0, 0.0, 0.0], RenderingIntent.RelativeColorimetric);
+            Assert.Equal([100.0, 0.0, 0.0], transform.LastValues);
 
-            details.GetColor(new double[] { 40.7843, 55.0, 33.0 }, RenderingIntent.RelativeColorimetric);
-            Assert.Equal(new[] { 40.7843, 55.0, 33.0 }, transform.LastValues);
+            details.GetColor([40.7843, 55.0, 33.0], RenderingIntent.RelativeColorimetric);
+            Assert.Equal([40.7843, 55.0, 33.0], transform.LastValues);
         }
 
         [Fact]
         public void ProfilePath_LabProfileIgnoresAnExplicitlyDeclaredDefaultRange()
         {
-            // The gap the previous iteration left open. Here the file states /Range [0 1 0 1 0 1] outright
-            // while embedding a Lab profile, contradicting 8.6.5.5's "these values shall match the
-            // information in the ICC profile". Absence of /Range is no longer the signal — the profile's
-            // data colour space is — so the bogus declaration is overridden rather than obeyed.
             var (details, transform) = WithRange(3, DeviceRgbColorSpaceDetails.Instance,
-                new double[] { 0.0, 1.0, 0.0, 1.0, 0.0, 1.0 }, isLabInput: true);
+                [0.0, 1.0, 0.0, 1.0, 0.0, 1.0], isLabInput: true);
 
-            details.GetColor(new double[] { 100.0, 55.0, 33.0 }, RenderingIntent.RelativeColorimetric);
+            details.GetColor([100.0, 55.0, 33.0], RenderingIntent.RelativeColorimetric);
 
-            Assert.Equal(new[] { 100.0, 55.0, 33.0 }, transform.LastValues);
+            Assert.Equal([100.0, 55.0, 33.0], transform.LastValues);
         }
 
         [Fact]
@@ -408,11 +406,11 @@
             // The Lab override is scoped by what the profile reports, not applied to every profile: a
             // CMYK profile with a declared range keeps being clipped against that range.
             var (details, transform) = WithRange(4, DeviceCmykColorSpaceDetails.Instance,
-                new double[] { 0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5 });
+                [0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5]);
 
-            details.GetColor(new double[] { 0.9, 0.1, -1.0, 0.5 }, RenderingIntent.RelativeColorimetric);
+            details.GetColor([0.9, 0.1, -1.0, 0.5], RenderingIntent.RelativeColorimetric);
 
-            Assert.Equal(new[] { 0.5, 0.1, 0.0, 0.5 }, transform.LastValues);
+            Assert.Equal([0.5, 0.1, 0.0, 0.5], transform.LastValues);
         }
 
         [Fact]
@@ -423,12 +421,82 @@
             var details = new ICCBasedColorSpaceDetails(3, DeviceRgbColorSpaceDetails.Instance,
                 range: null, metadata: null, profileData: new byte[] { 0x01 }, iccService: null);
 
-            var (r, g, b) = details.GetColor(new double[] { 100.0, -5.0, 0.5 },
-                RenderingIntent.RelativeColorimetric).ToRGBValues();
+            var (r, g, b) = details.GetColor([100.0, -5.0, 0.5], RenderingIntent.RelativeColorimetric)
+                .ToRGBValues();
 
             Assert.Equal(1.0, r);
             Assert.Equal(0.0, g);
             Assert.Equal(0.5, b);
+        }
+
+        /// <summary>
+        /// Reads exactly <see cref="NumberOfComponents"/> entries, the way a real backend does, so that a
+        /// short operand array is a hard error here rather than a silently truncated conversion.
+        /// </summary>
+        private sealed class StrictTransform : IIccTransform
+        {
+            public StrictTransform(int components) => NumberOfComponents = components;
+
+            public int NumberOfComponents { get; }
+
+            public (double r, double g, double b) ToRgb(ReadOnlySpan<double> values)
+            {
+                double last = values[NumberOfComponents - 1];
+                return (last, last, last);
+            }
+
+            public void Transform(ReadOnlySpan<byte> src, Span<byte> dstRgb) => dstRgb.Clear();
+        }
+
+        [Fact]
+        public void ProfileThatResolvesNoTransform_IsNotAdopted()
+        {
+            // IIccProfile.TryGetTransform is explicitly allowed to fail for every intent ("the caller may
+            // ... fall back to the alternate color space"). BaseType and BaseNumberOfColorComponents are
+            // fixed once at construction while the conversion path is chosen per call, so a profile that
+            // can never produce a transform must not claim a 3-component DeviceRGB base it cannot deliver:
+            // callers size their buffers from that property and fill them from Process.
+            var profile = new StubProfile(4, new Dictionary<RenderingIntent, IIccTransform>());
+
+            var details = new ICCBasedColorSpaceDetails(4, DeviceCmykColorSpaceDetails.Instance,
+                null, null, new byte[] { 0x01 }, new StubService(profile));
+
+            var processed = details.Process([0.1, 0.2, 0.3, 0.4], RenderingIntent.RelativeColorimetric);
+
+            Assert.Equal(details.BaseNumberOfColorComponents, processed.Length);
+        }
+
+        [Fact]
+        public void ProfilePath_NeverHandsTheTransformFewerComponentsThanItReads()
+        {
+            // A Separation/DeviceN tint function may emit fewer values than its alternate consumes, and
+            // Process -- unlike GetColor/GetRgb -- is not reached through TintColorSpaceDetailsHelper's
+            // pad/trim. A real transform reads NumberOfComponents entries, so a short operand array read
+            // off the end of the caller's buffer.
+            var profile = new StubProfile(4, new Dictionary<RenderingIntent, IIccTransform>
+            {
+                [RenderingIntent.RelativeColorimetric] = new StrictTransform(4)
+            });
+
+            var details = new ICCBasedColorSpaceDetails(4, DeviceCmykColorSpaceDetails.Instance,
+                null, null, new byte[] { 0x01 }, new StubService(profile));
+
+            var processed = details.Process([0.9, 0.1], RenderingIntent.RelativeColorimetric);
+
+            Assert.Equal(details.BaseNumberOfColorComponents, processed.Length);
+        }
+
+        [Fact]
+        public void ProfilePath_PadsAMalformedOperandCountToTheProfilesWidth()
+        {
+            // Zero-filling the missing slots is what EvalTint already does on the GetColor/GetRgb path,
+            // so normalising here is what keeps a colour space rendering the same whichever route it is
+            // reached through -- and keeps Process's result BaseNumberOfColorComponents wide.
+            var (details, transform) = WithRange(4, DeviceCmykColorSpaceDetails.Instance, range: null!);
+
+            details.Process([0.9, 0.1], RenderingIntent.RelativeColorimetric);
+
+            Assert.Equal([0.9, 0.1, 0.0, 0.0], transform.LastValues);
         }
     }
 }

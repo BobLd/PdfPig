@@ -175,7 +175,7 @@
         {
             TintColorSpaceDetailsHelper.GetRgbViaTint(TintFunction, AlternateColorSpace, values, intent, out r, out g, out b);
         }
-        
+
         private readonly struct TintKey
         {
             public TintKey(double[] values, RenderingIntent intent)
@@ -188,7 +188,7 @@
 
             public readonly RenderingIntent Intent;
         }
-        
+
 #if NET9_0_OR_GREATER
         private readonly ref struct TintKeyRef
         {
@@ -230,7 +230,7 @@
 
                 return x.Values.AsSpan().SequenceEqual(y.Values);
             }
-            
+
             public int GetHashCode(TintKey obj)
             {
                 var hash = new HashCode();
@@ -268,7 +268,7 @@
             }
 #endif
         }
-        
+
         /// <summary>
         /// DeviceN Color Space Attributes.
         /// </summary>

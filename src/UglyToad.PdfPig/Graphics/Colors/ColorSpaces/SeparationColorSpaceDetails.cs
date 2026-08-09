@@ -84,7 +84,7 @@
             }
 
             // TODO - we ignore the name for now
-            
+
             var key = (values[0], intent);
             if (cache.TryGetValue(key, out var color))
             {

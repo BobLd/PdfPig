@@ -21,7 +21,7 @@
     public sealed class ICCBasedColorSpaceDetails : ColorSpaceDetails
     {
         private readonly bool isLabInput;
-        
+
         /// <summary>
         /// The number of color components in the color space described by the ICC profile data.
         /// This number shall match the number of components actually in the ICC profile.
@@ -63,10 +63,10 @@
         /// The resolved ICC profile, or <c>null</c> when no <see cref="IIccProfileService"/> was configured,
         /// or the service failed to parse the profile. When non-null, color conversions produce sRGB output
         /// and <see cref="BaseType"/> reports <see cref="ColorSpace.DeviceRGB"/>. Use
-        /// <see cref="GetTransform(RenderingIntent)"/> to obtain an intent-bound transform.
+        /// <see cref="GetTransformWithFallback(RenderingIntent)"/> to obtain an intent-bound transform.
         /// </summary>
         public IIccProfile? IccProfile { get; }
-        
+
         /// <summary>
         /// Create a new <see cref="ICCBasedColorSpaceDetails"/>.
         /// </summary>
@@ -89,14 +89,16 @@
                 NumberOfColorComponents == 3 ? DeviceRgbColorSpaceDetails.Instance : DeviceCmykColorSpaceDetails.Instance);
 
             Metadata = metadata;
-            
+
             if (!profileData.IsEmpty && iccService is not null &&
                 iccService.TryGetProfile(profileData, out var profile) &&
-                profile.NumberOfComponents == NumberOfColorComponents)
+                profile.NumberOfComponents == NumberOfColorComponents &&
+                // We need to make sure the icc profile will at least fall back with RelativeColorimetric to be valid
+                profile.TryGetTransform(RenderingIntent.RelativeColorimetric, out _))
             {
                 IccProfile = profile;
             }
-            
+
             Range = range ??
                 Enumerable.Range(0, numberOfColorComponents).Select(x => new[] { 0.0, 1.0 }).SelectMany(x => x).ToArray();
             if (Range.Count != 2 * numberOfColorComponents)
@@ -104,7 +106,7 @@
                 throw new ArgumentOutOfRangeException(nameof(range), range,
                     $"Must consist of exactly {2 * numberOfColorComponents} (2 x NumberOfColorComponents), but was passed {range?.Count ?? 0}");
             }
-            
+
             if (IccProfile is not null)
             {
                 BaseType = ColorSpace.DeviceRGB;
@@ -118,16 +120,22 @@
             }
         }
 
-        internal IIccTransform? GetTransform(RenderingIntent intent)
+        internal IIccTransform? GetTransformWithFallback(RenderingIntent intent)
         {
             if (IccProfile is null)
             {
                 return null;
             }
 
-            return IccProfile.TryGetTransform(intent, out var t) ? t : null;
+            if (intent != RenderingIntent.RelativeColorimetric &&
+                IccProfile.TryGetTransform(intent, out var t))
+            {
+                return t;
+            }
+
+            return IccProfile.TryGetTransform(RenderingIntent.RelativeColorimetric, out var rct) ? rct : null;
         }
-        
+
         /// <summary>
         /// Clip the components to <see cref="Range"/>.
         /// </summary>
@@ -139,12 +147,12 @@
                 destination[c] = PdfFunction.ClipToRange(values[c], Range[i], Range[i + 1]);
             }
         }
-        
+
         /// <summary>
         /// The ICC.1 encoding range of the L*a*b* data colour space: L* in [0,100], a* and b* in [-128,127].
         /// </summary>
         private static readonly double[] LabRange = [0.0, 100.0, -128.0, 127.0, -128.0, 127.0];
-        
+
         private void ClipForProfile(ReadOnlySpan<double> values, Span<double> destination)
         {
             IReadOnlyList<double> bounds = isLabInput && destination.Length <= 3 ? LabRange : Range;
@@ -155,42 +163,32 @@
                 destination[c] = PdfFunction.ClipToRange(values[c], bounds[i], bounds[i + 1]);
             }
         }
-        
+
         /// <inheritdoc/>
         internal override double[] Process(double[] values, RenderingIntent intent)
         {
-            // Leave a malformed operand count alone rather than reading past the end of the bounds; the
-            // alternate space is the one that decides how lenient to be about it.
-            bool clippable = values.Length == NumberOfColorComponents;
+            Span<double> operands = stackalloc double[NumberOfColorComponents]; // 1, 3 or 4
+            Normalise(values, operands);
 
             if (IccProfile is not null)
             {
-                IIccTransform? t = GetTransform(intent) ?? GetTransform(RenderingIntent.RelativeColorimetric);
+                IIccTransform? t = GetTransformWithFallback(intent);
                 if (t is not null)
                 {
-                    double[] forProfile = values;
-                    if (clippable)
-                    {
-                        forProfile = new double[values.Length];
-                        ClipForProfile(values, forProfile);
-                    }
+                    Span<double> forProfile = stackalloc double[NumberOfColorComponents];
+                    ClipForProfile(operands, forProfile);
 
                     var (r, g, b) = t.ToRgb(forProfile);
                     return [r, g, b];
                 }
             }
 
-            double[] clipped = values;
-            if (clippable)
-            {
-                clipped = new double[values.Length];
-                ClipToRange(values, clipped);
-            }
-
+            double[] clipped = new double[NumberOfColorComponents];
+            ClipToRange(operands, clipped);
 
             return AlternateColorSpace.Process(clipped, intent);
         }
-        
+
         /// <inheritdoc/>
         public override IColor GetColor(ReadOnlySpan<double> values, RenderingIntent intent)
         {
@@ -203,7 +201,7 @@
 
             if (IccProfile is not null)
             {
-                var t = GetTransform(intent) ?? GetTransform(RenderingIntent.RelativeColorimetric);
+                var t = GetTransformWithFallback(intent);
                 if (t is not null)
                 {
                     ClipForProfile(values, buffer);
@@ -234,10 +232,10 @@
             out double r, out double g, out double b)
         {
             Span<double> clipped = stackalloc double[NumberOfColorComponents]; // 1, 3 or 4
-            
+
             if (IccProfile is not null)
             {
-                var t = GetTransform(intent) ?? GetTransform(RenderingIntent.RelativeColorimetric);
+                var t = GetTransformWithFallback(intent);
                 if (t is not null)
                 {
                     ClipForProfile(values, clipped);
@@ -255,7 +253,7 @@
         {
             if (IccProfile is not null)
             {
-                var t = GetTransform(intent) ?? GetTransform(RenderingIntent.RelativeColorimetric);
+                var t = GetTransformWithFallback(intent);
                 if (t is not null)
                 {
                     int pixelCount = decoded.Length / NumberOfColorComponents;
