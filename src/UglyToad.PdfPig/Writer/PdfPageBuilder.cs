@@ -110,6 +110,10 @@
 
         internal int? rotation;
 
+        // reserved when the page is copied from an existing document so that annotations copied onto
+        // this page can point back at it before the page itself is written
+        internal IndirectReferenceToken? reservedReference;
+
         internal IReadOnlyDictionary<string, IToken> Resources => pageDictionary.GetOrCreateDict(NameToken.Resources);
 
         /// <summary>

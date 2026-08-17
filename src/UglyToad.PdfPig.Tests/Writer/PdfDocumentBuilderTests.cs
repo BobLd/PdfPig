@@ -8,6 +8,9 @@
     using PdfPig.Tokens;
     using PdfPig.Writer;
     using Tests.Fonts.TrueType;
+    using UglyToad.PdfPig.AcroForms;
+    using UglyToad.PdfPig.AcroForms.Fields;
+    using UglyToad.PdfPig.Parser.Parts;
     using UglyToad.PdfPig.Graphics.Operations.InlineImages;
     using UglyToad.PdfPig.Outline;
     using UglyToad.PdfPig.Outline.Destinations;
@@ -155,6 +158,179 @@
                 var pg = rewritten.GetPage(1);
                 var annots = pg.ExperimentalAccess.GetAnnotations().ToList();
                 Assert.Empty(annots);
+            }
+        }
+
+        [Fact]
+        public void CanFastAddPageAndKeepAcroForm()
+        {
+            var path = IntegrationHelpers.GetDocumentPath("AcroFormsBasicFields.pdf");
+            var contents = File.ReadAllBytes(path);
+
+            int expectedFieldCount;
+            byte[] results;
+            using (var existing = PdfDocument.Open(contents, ParsingOptions.LenientParsingOff))
+            using (var output = new PdfDocumentBuilder())
+            {
+                Assert.True(existing.TryGetForm(out var form));
+                expectedFieldCount = form.Fields.Count;
+
+                output.AddPage(existing, 1);
+                results = output.Build();
+            }
+
+            using (var rewritten = PdfDocument.Open(results, ParsingOptions.LenientParsingOff))
+            {
+                Assert.True(rewritten.TryGetForm(out var form));
+                Assert.Equal(expectedFieldCount, form.Fields.Count);
+                Assert.Contains(form.GetFields(), x => x is AcroSignatureField);
+            }
+        }
+
+        [Fact]
+        public void CanFastAddPageAndStripAcroFormWithAnnotations()
+        {
+            var path = IntegrationHelpers.GetDocumentPath("AcroFormsBasicFields.pdf");
+            var contents = File.ReadAllBytes(path);
+
+            byte[] results;
+            using (var existing = PdfDocument.Open(contents, ParsingOptions.LenientParsingOff))
+            using (var output = new PdfDocumentBuilder())
+            {
+                output.AddPage(existing, 1, new PdfDocumentBuilder.AddPageOptions
+                {
+                    KeepAnnotations = false
+                });
+
+                results = output.Build();
+            }
+
+            using (var rewritten = PdfDocument.Open(results, ParsingOptions.LenientParsingOff))
+            {
+                Assert.False(rewritten.TryGetForm(out _));
+            }
+        }
+
+        [Fact]
+        public void MergingDocumentsKeepsTheFieldsOfEveryDocument()
+        {
+            var path = IntegrationHelpers.GetDocumentPath("AcroFormsBasicFields.pdf");
+            var contents = File.ReadAllBytes(path);
+
+            int sourceFieldCount;
+            byte[] results;
+            using (var first = PdfDocument.Open(contents, ParsingOptions.LenientParsingOff))
+            using (var second = PdfDocument.Open(contents, ParsingOptions.LenientParsingOff))
+            using (var output = new PdfDocumentBuilder())
+            {
+                Assert.True(first.TryGetForm(out var form));
+                sourceFieldCount = form.Fields.Count;
+
+                output.AddPage(first, 1);
+                output.AddPage(second, 1);
+
+                results = output.Build();
+            }
+
+            using (var merged = PdfDocument.Open(results, ParsingOptions.LenientParsingOff))
+            {
+                Assert.True(merged.TryGetForm(out var form));
+                Assert.Equal(sourceFieldCount * 2, form.Fields.Count);
+
+                // Viewers identify a field by its fully qualified name, so the fields of the second
+                // document must not re-use the names taken by the first one.
+                var names = form.Fields
+                    .Select(x => x.Information.PartialName)
+                    .ToList();
+
+                Assert.Equal(names.Count, names.Distinct().Count());
+
+                // Each terminal field is expected to still know which of the two pages it is on.
+                var signatures = form.GetFields().OfType<AcroSignatureField>().ToList();
+                Assert.Equal(2, signatures.Count);
+                Assert.Equal(new int?[] { 1, 2 }, signatures.Select(x => x.PageNumber).OrderBy(x => x).ToArray());
+
+                // A widget is referenced both by the field tree and by the /Annots array of the page it is
+                // drawn on, and both have to point at the same object.
+                var annotationReferences = new HashSet<IndirectReference>();
+                foreach (var pageNumber in new[] { 1, 2 })
+                {
+                    var pageDictionary = merged.GetPage(pageNumber).Dictionary;
+                    Assert.True(pageDictionary.TryGet(NameToken.Annots, merged.Structure.TokenScanner, out ArrayToken annots));
+
+                    foreach (var annot in annots.Data)
+                    {
+                        annotationReferences.Add(Assert.IsType<IndirectReferenceToken>(annot).Data);
+                    }
+                }
+
+                var widgetReferences = GetWidgetReferences(form.Dictionary, NameToken.Fields).ToList();
+                Assert.NotEmpty(widgetReferences);
+
+                foreach (var widget in widgetReferences)
+                {
+                    Assert.Contains(widget, annotationReferences);
+                }
+
+                IEnumerable<IndirectReference> GetWidgetReferences(DictionaryToken fieldOrForm, NameToken childrenName)
+                {
+                    if (!fieldOrForm.TryGet(childrenName, merged.Structure.TokenScanner, out ArrayToken children))
+                    {
+                        yield break;
+                    }
+
+                    foreach (var child in children.Data)
+                    {
+                        var childReference = Assert.IsType<IndirectReferenceToken>(child);
+                        var childDictionary = DirectObjectFinder.Get<DictionaryToken>(childReference, merged.Structure.TokenScanner);
+
+                        if (childDictionary.TryGet(NameToken.Subtype, merged.Structure.TokenScanner, out NameToken subtype)
+                            && subtype == NameToken.Widget)
+                        {
+                            yield return childReference.Data;
+                        }
+
+                        foreach (var descendant in GetWidgetReferences(childDictionary, NameToken.Kids))
+                        {
+                            yield return descendant;
+                        }
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public void CopiedAnnotationsPointAtTheirNewPage()
+        {
+            var path = IntegrationHelpers.GetDocumentPath("AcroFormsBasicFields.pdf");
+            var contents = File.ReadAllBytes(path);
+
+            byte[] results;
+            using (var first = PdfDocument.Open(contents, ParsingOptions.LenientParsingOff))
+            using (var second = PdfDocument.Open(contents, ParsingOptions.LenientParsingOff))
+            using (var output = new PdfDocumentBuilder())
+            {
+                output.AddPage(first, 1);
+                output.AddPage(second, 1);
+
+                results = output.Build();
+            }
+
+            using (var merged = PdfDocument.Open(results, ParsingOptions.LenientParsingOff))
+            {
+                foreach (var pageNumber in new[] { 1, 2 })
+                {
+                    var page = merged.GetPage(pageNumber);
+                    var annotations = page.GetAnnotations().ToList();
+
+                    Assert.NotEmpty(annotations);
+
+                    foreach (var annotation in annotations)
+                    {
+                        Assert.True(annotation.AnnotationDictionary.TryGet(NameToken.P, out IndirectReferenceToken reference));
+                        Assert.Equal(pageNumber, merged.Structure.Catalog.Pages.GetPageByReference(reference.Data)?.PageNumber);
+                    }
+                }
             }
         }
 

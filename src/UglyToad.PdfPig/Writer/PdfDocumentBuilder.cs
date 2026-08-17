@@ -32,6 +32,10 @@ namespace UglyToad.PdfPig.Writer
         private readonly IPdfStreamWriter context;
         private readonly Dictionary<int, PdfPageBuilder> pages = new Dictionary<int, PdfPageBuilder>();
         private readonly Dictionary<Guid, FontStored> fonts = new Dictionary<Guid, FontStored>();
+        private readonly List<IndirectReferenceToken> acroFormFields = new List<IndirectReferenceToken>();
+        private readonly Dictionary<NameToken, IToken> acroFormDictionary = new Dictionary<NameToken, IToken>();
+        private readonly HashSet<string> usedAcroFieldNames = new HashSet<string>(StringComparer.Ordinal);
+
         private bool completed = false;
         private int fontId = 0;
         private double version = 1.7;
@@ -302,6 +306,8 @@ namespace UglyToad.PdfPig.Writer
 
         private readonly ConditionalWeakTable<PdfDocument, Dictionary<int, PageInfo>> existingTrees = new();
 
+        private readonly ConditionalWeakTable<IPdfTokenScanner, object> mergedFormSources = new();
+
         /// <summary>
         /// Add a new page with the specified size, this page will be included in the output when <see cref="Build"/> is called.
         /// </summary>
@@ -413,6 +419,7 @@ namespace UglyToad.PdfPig.Writer
             // manually copy page dict / resources as we need to modify some
             var copiedPageDict = new Dictionary<NameToken, IToken>();
             var links = new List<(DictionaryToken token, PdfAction action)>();
+            IndirectReferenceToken? pageReference = null;
             Dictionary<NameToken, IToken> resources = new Dictionary<NameToken, IToken>();
 
             // just put all parent resources into new page
@@ -458,11 +465,16 @@ namespace UglyToad.PdfPig.Writer
                         continue;
                     }
 
+                    // The annotations need to point back at the page they are on, which hasn't been
+                    // written yet, so reserve its object number now.
+                    pageReference ??= context.ReserveObjectNumber();
+
                     var copiedTokens = CopyAnnotationsFromPageSource(
                         kvp.Value,
-                        document.Structure.TokenScanner,
+                        document,
                         refs,
                         page,
+                        pageReference,
                         options.CopyLinkFunc,
                         x => links.Add(x));
 
@@ -476,7 +488,11 @@ namespace UglyToad.PdfPig.Writer
 
             copiedPageDict[NameToken.Resources] = new DictionaryToken(resources);
 
-            var builder = new PdfPageBuilder(pages.Count + 1, this, streams, copiedPageDict, links);
+            var builder = new PdfPageBuilder(pages.Count + 1, this, streams, copiedPageDict, links)
+            {
+                reservedReference = pageReference
+            };
+
             pages[builder.PageNumber] = builder;
             return builder;
 
@@ -570,12 +586,15 @@ namespace UglyToad.PdfPig.Writer
 
         private IReadOnlyList<IToken> CopyAnnotationsFromPageSource(
             IToken val,
-            IPdfTokenScanner sourceScanner,
+            PdfDocument document,
             IDictionary<IndirectReference, IndirectReferenceToken> refs,
             Page page,
+            IndirectReferenceToken pageReference,
             Func<PdfAction, PdfAction?>? linkCopyFunc = null,
             Action<(DictionaryToken, PdfAction)>? deferredActionUpdate = null)
         {
+            var sourceScanner = document.Structure.TokenScanner;
+
             var permittedLinkActionTypes = new HashSet<NameToken>
             {
                 // A web URI.
@@ -591,6 +610,8 @@ namespace UglyToad.PdfPig.Writer
                 return [];
             }
 
+            var reservedWidgets = ReserveWidgetAnnotations(annotationsArray, sourceScanner, refs);
+
             var copiedAnnotations = new List<IToken>();
             foreach (var annotEntry in annotationsArray.Data)
             {
@@ -599,18 +620,14 @@ namespace UglyToad.PdfPig.Writer
                     continue;
                 }
 
-                var removedKeys = new List<NameToken>();
-
                 /*
                  * An indirect reference to the page object with which this annotation is associated.
                  * Note: This entry is required for screen annotations associated with rendition actions.
+                 *
+                 * The source document's page reference is dropped and replaced by the reference of the
+                 * page we are writing once the annotation has been copied.
                  */
-                if (annotDict.TryGet(NameToken.P, out _))
-                {
-                    // If we have a page reference we should update it when this page is written.
-                    // For now, we'll remove it. This will corrupt screen annotations as noted above.
-                    removedKeys.Add(NameToken.P);
-                }
+                var removedKeys = new List<NameToken> { NameToken.P };
 
                 // We don't copy the struct tree so skip this for now.
                 if (annotDict.TryGet(NameToken.StructParent, out _))
@@ -618,17 +635,38 @@ namespace UglyToad.PdfPig.Writer
                     removedKeys.Add(NameToken.StructParent);
                 }
 
+                DictionaryToken CopyAnnotation(DictionaryToken source)
+                {
+                    var copied = (DictionaryToken)WriterUtil.CopyToken(
+                        context,
+                        CopyWithSkippedKeys(source, removedKeys),
+                        sourceScanner,
+                        refs);
+
+                    return copied.With(NameToken.P, pageReference);
+                }
+
                 // We treat non-link annotations as ok for now, we should revisit this.
                 if (!annotDict.TryGet(NameToken.Subtype, sourceScanner, out NameToken? subtype)
                     || subtype != NameToken.Link)
                 {
-                    var copiedRef = WriterUtil.CopyToken(
-                        context,
-                        CopyWithSkippedKeys(annotDict, removedKeys),
-                        sourceScanner,
-                        refs);
+                    // A widget is the visible part of an interactive form field, so it also has to be
+                    // registered in the interactive form of the document we're building.
+                    if (subtype == NameToken.Widget && annotEntry is IndirectReferenceToken widgetReference)
+                    {
+                        copiedAnnotations.Add(CopyWidgetAnnotation(
+                            document,
+                            widgetReference,
+                            annotDict,
+                            removedKeys,
+                            pageReference,
+                            refs,
+                            reservedWidgets));
 
-                    copiedAnnotations.Add(copiedRef);
+                        continue;
+                    }
+
+                    copiedAnnotations.Add(CopyAnnotation(annotDict));
 
                     continue;
                 }
@@ -643,8 +681,7 @@ namespace UglyToad.PdfPig.Writer
                         if (copiedLink != action && copiedLink != null)
                         {
                             // defer to write links when all pages are added
-                            var copiedToken = (DictionaryToken)WriterUtil.CopyToken(context, annotDict, sourceScanner, refs);
-                            deferredActionUpdate((copiedToken, copiedLink));
+                            deferredActionUpdate((CopyAnnotation(annotDict), copiedLink));
                             continue;
                         }
                     }
@@ -660,13 +697,7 @@ namespace UglyToad.PdfPig.Writer
                         continue;
                     }
 
-                    var copiedRef = WriterUtil.CopyToken(
-                        context,
-                        CopyWithSkippedKeys(annotDict, removedKeys),
-                        sourceScanner,
-                        refs);
-
-                    copiedAnnotations.Add(copiedRef);
+                    copiedAnnotations.Add(CopyAnnotation(annotDict));
 
                     continue;
                 }
@@ -679,16 +710,303 @@ namespace UglyToad.PdfPig.Writer
                 }
 
                 // If neither /A nor /Dest are present then I don't really know what this link does, so it should be safe to copy:
-                var finalCopiedRef = WriterUtil.CopyToken(
-                    context,
-                    CopyWithSkippedKeys(annotDict, removedKeys),
-                    sourceScanner,
-                    refs);
-
-                copiedAnnotations.Add(finalCopiedRef);
+                copiedAnnotations.Add(CopyAnnotation(annotDict));
             }
 
             return copiedAnnotations;
+        }
+
+        /// <summary>
+        /// Reserves the object number of every widget annotation in the array before anything is copied.
+        /// A widget is referenced both by the page's /Annots array and by the field tree of the interactive
+        /// form, so whichever of the two is copied first must end up pointing at the same object.
+        /// </summary>
+        private Dictionary<IndirectReference, IndirectReferenceToken> ReserveWidgetAnnotations(
+            ArrayToken annotationsArray,
+            IPdfTokenScanner sourceScanner,
+            IDictionary<IndirectReference, IndirectReferenceToken> refs)
+        {
+            var reserved = new Dictionary<IndirectReference, IndirectReferenceToken>();
+
+            foreach (var annotEntry in annotationsArray.Data)
+            {
+                if (annotEntry is not IndirectReferenceToken reference
+                    || refs.ContainsKey(reference.Data)
+                    || reserved.ContainsKey(reference.Data))
+                {
+                    continue;
+                }
+
+                if (!DirectObjectFinder.TryGet(reference, sourceScanner, out DictionaryToken? annotDict)
+                    || !annotDict.TryGet(NameToken.Subtype, sourceScanner, out NameToken? subtype)
+                    || subtype != NameToken.Widget)
+                {
+                    continue;
+                }
+
+                var objectNumber = context.ReserveObjectNumber();
+                reserved[reference.Data] = objectNumber;
+                refs[reference.Data] = objectNumber;
+            }
+
+            return reserved;
+        }
+
+        /// <summary>
+        /// Copies a widget annotation together with the interactive form field it belongs to, registering
+        /// the field in the interactive form of the document being built.
+        /// </summary>
+        private IToken CopyWidgetAnnotation(
+            PdfDocument document,
+            IndirectReferenceToken widgetReference,
+            DictionaryToken widgetDict,
+            IReadOnlyList<NameToken> removedKeys,
+            IndirectReferenceToken pageReference,
+            IDictionary<IndirectReference, IndirectReferenceToken> refs,
+            IDictionary<IndirectReference, IndirectReferenceToken> reservedWidgets)
+        {
+            var sourceScanner = document.Structure.TokenScanner;
+
+            if (!reservedWidgets.TryGetValue(widgetReference.Data, out var widgetCopy))
+            {
+                // Already copied, either while adding another page of this document or because the same
+                // widget is listed twice in the page's /Annots array.
+                return refs[widgetReference.Data];
+            }
+
+            reservedWidgets.Remove(widgetReference.Data);
+
+            // Find the root of the field hierarchy this widget belongs to. Field and widget are often
+            // merged into a single dictionary, in which case the widget is its own root.
+            var rootDict = widgetDict;
+            var rootReference = widgetReference;
+            var visited = new HashSet<IndirectReference> { widgetReference.Data };
+
+            while (rootDict.TryGet(NameToken.Parent, out IndirectReferenceToken? parentReference)
+                   && visited.Add(parentReference.Data)
+                   && DirectObjectFinder.TryGet(parentReference, sourceScanner, out DictionaryToken? parentDict))
+            {
+                rootDict = parentDict;
+                rootReference = parentReference;
+            }
+
+            var rootIsWidget = rootReference.Data.Equals(widgetReference.Data);
+            var isNewField = rootIsWidget || !refs.ContainsKey(rootReference.Data);
+
+            // Viewers identify a field by its fully qualified name, so a name already taken by a field from
+            // an earlier source document has to be changed or the two fields are treated as one.
+            var renamedTo = isNewField ? MakeFieldNameUnique(rootDict) : null;
+
+            IndirectReferenceToken rootCopy;
+            if (rootIsWidget)
+            {
+                rootCopy = widgetCopy;
+            }
+            else if (!isNewField)
+            {
+                rootCopy = refs[rootReference.Data];
+            }
+            else
+            {
+                rootCopy = context.ReserveObjectNumber();
+                refs[rootReference.Data] = rootCopy;
+
+                context.WriteToken(
+                    WriterUtil.CopyToken(context, WithFieldName(rootDict, renamedTo), sourceScanner, refs),
+                    rootCopy);
+            }
+
+            var widgetSource = WithFieldName(
+                CopyWithSkippedKeys(widgetDict, removedKeys),
+                rootIsWidget ? renamedTo : null);
+
+            var copiedWidget = (DictionaryToken)WriterUtil.CopyToken(context, widgetSource, sourceScanner, refs);
+
+            context.WriteToken(copiedWidget.With(NameToken.P, pageReference), widgetCopy);
+
+            if (isNewField)
+            {
+                acroFormFields.Add(rootCopy);
+                MergeAcroFormDictionary(document, refs);
+            }
+
+            return widgetCopy;
+        }
+
+        /// <summary>
+        /// Returns the name the field should be given to keep it unique across all source documents, or
+        /// <see langword="null"/> when the name it already has is still available.
+        /// </summary>
+        private string? MakeFieldNameUnique(DictionaryToken fieldDictionary)
+        {
+            if (!fieldDictionary.TryGet(NameToken.T, out IDataToken<string>? nameToken))
+            {
+                return null;
+            }
+
+            var name = nameToken.Data;
+            if (usedAcroFieldNames.Add(name))
+            {
+                return null;
+            }
+
+            var suffix = 1;
+            string candidate;
+            do
+            {
+                candidate = $"{name}_{suffix++}";
+            }
+            while (!usedAcroFieldNames.Add(candidate));
+
+            return candidate;
+        }
+
+        private static DictionaryToken WithFieldName(DictionaryToken field, string? name)
+        {
+            return name is null ? field : field.With(NameToken.T, new StringToken(name));
+        }
+
+        /// <summary>
+        /// Merges the document level entries of a source document's interactive form dictionary into the
+        /// interactive form of the document being built. The /Fields entry is handled separately as fields
+        /// are only carried over for the pages which are actually copied.
+        /// </summary>
+        private void MergeAcroFormDictionary(PdfDocument document, IDictionary<IndirectReference, IndirectReferenceToken> refs)
+        {
+            var sourceScanner = document.Structure.TokenScanner;
+
+            if (mergedFormSources.TryGetValue(sourceScanner, out _))
+            {
+                return;
+            }
+
+            mergedFormSources.Add(sourceScanner, new object());
+
+            if (!document.Structure.Catalog.CatalogDictionary.TryGet(NameToken.AcroForm, sourceScanner, out DictionaryToken? sourceForm))
+            {
+                return;
+            }
+
+            foreach (var kvp in sourceForm.Data)
+            {
+                var key = NameToken.Create(kvp.Key);
+
+                if (key == NameToken.Fields)
+                {
+                    continue;
+                }
+
+                if (key == NameToken.NeedAppearances)
+                {
+                    if (DirectObjectFinder.TryGet(kvp.Value, sourceScanner, out BooleanToken? needAppearances)
+                        && needAppearances.Data)
+                    {
+                        acroFormDictionary[key] = BooleanToken.True;
+                    }
+
+                    continue;
+                }
+
+                if (key == NameToken.SigFlags)
+                {
+                    var flags = acroFormDictionary.TryGetValue(key, out var existingFlags) && existingFlags is NumericToken existingNumeric
+                        ? existingNumeric.Int
+                        : 0;
+
+                    if (DirectObjectFinder.TryGet(kvp.Value, sourceScanner, out NumericToken? sourceFlags))
+                    {
+                        flags |= sourceFlags.Int;
+                    }
+
+                    if (flags != 0)
+                    {
+                        acroFormDictionary[key] = new NumericToken(flags);
+                    }
+
+                    continue;
+                }
+
+                if (key == NameToken.Dr)
+                {
+                    MergeDefaultResources(kvp.Value, sourceScanner, refs);
+                    continue;
+                }
+
+                if (acroFormDictionary.ContainsKey(key))
+                {
+                    // The first document to define an entry wins, there is no way to reconcile
+                    // conflicting values like the default appearance string.
+                    continue;
+                }
+
+                acroFormDictionary[key] = WriterUtil.CopyToken(context, kvp.Value, sourceScanner, refs);
+            }
+        }
+
+        private void MergeDefaultResources(
+            IToken token,
+            IPdfTokenScanner sourceScanner,
+            IDictionary<IndirectReference, IndirectReferenceToken> refs)
+        {
+            if (!DirectObjectFinder.TryGet(token, sourceScanner, out DictionaryToken? sourceResources))
+            {
+                return;
+            }
+
+            if (!acroFormDictionary.TryGetValue(NameToken.Dr, out var existing) || existing is not DictionaryToken existingResources)
+            {
+                acroFormDictionary[NameToken.Dr] = WriterUtil.CopyToken(context, sourceResources, sourceScanner, refs);
+                return;
+            }
+
+            var merged = ToMutable(existingResources);
+
+            foreach (var kvp in sourceResources.Data)
+            {
+                var key = NameToken.Create(kvp.Key);
+
+                if (!merged.TryGetValue(key, out var existingCategory)
+                    || existingCategory is not DictionaryToken existingCategoryDict
+                    || !DirectObjectFinder.TryGet(kvp.Value, sourceScanner, out DictionaryToken? sourceCategory))
+                {
+                    if (!merged.ContainsKey(key))
+                    {
+                        merged[key] = WriterUtil.CopyToken(context, kvp.Value, sourceScanner, refs);
+                    }
+
+                    continue;
+                }
+
+                var mergedCategory = ToMutable(existingCategoryDict);
+
+                foreach (var entry in sourceCategory.Data)
+                {
+                    var entryKey = NameToken.Create(entry.Key);
+
+                    if (mergedCategory.ContainsKey(entryKey))
+                    {
+                        continue;
+                    }
+
+                    mergedCategory[entryKey] = WriterUtil.CopyToken(context, entry.Value, sourceScanner, refs);
+                }
+
+                merged[key] = new DictionaryToken(mergedCategory);
+            }
+
+            acroFormDictionary[NameToken.Dr] = new DictionaryToken(merged);
+
+            static Dictionary<NameToken, IToken> ToMutable(DictionaryToken dictionary)
+            {
+                var result = new Dictionary<NameToken, IToken>();
+
+                foreach (var kvp in dictionary.Data)
+                {
+                    result[NameToken.Create(kvp.Key)] = kvp.Value;
+                }
+
+                return result;
+            }
         }
 
         private static DictionaryToken CopyWithSkippedKeys(
@@ -748,7 +1066,9 @@ namespace UglyToad.PdfPig.Writer
             }
 
             int leafNum = 0;
-            var pageReferences = pages.ToDictionary(p => p.Key, p => context.ReserveObjectNumber());
+            // Pages copied from an existing document may already have had their object number reserved so
+            // that the annotations on them could point back at the page.
+            var pageReferences = pages.ToDictionary(p => p.Key, p => p.Value.reservedReference ?? context.ReserveObjectNumber());
 
             foreach (var page in pages)
             {
@@ -856,6 +1176,18 @@ namespace UglyToad.PdfPig.Writer
                 };
 
                 catalogDictionary[NameToken.Outlines] = context.WriteToken(new DictionaryToken(outline));
+            }
+
+            if (acroFormFields.Count > 0)
+            {
+                // Without the interactive form dictionary viewers which build their field list from the
+                // catalog rather than from the page annotations (Acrobat) ignore the copied widgets.
+                var formDictionary = new Dictionary<NameToken, IToken>(acroFormDictionary)
+                {
+                    [NameToken.Fields] = new ArrayToken(acroFormFields)
+                };
+
+                catalogDictionary[NameToken.AcroForm] = context.WriteToken(new DictionaryToken(formDictionary));
             }
 
             if (ArchiveStandard != PdfAStandard.None)
