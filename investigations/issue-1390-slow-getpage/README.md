@@ -5,6 +5,9 @@ plus the reproduction documents and the harness used to measure them.
 
 The cancellation-token request in the same issue is out of scope here.
 
+For whether each piece of the fix earns its complexity — measured across five build variants and
+the full 150-document test corpus — see [COST-BENEFIT.md](COST-BENEFIT.md).
+
 **Status: both causes are fixed, and so is the form-stream re-read they left behind.** The
 full-scale reproduction went from **3 min 35 s / 188 GB allocated** to **~290 ms / 82 MB**, and
 the form-stream document from **466 ms / 150 MB** to **44 ms / 2.2 MB**. See
@@ -132,7 +135,8 @@ read from the file changes memory behaviour for large documents, and the interac
 
 ## Results
 
-Both causes are fixed in the working tree (uncommitted).
+Causes A and B are fixed in commit `6921ae74`; the form-stream fix below it is in the working
+tree, uncommitted.
 
 **Cause B** — `PdfTokenScanner.Get` now calls `objectLocationProvider.Cache` on the classic
 xref path, so an object listed directly in the xref table is tokenized once instead of on
@@ -160,15 +164,22 @@ XObject scope without resolving the object it points at.
 This ordering matters — cause A's fix depends on cause B's. Before B, every load received a
 different `DictionaryToken` instance, so an identity-keyed cache would never hit.
 
-| document | before | after B | after A + B |
-| --- | --- | --- | --- |
-| `fullscale-extgstate-30k-4200do.pdf` | 215 065 ms / 188 GB | 13 284 ms / 7.9 GB | **286 ms / 97 MB** |
-| `isolate-extgstate-indirect-30k-200do.pdf` | 10 473 ms / 9 175 MB | 999 ms / 427 MB | **204 ms / 55 MB** |
-| `isolate-properties-30k-200do.pdf` | 6 340 ms / 7 465 MB | — | **128 ms / 44 MB** |
-| `isolate-xobject-30k-200do.pdf` | 3 288 ms / 1 988 MB | 688 ms / 389 MB | **84 ms / 17 MB** |
-| `isolate-colorspace-30k-200do.pdf` | 3 243 ms / 2 032 MB | — | **72 ms / 17 MB** |
-| `objstm-xobject-30k-200do.pdf` | 590 ms / 390 MB | — | **84 ms / 18 MB** |
-| `formstream-196kb-200do.pdf` | 457 ms / 150 MB | 466 ms / 150 MB | 464 ms / 150 MB |
+| document | before | after B | after A + B | after form fix |
+| --- | --- | --- | --- | --- |
+| `fullscale-extgstate-30k-4200do.pdf` | 215 065 ms / 188 GB | 13 284 ms / 7.9 GB | 286 ms / 97 MB | **291 ms / 82 MB** |
+| `isolate-extgstate-indirect-30k-200do.pdf` | 10 473 ms / 9 175 MB | 999 ms / 427 MB | 204 ms / 55 MB | **242 ms / 54 MB** |
+| `isolate-properties-30k-200do.pdf` | 6 340 ms / 7 465 MB | — | 128 ms / 44 MB | **146 ms / 43 MB** |
+| `isolate-xobject-30k-200do.pdf` | 3 288 ms / 1 988 MB | 688 ms / 389 MB | 84 ms / 17 MB | **94 ms / 16 MB** |
+| `isolate-colorspace-30k-200do.pdf` | 3 243 ms / 2 032 MB | — | 72 ms / 17 MB | **82 ms / 16 MB** |
+| `objstm-xobject-30k-200do.pdf` | 590 ms / 390 MB | — | 84 ms / 18 MB | **95 ms / 17 MB** |
+| `formstream-196kb-200do.pdf` | 457 ms / 150 MB | 466 ms / 150 MB | 464 ms / 150 MB | **45 ms / 2.2 MB** |
+| `formstream-15b-200do.pdf` | 30 ms / 2 MB | — | — | **35 ms / 1.4 MB** |
+
+The "after A + B" and "after form fix" columns were measured in different sessions, so small
+time differences between them are machine noise; the allocation figures are exact and directly
+comparable. A back-to-back A/B of the form fix alone, on one machine state, gave
+466/557 ms → 45/43 ms for `formstream-196kb-200do.pdf` and 343/330/372 ms → 315/270/334 ms for
+`fullscale-extgstate-30k-4200do.pdf`.
 
 Gen2 collections on the full-scale document went from 2 781 to 0.
 
@@ -204,8 +215,8 @@ widen the change:
 - `FormXObjectCachingTests.RepeatedFormInvocationRunsTheContentEveryTime` — guard that caching
   the parse does not cache the *execution*: three invocations still produce three paths.
 
-Full suite: 0 failed on both test target frameworks — 4 205 passed / 7 skipped on net8.0,
-4 206 passed / 7 skipped on net9.0. All seven library target frameworks build clean.
+Full suite: 0 failed on every test target framework — 4 208 passed / 7 skipped on net8.0,
+4 209 on net9.0, 4 206 on net471. All seven library target frameworks build clean.
 
 ## Unrelated observation
 
