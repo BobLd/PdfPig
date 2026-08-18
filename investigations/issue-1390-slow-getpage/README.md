@@ -5,10 +5,11 @@ plus the reproduction documents and the harness used to measure them.
 
 The cancellation-token request in the same issue is out of scope here.
 
-**Status: both causes are fixed in the working tree.** The full-scale reproduction went from
-**3 min 35 s / 188 GB allocated** to **286 ms / 97 MB**. See [Results](#results) for the
-per-document numbers and what is left. Measurements in the two analysis sections below are
-the *original* ones, kept as the record of the diagnosis.
+**Status: both causes are fixed, and so is the form-stream re-read they left behind.** The
+full-scale reproduction went from **3 min 35 s / 188 GB allocated** to **~290 ms / 82 MB**, and
+the form-stream document from **466 ms / 150 MB** to **44 ms / 2.2 MB**. See
+[Results](#results). Measurements in the two analysis sections below are the *original* ones,
+kept as the record of the diagnosis.
 
 ## Summary
 
@@ -147,6 +148,15 @@ overload that shares a pre-computed level and copies it before any write. `/Patt
 stack via `resourceStore.GetColorSpaceDetails`, so their result depends on the levels below
 and is not a function of the resource dictionary alone.
 
+**Form-stream re-read** — with streams excluded from the object cache, a form XObject was still
+resolved, decoded and re-parsed on every `Do`. `BaseStreamProcessor` now keeps two per-page
+caches: the form's `StreamToken` keyed by its `IndirectReference` (populated in `ApplyXObject`
+only when the subtype is `/Form`), and its parsed operations keyed by that stream's identity.
+Both die with the page, and images — the large streams — are never cached, so the memory
+argument for excluding streams from the object cache still holds. `ApplyXObject` finds the
+reference through a new `IResourceStore.TryGetXObjectReference`, which reads the current
+XObject scope without resolving the object it points at.
+
 This ordering matters — cause A's fix depends on cause B's. Before B, every load received a
 different `DictionaryToken` instance, so an identity-keyed cache would never hit.
 
@@ -164,15 +174,12 @@ Gen2 collections on the full-scale document went from 2 781 to 0.
 
 ### What is not fixed
 
-`formstream-196kb-200do.pdf` is unchanged: a form XObject's stream is still re-read and its
-content re-decoded and re-parsed on every `Do`. Excluding streams from the object cache is what
-leaves this in place, and pinning stream bytes is the wrong way to fix it. The bounded fix is to
-cache the *parsed operations* per form in `BaseStreamProcessor`, keyed on the form's
-`IndirectReference` — bounded by the number of distinct forms rather than by total stream bytes.
-That is a separate change and has not been made.
-
-Two pre-existing issues were left alone because fixing them is not needed for #1390 and would
+Three pre-existing issues were left alone because fixing them is not needed for #1390 and would
 widen the change:
+
+- `HasFormXObjectCircularReference` still runs `operations.OfType<InvokeNamedXObject>().Any(...)`
+  over the cached operation list on every invocation. It is a cheap type test per operation and
+  the expensive remainder only runs for a genuinely self-referencing form, so it was left as is.
 
 - `loadedDirectFonts` is keyed by name in a store shared across resource dictionaries, so two
   resource dictionaries that both define an inline `/F1` collide. The caching preserves the
@@ -190,6 +197,12 @@ widen the change:
   reloading resolves nothing through the scanner (it went 3 objects → 6 before the fix).
 - `ResourceStoreCachingTests.ReloadingTheSameResourceDictionaryStillResolvesItsEntries` — guard
   that a memoized reload returns the same values as the first load.
+- `FormXObjectCachingTests.RepeatedFormInvocationResolvesTheStreamOnce` — a second `Do` on the
+  same form resolves nothing further through the scanner (it went 1 → 2 before the fix).
+- `FormXObjectCachingTests.RepeatedFormInvocationParsesTheContentStreamOnce` — the form's content
+  stream reaches `IPageContentParser` once for two invocations (1 → 2 before the fix).
+- `FormXObjectCachingTests.RepeatedFormInvocationRunsTheContentEveryTime` — guard that caching
+  the parse does not cache the *execution*: three invocations still produce three paths.
 
 Full suite: 0 failed on both test target frameworks — 4 205 passed / 7 skipped on net8.0,
 4 206 passed / 7 skipped on net9.0. All seven library target frameworks build clean.

@@ -596,6 +596,11 @@
             return DirectObjectFinder.TryGet(new IndirectReferenceToken(indirectReference), scanner, out stream);
         }
 
+        public bool TryGetXObjectReference(NameToken name, out IndirectReference reference)
+        {
+            return currentXObjectState.TryGetValue(name, out reference);
+        }
+
         public DictionaryToken? GetExtendedGraphicsStateDictionary(NameToken name)
         {
             if (parsingOptions.UseLenientParsing)

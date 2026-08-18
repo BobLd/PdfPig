@@ -120,6 +120,21 @@
         private readonly Dictionary<(IType3Font Font, int Code), PdfRectangle?> _type3GlyphBoxCache = new();
 
         /// <summary>
+        /// Form XObjects already resolved on this page, keyed by their reference. A page can invoke the same
+        /// form thousands of times and resolving the reference re-reads and re-tokenizes the stream from the
+        /// file each time. See issue #1390. Only forms are kept: images are the large streams and are already
+        /// retained for the page by their <see cref="XObjectContentRecord"/>.
+        /// </summary>
+        private readonly Dictionary<IndirectReference, StreamToken> _formXObjectCache = new();
+
+        /// <summary>
+        /// Operations parsed from each form XObject encountered on this page, keyed by the form's stream.
+        /// Avoids re-decoding and re-parsing the same content stream once per invocation.
+        /// </summary>
+        private readonly Dictionary<StreamToken, IReadOnlyList<IGraphicsStateOperation>> _formOperationsCache
+            = new(ReferenceEqualityComparer<StreamToken>.Instance);
+
+        /// <summary>
         /// Abstract stream processor constructor.
         /// </summary>
         protected BaseStreamProcessor(
@@ -479,6 +494,14 @@
         /// <inheritdoc/>
         public virtual void ApplyXObject(NameToken xObjectName)
         {
+            var hasReference = ResourceStore.TryGetXObjectReference(xObjectName, out var xObjectReference);
+
+            if (hasReference && _formXObjectCache.TryGetValue(xObjectReference, out var cachedForm))
+            {
+                ProcessFormXObject(cachedForm, xObjectName);
+                return;
+            }
+
             if (!ResourceStore.TryGetXObject(xObjectName, out var xObjectStream))
             {
                 if (ParsingOptions.SkipMissingFonts)
@@ -519,6 +542,11 @@
             }
             else if (subType.Equals(NameToken.Form))
             {
+                if (hasReference)
+                {
+                    _formXObjectCache[xObjectReference] = xObjectStream;
+                }
+
                 ProcessFormXObject(xObjectStream, xObjectName);
             }
             else
@@ -646,11 +674,7 @@
                 // 2. Update current transformation matrix.
                 ModifyCurrentTransformationMatrix(formMatrix);
 
-                var contentStream = formStream.Decode(FilterProvider, PdfScanner);
-
-                var operations = PageContentParser.Parse(PageNumber,
-                    new MemoryInputBytes(contentStream),
-                    ParsingOptions.Logger);
+                var operations = GetFormOperations(formStream);
 
                 // 3. Clip according to the form dictionary's BBox entry.
                 if (formStream.StreamDictionary.TryGet<ArrayToken>(NameToken.Bbox, PdfScanner, out var bboxToken))
@@ -698,6 +722,28 @@
                     ResourceStore.UnloadResourceDictionary();
                 }
             }
+        }
+
+        /// <summary>
+        /// Get the operations of a form XObject's content stream, decoding and parsing it the first time the
+        /// form is encountered on this page. See issue #1390.
+        /// </summary>
+        protected IReadOnlyList<IGraphicsStateOperation> GetFormOperations(StreamToken formStream)
+        {
+            if (_formOperationsCache.TryGetValue(formStream, out var cached))
+            {
+                return cached;
+            }
+
+            var contentStream = formStream.Decode(FilterProvider, PdfScanner);
+
+            var operations = PageContentParser.Parse(PageNumber,
+                new MemoryInputBytes(contentStream),
+                ParsingOptions.Logger);
+
+            _formOperationsCache[formStream] = operations;
+
+            return operations;
         }
 
         /// <summary>
