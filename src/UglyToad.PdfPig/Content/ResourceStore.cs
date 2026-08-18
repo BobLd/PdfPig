@@ -37,6 +37,13 @@
 
         private readonly StackDictionary<NameToken, PatternColor> patternsProperties = new StackDictionary<NameToken, PatternColor>();
 
+        // A page can invoke the same form XObject thousands of times and every invocation loads that form's
+        // resource dictionary. Expanding it each time is O(invocations * entries), which is what makes
+        // issue #1390's document take minutes. The expansion depends only on the resource dictionary and the
+        // scanner, so it is resolved once per dictionary and the resulting levels are shared between pushes.
+        private readonly Dictionary<DictionaryToken, ResolvedResources> resolvedResources
+            = new Dictionary<DictionaryToken, ResolvedResources>(ReferenceEqualityComparer<DictionaryToken>.Instance);
+
         // 8.6.5.6: while a DefaultGray/RGB/CMYK substitution is being resolved, any device colour space
         // encountered inside the substitute's own definition refers to the genuine device space and shall
         // NOT be substituted again. This mirrors PDFBox's 'wasDefault' flag and breaks otherwise-infinite
@@ -63,19 +70,50 @@
             loadedNamedColorSpaceDetails.Clear();
             loadedColorSpaceDetailsCache.Clear();
 
-            namedColorSpaces.Push();
-            currentFontState.Push();
-            currentXObjectState.Push();
-            extendedGraphicsStates.Push();
-            markedContentProperties.Push();
+            if (!resolvedResources.TryGetValue(resourceDictionary, out var resolved))
+            {
+                resolved = ResolveResources(resourceDictionary);
+                resolvedResources[resourceDictionary] = resolved;
+            }
+
+            namedColorSpaces.Push(resolved.NamedColorSpaces);
+            currentFontState.Push(resolved.Fonts);
+            currentXObjectState.Push(resolved.XObjects);
+            extendedGraphicsStates.Push(resolved.ExtendedGraphicsStates);
+            markedContentProperties.Push(resolved.MarkedContentProperties);
             shadingsProperties.Push();
             patternsProperties.Push();
+
+            // Fonts given inline rather than by indirect reference are keyed by name in a store shared
+            // across resource dictionaries, so their binding is re-established on every load. The font
+            // itself was parsed when this dictionary was first resolved.
+            for (var i = 0; i < resolved.DirectFonts.Count; i++)
+            {
+                var directFont = resolved.DirectFonts[i];
+                loadedDirectFonts[directFont.Name] = directFont.Font;
+            }
+
+            // Patterns and shadings resolve their colour spaces through the resource stack, so unlike the
+            // categories above their result depends on the levels below this one and cannot be cached
+            // against the resource dictionary alone.
+            LoadPatterns(resourceDictionary);
+            LoadShadings(resourceDictionary);
+        }
+
+        private ResolvedResources ResolveResources(DictionaryToken resourceDictionary)
+        {
+            var fonts = new Dictionary<NameToken, IndirectReference>();
+            var directFonts = new List<(NameToken Name, IFont Font)>();
+            var xObjects = new Dictionary<NameToken, IndirectReference>();
+            var extendedGraphicsStateDictionaries = new Dictionary<NameToken, DictionaryToken>();
+            var colorSpaces = new Dictionary<NameToken, ResourceColorSpace>();
+            var properties = new Dictionary<NameToken, DictionaryToken>();
 
             if (resourceDictionary.TryGet(NameToken.Font, out var fontBase))
             {
                 var fontDictionary = DirectObjectFinder.Get<DictionaryToken>(fontBase, scanner);
 
-                LoadFontDictionary(fontDictionary);
+                LoadFontDictionary(fontDictionary, fonts, directFonts);
             }
 
             if (resourceDictionary.TryGet(NameToken.Xobject, out var xobjectBase))
@@ -94,7 +132,7 @@
                         throw new InvalidOperationException($"Expected the XObject dictionary value for key /{pair.Key} to be an indirect reference, instead got: {pair.Value}.");
                     }
 
-                    currentXObjectState[NameToken.Create(pair.Key)] = reference.Data;
+                    xObjects[NameToken.Create(pair.Key)] = reference.Data;
                 }
             }
 
@@ -105,7 +143,7 @@
                     var name = NameToken.Create(pair.Key);
                     var state = DirectObjectFinder.Get<DictionaryToken>(pair.Value, scanner);
 
-                    extendedGraphicsStates[name] = state;
+                    extendedGraphicsStateDictionaries[name] = state;
                 }
             }
 
@@ -117,7 +155,7 @@
 
                     if (DirectObjectFinder.TryGet(nameColorSpacePair.Value, scanner, out NameToken? colorSpaceName))
                     {
-                        namedColorSpaces[name] = new ResourceColorSpace(colorSpaceName);
+                        colorSpaces[name] = new ResourceColorSpace(colorSpaceName);
                     }
                     else if (DirectObjectFinder.TryGet(nameColorSpacePair.Value, scanner, out ArrayToken? colorSpaceArray))
                     {
@@ -133,29 +171,19 @@
                             throw new PdfDocumentFormatException($"Invalid ColorSpace array encountered in page resource dictionary: {colorSpaceArray}.");
                         }
 
-                        namedColorSpaces[name] = new ResourceColorSpace(arrayNamedColorSpace, colorSpaceArray);
+                        colorSpaces[name] = new ResourceColorSpace(arrayNamedColorSpace, colorSpaceArray);
                     }
                     else if (parsingOptions.UseLenientParsing &&
                              DirectObjectFinder.TryGet(nameColorSpacePair.Value, scanner, out DictionaryToken? dict) &&
                              dict.TryGet(NameToken.ColorSpace, scanner, out NameToken? csName))
                     {
                         // See issue #1061
-                        namedColorSpaces[name] = new ResourceColorSpace(csName);
+                        colorSpaces[name] = new ResourceColorSpace(csName);
                     }
                     else
                     {
                         throw new PdfDocumentFormatException($"Invalid ColorSpace token encountered in page resource dictionary: {nameColorSpacePair.Value}.");
                     }
-                }
-            }
-
-            if (resourceDictionary.TryGet(NameToken.Pattern, scanner, out DictionaryToken? patternDictionary))
-            {
-                // NB: in PDF, all patterns shall be local to the context in which they are defined.
-                foreach (var namePatternPair in patternDictionary.Data)
-                {
-                    var name = NameToken.Create(namePatternPair.Key);
-                    patternsProperties[name] = PatternParser.Create(namePatternPair.Value, scanner, this, filterProvider);
                 }
             }
 
@@ -170,29 +198,51 @@
                         continue;
                     }
 
-                    markedContentProperties[key] = namedProperties;
+                    properties[key] = namedProperties;
                 }
             }
 
-            if (resourceDictionary.TryGet(NameToken.Shading, scanner, out DictionaryToken? shadingList))
+            return new ResolvedResources(fonts, directFonts, xObjects, extendedGraphicsStateDictionaries, colorSpaces, properties);
+        }
+
+        private void LoadPatterns(DictionaryToken resourceDictionary)
+        {
+            if (!resourceDictionary.TryGet(NameToken.Pattern, scanner, out DictionaryToken? patternDictionary))
             {
-                foreach (var pair in shadingList.Data)
+                return;
+            }
+
+            // NB: in PDF, all patterns shall be local to the context in which they are defined.
+            foreach (var namePatternPair in patternDictionary.Data)
+            {
+                var name = NameToken.Create(namePatternPair.Key);
+                patternsProperties[name] = PatternParser.Create(namePatternPair.Value, scanner, this, filterProvider);
+            }
+        }
+
+        private void LoadShadings(DictionaryToken resourceDictionary)
+        {
+            if (!resourceDictionary.TryGet(NameToken.Shading, scanner, out DictionaryToken? shadingList))
+            {
+                return;
+            }
+
+            foreach (var pair in shadingList.Data)
+            {
+                var key = NameToken.Create(pair.Key);
+                if (DirectObjectFinder.TryGet(pair.Value, scanner, out DictionaryToken? namedPropertiesDictionary))
                 {
-                    var key = NameToken.Create(pair.Key);
-                    if (DirectObjectFinder.TryGet(pair.Value, scanner, out DictionaryToken? namedPropertiesDictionary))
-                    {
-                        shadingsProperties[key] = ShadingParser.Create(namedPropertiesDictionary, scanner, this, filterProvider);
-                    }
-                    else if (DirectObjectFinder.TryGet(pair.Value, scanner, out StreamToken? namedPropertiesStream))
-                    {
-                        // Shading types 4 to 7 shall be defined by a stream containing descriptive data characterizing
-                        // the shading's gradient fill.
-                       shadingsProperties[key] = ShadingParser.Create(namedPropertiesStream, scanner, this, filterProvider);
-                    }
-                    else
-                    {
-                        throw new NotImplementedException("Shading");
-                    }
+                    shadingsProperties[key] = ShadingParser.Create(namedPropertiesDictionary, scanner, this, filterProvider);
+                }
+                else if (DirectObjectFinder.TryGet(pair.Value, scanner, out StreamToken? namedPropertiesStream))
+                {
+                    // Shading types 4 to 7 shall be defined by a stream containing descriptive data characterizing
+                    // the shading's gradient fill.
+                    shadingsProperties[key] = ShadingParser.Create(namedPropertiesStream, scanner, this, filterProvider);
+                }
+                else
+                {
+                    throw new NotImplementedException("Shading");
                 }
             }
         }
@@ -211,7 +261,9 @@
             patternsProperties.Pop();
         }
 
-        private void LoadFontDictionary(DictionaryToken fontDictionary)
+        private void LoadFontDictionary(DictionaryToken fontDictionary,
+            Dictionary<NameToken, IndirectReference> fonts,
+            List<(NameToken Name, IFont Font)> directFonts)
         {
             lastLoadedFont = (null, null);
 
@@ -221,7 +273,7 @@
                 {
                     var reference = objectKey.Data;
 
-                    currentFontState[NameToken.Create(pair.Key)] = reference;
+                    fonts[NameToken.Create(pair.Key)] = reference;
 
                     if (loadedFonts.ContainsKey(reference))
                     {
@@ -255,12 +307,56 @@
                 }
                 else if (pair.Value is DictionaryToken fd)
                 {
-                    loadedDirectFonts[NameToken.Create(pair.Key)] = fontFactory.Get(fd);
+                    var name = NameToken.Create(pair.Key);
+                    var font = fontFactory.Get(fd);
+
+                    directFonts.Add((name, font));
+                    loadedDirectFonts[name] = font;
                 }
                 else
                 {
                     continue;
                 }
+            }
+        }
+
+        /// <summary>
+        /// The result of expanding a resource dictionary, cached so that a resource dictionary shared by many
+        /// content streams is only expanded once. See issue #1390.
+        /// </summary>
+        private sealed class ResolvedResources
+        {
+            public Dictionary<NameToken, IndirectReference> Fonts { get; }
+
+            /// <summary>
+            /// Fonts written inline in the resource dictionary rather than referenced indirectly. These are
+            /// held by name in a store shared across resource dictionaries so the binding, unlike the parsed
+            /// font, has to be re-applied on every load.
+            /// </summary>
+            public IReadOnlyList<(NameToken Name, IFont Font)> DirectFonts { get; }
+
+            public Dictionary<NameToken, IndirectReference> XObjects { get; }
+
+            public Dictionary<NameToken, DictionaryToken> ExtendedGraphicsStates { get; }
+
+            public Dictionary<NameToken, ResourceColorSpace> NamedColorSpaces { get; }
+
+            public Dictionary<NameToken, DictionaryToken> MarkedContentProperties { get; }
+
+            public ResolvedResources(
+                Dictionary<NameToken, IndirectReference> fonts,
+                IReadOnlyList<(NameToken Name, IFont Font)> directFonts,
+                Dictionary<NameToken, IndirectReference> xObjects,
+                Dictionary<NameToken, DictionaryToken> extendedGraphicsStates,
+                Dictionary<NameToken, ResourceColorSpace> namedColorSpaces,
+                Dictionary<NameToken, DictionaryToken> markedContentProperties)
+            {
+                Fonts = fonts;
+                DirectFonts = directFonts;
+                XObjects = xObjects;
+                ExtendedGraphicsStates = extendedGraphicsStates;
+                NamedColorSpaces = namedColorSpaces;
+                MarkedContentProperties = markedContentProperties;
             }
         }
 

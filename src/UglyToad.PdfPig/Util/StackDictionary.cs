@@ -7,7 +7,7 @@ namespace UglyToad.PdfPig.Util
 
     internal sealed class StackDictionary<K, V> where K : notnull
     {
-        private readonly List<Dictionary<K, V>> values = new List<Dictionary<K, V>>();
+        private readonly List<Level> values = new List<Level>();
 
         public V this[K key]
         {
@@ -32,7 +32,18 @@ namespace UglyToad.PdfPig.Util
                     throw new InvalidOperationException($"Cannot set item in empty stack, call {nameof(Push)} before use.");
                 }
 
-                values[values.Count - 1][key] = value;
+                var index = values.Count - 1;
+                var level = values[index];
+
+                if (level.IsShared)
+                {
+                    // The level was pushed from a cache and may still be in use by another push, so copy it
+                    // before letting a write escape into the cached instance.
+                    level = new Level(new Dictionary<K, V>(level.Values), false);
+                    values[index] = level;
+                }
+
+                level.Values[key] = value;
             }
         }
 
@@ -46,7 +57,7 @@ namespace UglyToad.PdfPig.Util
 
             for (var i = values.Count - 1; i >= 0; i--)
             {
-                if (values[i].TryGetValue(key, out result!))
+                if (values[i].Values.TryGetValue(key, out result!))
                 {
                     return true;
                 }
@@ -67,7 +78,7 @@ namespace UglyToad.PdfPig.Util
 
             foreach (var v in values)
             {
-                foreach (var pair in v)
+                foreach (var pair in v.Values)
                 {
                     result[pair.Key] = pair.Value;
                 }
@@ -78,7 +89,21 @@ namespace UglyToad.PdfPig.Util
 
         public void Push()
         {
-            values.Add(new Dictionary<K, V>());
+            values.Add(new Level(new Dictionary<K, V>(), false));
+        }
+
+        /// <summary>
+        /// Pushes a pre-computed level. The dictionary is not copied, so the caller may keep and re-push it;
+        /// any write to this level copies it first.
+        /// </summary>
+        public void Push(Dictionary<K, V> level)
+        {
+            if (level is null)
+            {
+                throw new ArgumentNullException(nameof(level));
+            }
+
+            values.Add(new Level(level, true));
         }
 
         public void Pop()
@@ -89,6 +114,19 @@ namespace UglyToad.PdfPig.Util
             }
 
             values.RemoveAt(values.Count - 1);
+        }
+
+        private readonly struct Level
+        {
+            public readonly Dictionary<K, V> Values;
+
+            public readonly bool IsShared;
+
+            public Level(Dictionary<K, V> values, bool isShared)
+            {
+                Values = values;
+                IsShared = isShared;
+            }
         }
     }
 }

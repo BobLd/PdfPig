@@ -797,6 +797,18 @@
 
             if (found.Number.Equals(reference))
             {
+                // Objects reached through an object stream are already cached (see GetObjectFromStream) but
+                // those listed directly in the xref table were re-read and re-tokenized on every lookup,
+                // which is quadratic for a shared resource dictionary referenced by many content streams.
+                // See issue #1390.
+                // Streams are excluded: caching them would pin the raw bytes of every image and content
+                // stream ever resolved for the lifetime of the document. Object streams cannot contain
+                // streams, so this keeps both xref formats behaving the same.
+                if (found.Data is not StreamToken)
+                {
+                    objectLocationProvider.Cache(found);
+                }
+
                 return found;
             }
 
