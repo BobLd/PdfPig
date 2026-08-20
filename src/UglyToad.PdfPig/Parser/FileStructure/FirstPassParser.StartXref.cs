@@ -2,6 +2,7 @@
 
 using Core;
 using Logging;
+using System.Threading;
 using Tokenization.Scanner;
 using Tokens;
 using Util;
@@ -13,7 +14,8 @@ internal static partial class FirstPassParser
     public static StartXRefLocation GetFirstCrossReferenceOffset(
         IInputBytes bytes,
         ISeekableTokenScanner scanner,
-        ILog log)
+        ILog log,
+        CancellationToken token)
     {
         var fileLength = bytes.Length;
 
@@ -29,6 +31,11 @@ internal static partial class FirstPassParser
             buffer.AddReverse(bytes.CurrentByte);
             i++;
 
+            if (i % 100 == 0)
+            {
+                token.ThrowIfCancellationRequested();
+            }
+            
             if (i >= StartXRefBytes.Length)
             {
                 if (buffer.IsCurrentlyEqual("startxref"))

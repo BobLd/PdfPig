@@ -20,30 +20,31 @@
     using PdfFonts.Parser;
     using PdfFonts.Parser.Handlers;
     using PdfFonts.Parser.Parts;
+    using System.Threading;
     using Tokenization.Scanner;
     using Tokens;
     using UglyToad.PdfPig.PdfFonts.Cmap;
 
     internal static class PdfDocumentFactory
     {
-        public static PdfDocument Open(ReadOnlyMemory<byte> memory, ParsingOptions? options = null)
+        public static PdfDocument Open(ReadOnlyMemory<byte> memory, ParsingOptions? options, CancellationToken token)
         {
             var inputBytes = new MemoryInputBytes(memory);
 
-            return Open(inputBytes, options);
+            return Open(inputBytes, options, token);
         }
 
-        public static PdfDocument Open(string filename, ParsingOptions? options = null)
+        public static PdfDocument Open(string filename, ParsingOptions? options, CancellationToken token)
         {
             if (!File.Exists(filename))
             {
                 throw new InvalidOperationException("No file exists at: " + filename);
             }
 
-            return Open(File.ReadAllBytes(filename), options);
+            return Open(File.ReadAllBytes(filename), options, token);
         }
 
-        internal static PdfDocument Open(Stream stream, ParsingOptions? options)
+        internal static PdfDocument Open(Stream stream, ParsingOptions? options, CancellationToken token)
         {
             StreamInputBytes streamInput;
             long initialPosition;
@@ -65,7 +66,7 @@
 
             try
             {
-                return Open(streamInput, options);
+                return Open(streamInput, options, token);
             }
             catch (Exception ex)
             {
@@ -80,7 +81,7 @@
             }
         }
 
-        private static PdfDocument Open(IInputBytes inputBytes, ParsingOptions? options = null)
+        private static PdfDocument Open(IInputBytes inputBytes, ParsingOptions? options, CancellationToken token)
         {
             options ??= new ParsingOptions()
             {
@@ -112,7 +113,7 @@
 
             options.Passwords = passwords;
 
-            var document = OpenDocument(inputBytes, tokenScanner, options, stackDepthGuard);
+            var document = OpenDocument(inputBytes, tokenScanner, options, stackDepthGuard, token);
 
             return document;
         }
@@ -121,11 +122,12 @@
             IInputBytes inputBytes,
             ISeekableTokenScanner scanner,
             ParsingOptions parsingOptions,
-            StackDepthGuard stackDepthGuard)
+            StackDepthGuard stackDepthGuard,
+            CancellationToken token)
         {
             var filterProvider = new FilterProviderWithLookup(parsingOptions.FilterProvider ?? DefaultFilterProvider.Instance);
 
-            var version = FileHeaderParser.Parse(scanner, inputBytes, parsingOptions.UseLenientParsing, parsingOptions.Logger);
+            var version = FileHeaderParser.Parse(scanner, inputBytes, parsingOptions.UseLenientParsing, parsingOptions.Logger, token);
 
             var fileHeaderOffset = new FileHeaderOffset(version.OffsetInFile);
 
@@ -134,7 +136,8 @@
                 inputBytes,
                 scanner,
                 filterProvider,
-                parsingOptions.Logger);
+                parsingOptions.Logger,
+                token);
 
             if (initialParse.Trailer == null)
             {

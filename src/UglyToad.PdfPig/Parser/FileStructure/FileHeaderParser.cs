@@ -6,6 +6,7 @@
     using Content;
     using Core;
     using Logging;
+    using System.Threading;
     using Tokenization.Scanner;
     using Tokens;
     using UglyToad.PdfPig.Util;
@@ -29,7 +30,7 @@
     /// </remarks>
     internal static class FileHeaderParser
     {
-        public static HeaderVersion Parse(ISeekableTokenScanner scanner, IInputBytes inputBytes, bool isLenientParsing, ILog log)
+        public static HeaderVersion Parse(ISeekableTokenScanner scanner, IInputBytes inputBytes, bool isLenientParsing, ILog log, CancellationToken token)
         {
             if (scanner is null)
             {
@@ -39,27 +40,41 @@
             var startPosition = scanner.CurrentPosition;
 
             const int junkTokensTolerance = 30;
-            var attempts = 0;
-            CommentToken? comment;
-            do
+
+            try
             {
-                if (attempts == junkTokensTolerance || !scanner.MoveNext())
+                var attempts = 0;
+                int i = 0;
+                CommentToken? comment;
+                do
                 {
-                    if (!TryBruteForceVersionLocation(startPosition, inputBytes, out var version))
+                    if (i++ % 100 == 0)
                     {
-                        throw new PdfDocumentFormatException("Could not find the version header comment at the start of the document.");
+                        token.ThrowIfCancellationRequested();
                     }
 
-                    scanner.Seek(startPosition);
-                    return version;
-                }
+                    if (attempts == junkTokensTolerance || !scanner.MoveNext())
+                    {
+                        if (!TryBruteForceVersionLocation(startPosition, inputBytes, out var version, token))
+                        {
+                            throw new PdfDocumentFormatException(
+                                "Could not find the version header comment at the start of the document.");
+                        }
 
-                comment = scanner.CurrentToken as CommentToken;
+                        return version;
+                    }
 
-                attempts++;
-            } while (comment is null);
+                    comment = scanner.CurrentToken as CommentToken;
 
-            return GetHeaderVersionAndResetScanner(comment, scanner, isLenientParsing, log);
+                    attempts++;
+                } while (comment is null);
+
+                return GetHeaderVersionAndResetScanner(comment, scanner, isLenientParsing, log);
+            }
+            finally
+            {
+                scanner.Seek(startPosition);
+            }
         }
 
         private static HeaderVersion GetHeaderVersionAndResetScanner(CommentToken comment, ISeekableTokenScanner scanner, bool isLenientParsing, ILog log)
@@ -91,7 +106,7 @@
             return result;
         }
 
-        private static bool TryBruteForceVersionLocation(long startPosition, IInputBytes inputBytes, [NotNullWhen(true)] out HeaderVersion? headerVersion)
+        private static bool TryBruteForceVersionLocation(long startPosition, IInputBytes inputBytes, [NotNullWhen(true)] out HeaderVersion? headerVersion, CancellationToken token)
         {
             headerVersion = null;
 
@@ -107,42 +122,54 @@
 
             var currentOffset = startPosition;
             int readLength;
-            do
+            try
             {
-                readLength = inputBytes.Read(buffer);
-
-                var content = OtherEncodings.BytesAsLatin1String(buffer);
-
-                var pdfIndex = content.IndexOf("%PDF-", StringComparison.OrdinalIgnoreCase);
-                var fdfIndex = content.IndexOf("%FDF-", StringComparison.OrdinalIgnoreCase);
-                var actualIndex = pdfIndex >= 0 ? pdfIndex : fdfIndex;
-
-                if (actualIndex >= 0 && content.Length - actualIndex >= versionLength)
+                int i = 0;
+                do
                 {
-                    var numberPart = content.AsSpanOrSubstring(actualIndex + 5, 3);
-                    if (double.TryParse(
-                            numberPart,
-                            NumberStyles.Number,
-                            CultureInfo.InvariantCulture,
-                            out var version))
+                    if (i++ % 100 == 0)
                     {
-                        var afterCommentSymbolIndex = actualIndex + 1;
-
-                        headerVersion = new HeaderVersion(
-                            version,
-                            content.Substring(afterCommentSymbolIndex, versionLength - 1),
-                            currentOffset + actualIndex);
-
-                        inputBytes.Seek(startPosition);
-
-                        return true;
+                        token.ThrowIfCancellationRequested();
                     }
-                }
 
-                currentOffset += readLength - versionLength;
-                inputBytes.Seek(currentOffset);
-            } while (readLength == bufferLength);
+                    readLength = inputBytes.Read(buffer);
 
+                    var content = OtherEncodings.BytesAsLatin1String(buffer);
+
+                    var pdfIndex = content.IndexOf("%PDF-", StringComparison.OrdinalIgnoreCase);
+                    var fdfIndex = content.IndexOf("%FDF-", StringComparison.OrdinalIgnoreCase);
+                    var actualIndex = pdfIndex >= 0 ? pdfIndex : fdfIndex;
+
+                    if (actualIndex >= 0 && content.Length - actualIndex >= versionLength)
+                    {
+                        var numberPart = content.AsSpanOrSubstring(actualIndex + 5, 3);
+                        if (double.TryParse(
+                                numberPart,
+                                NumberStyles.Number,
+                                CultureInfo.InvariantCulture,
+                                out var version))
+                        {
+                            var afterCommentSymbolIndex = actualIndex + 1;
+
+                            headerVersion = new HeaderVersion(
+                                version,
+                                content.Substring(afterCommentSymbolIndex, versionLength - 1),
+                                currentOffset + actualIndex);
+                            
+                            return true;
+                        }
+                    }
+
+                    currentOffset += readLength - versionLength;
+                    inputBytes.Seek(currentOffset);
+                } while (readLength == bufferLength);
+
+            }
+            finally
+            {
+                inputBytes.Seek(startPosition);
+            }
+            
             return false;
         }
 

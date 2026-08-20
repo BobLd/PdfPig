@@ -1,11 +1,12 @@
 namespace UglyToad.PdfPig.Parser.FileStructure;
 
 using Core;
+using Filters;
 using Logging;
 using System.Globalization;
+using System.Threading;
 using Tokenization.Scanner;
 using Tokens;
-using Filters;
 using Util;
 
 internal static class XrefBruteForcer
@@ -14,7 +15,8 @@ internal static class XrefBruteForcer
         IInputBytes bytes,
         ISeekableTokenScanner scanner,
         IFilterProvider filterProvider,
-        ILog log)
+        ILog log,
+        CancellationToken token)
     {
         var results = new List<IXrefSection>();
 
@@ -58,9 +60,15 @@ internal static class XrefBruteForcer
             positionsQueue[1] = bytes.CurrentOffset - numberByteBuffer.Count - 1;
         }
 
+        int i = 0;
         // search for xref tables and /XRef stream types, record all object positions.
         while (bytes.MoveNext() && !bytes.IsAtEnd())
         {
+            if (i++ % 100 == 0)
+            {
+                token.ThrowIfCancellationRequested();
+            }
+
             if (bytes.CurrentByte == '%')
             {
                 inComment = true;

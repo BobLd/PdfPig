@@ -1,9 +1,5 @@
 ﻿namespace UglyToad.PdfPig
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Diagnostics.CodeAnalysis;
-    using System.IO;
     using AcroForms;
     using Content;
     using Core;
@@ -11,11 +7,16 @@
     using Encryption;
     using Exceptions;
     using Filters;
-    using Parser;
-    using Tokenization.Scanner;
-    using Tokens;
     using Outline;
     using Outline.Destinations;
+    using Parser;
+    using System;
+    using System.Collections.Generic;
+    using System.Diagnostics.CodeAnalysis;
+    using System.IO;
+    using System.Threading;
+    using Tokenization.Scanner;
+    using Tokens;
 
     /// <inheritdoc />
     /// <summary>
@@ -103,7 +104,7 @@
         /// <param name="fileBytes">The bytes of the PDF file.</param>
         /// <param name="options">Optional parameters controlling parsing.</param>
         /// <returns>A <see cref="PdfDocument"/> providing access to the file contents.</returns>
-        public static PdfDocument Open(byte[] fileBytes, ParsingOptions? options = null) => PdfDocumentFactory.Open(fileBytes, options);
+        public static PdfDocument Open(byte[] fileBytes, ParsingOptions? options = null, CancellationToken token = default) => PdfDocumentFactory.Open(fileBytes, options, token);
 
         /// <summary>
         /// Creates a <see cref="PdfDocument"/> for reading from the provided file bytes.
@@ -111,7 +112,7 @@
         /// <param name="memory">The bytes of the PDF file.</param>
         /// <param name="options">Optional parameters controlling parsing.</param>
         /// <returns>A <see cref="PdfDocument"/> providing access to the file contents.</returns>
-        public static PdfDocument Open(ReadOnlyMemory<byte> memory, ParsingOptions? options = null) => PdfDocumentFactory.Open(memory, options);
+        public static PdfDocument Open(ReadOnlyMemory<byte> memory, ParsingOptions? options = null, CancellationToken token = default) => PdfDocumentFactory.Open(memory, options, token);
 
         /// <summary>
         /// Opens a file and creates a <see cref="PdfDocument"/> for reading from the provided file path.
@@ -119,7 +120,7 @@
         /// <param name="filePath">The full path to the file location of the PDF file.</param>
         /// <param name="options">Optional parameters controlling parsing.</param>
         /// <returns>A <see cref="PdfDocument"/> providing access to the file contents.</returns>
-        public static PdfDocument Open(string filePath, ParsingOptions? options = null) => PdfDocumentFactory.Open(filePath, options);
+        public static PdfDocument Open(string filePath, ParsingOptions? options = null, CancellationToken token = default) => PdfDocumentFactory.Open(filePath, options, token);
 
         /// <summary>
         /// Creates a <see cref="PdfDocument"/> for reading from the provided stream.
@@ -135,7 +136,7 @@
         /// </param>
         /// <param name="options">Optional parameters controlling parsing.</param>
         /// <returns>A <see cref="PdfDocument"/> providing access to the file contents.</returns>
-        public static PdfDocument Open(Stream stream, ParsingOptions? options = null) => PdfDocumentFactory.Open(stream, options);
+        public static PdfDocument Open(Stream stream, ParsingOptions? options = null, CancellationToken token = default) => PdfDocumentFactory.Open(stream, options, token);
 
         /// <summary>
         /// Add a page factory.

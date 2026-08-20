@@ -1,11 +1,12 @@
 ﻿namespace UglyToad.PdfPig.Parser.FileStructure;
 
 using Core;
+using Filters;
 using Logging;
 using System.Linq;
+using System.Threading;
 using Tokenization.Scanner;
 using Tokens;
-using Filters;
 
 internal static partial class FirstPassParser
 {
@@ -14,7 +15,8 @@ internal static partial class FirstPassParser
         IInputBytes input,
         ISeekableTokenScanner scanner,
         IFilterProvider filterProvider,
-        ILog? log = null)
+        ILog? log,
+        CancellationToken token)
     {
         log ??= new NoOpLog();
 
@@ -23,7 +25,7 @@ internal static partial class FirstPassParser
         DictionaryToken? bruteForceTrailer = null;
 
         // 1. Find the "startxref" declared in the file and its corresponding offset value.
-        var startXrefLocation = GetFirstCrossReferenceOffset(input, scanner, log);
+        var startXrefLocation = GetFirstCrossReferenceOffset(input, scanner, log, token);
 
         // 2. Read all XRef streams and tables using the offsets provided by the file.
         var streamsAndTables = GetXrefPartsDirectly(
@@ -32,12 +34,13 @@ internal static partial class FirstPassParser
             scanner,
             filterProvider,
             startXrefLocation,
-            log);
+            log,
+            token);
 
         if (streamsAndTables.Count == 0)
         {
             // 3. If we can't parse the XRefs using the file data then fall back to brute-forcing every part.
-            var bruteForce = XrefBruteForcer.FindAllXrefsInFileOrder(input, scanner, filterProvider, log);
+            var bruteForce = XrefBruteForcer.FindAllXrefsInFileOrder(input, scanner, filterProvider, log, token);
 
             streamsAndTables = bruteForce.XRefParts;
             bruteForceOffsets = bruteForce.ObjectOffsets;
@@ -130,7 +133,8 @@ internal static partial class FirstPassParser
         ISeekableTokenScanner scanner,
         IFilterProvider filterProvider,
         StartXRefLocation startLocation,
-        ILog log)
+        ILog log,
+        CancellationToken token)
     {
         if (!startLocation.StartXRefDeclaredOffset.HasValue
             || !startLocation.IsValidOffset(input))
@@ -141,8 +145,14 @@ internal static partial class FirstPassParser
         var visitedLocations = new HashSet<long>();
         var results = new List<IXrefSection>();
         long? nextLocation = startLocation.StartXRefDeclaredOffset.Value;
+        int i = 0;
         do
         {
+            if (i++ % 100 == 0)
+            {
+                token.ThrowIfCancellationRequested();
+            }
+            
             var streamOrTable = GetXrefStreamOrTable(
                 offset,
                 input,
