@@ -1,4 +1,4 @@
-﻿namespace UglyToad.PdfPig.Tests.Writer
+namespace UglyToad.PdfPig.Tests.Writer
 {
     using System.Collections.Generic;
     using System.Text;

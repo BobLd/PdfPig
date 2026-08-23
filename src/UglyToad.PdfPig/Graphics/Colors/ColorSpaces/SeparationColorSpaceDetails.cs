@@ -4,8 +4,8 @@
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
-    using UglyToad.PdfPig.Functions;
-    using UglyToad.PdfPig.Tokens;
+    using Functions;
+    using Tokens;
 
     /// <summary>
     /// A Separation color space provides a means for specifying the use of additional colorants or

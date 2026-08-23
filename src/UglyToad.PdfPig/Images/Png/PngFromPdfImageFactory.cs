@@ -3,7 +3,7 @@
     using System.Diagnostics.CodeAnalysis;
     using Content;
     using Graphics.Colors;
-    using UglyToad.PdfPig.Core;
+    using Core;
 
     internal static class PngFromPdfImageFactory
     {

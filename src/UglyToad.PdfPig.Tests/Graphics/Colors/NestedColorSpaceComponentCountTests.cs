@@ -1,14 +1,18 @@
 ﻿namespace UglyToad.PdfPig.Tests.Graphics.Colors
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Diagnostics.CodeAnalysis;
     using PdfPig.Functions;
     using PdfPig.Graphics.Colors;
+    using PdfPig.Graphics.Colors.Icc;
     using PdfPig.Graphics.Core;
     using PdfPig.Tokens;
 
     /// <summary>
     /// <see cref="ColorSpaceDetails.BaseNumberOfColorComponents"/> must report the component count of the
     /// space the samples are ultimately expressed in, i.e. the count that <see cref="ColorSpaceDetails.Process"/>
-    /// (and therefore <see cref="ColorSpaceDetails.Transform"/>) actually produces per sample, and
+    /// (and therefore <see cref="ColorSpaceDetails.Transform"/>) actually produces per sample - and
     /// <see cref="ColorSpaceDetails.BaseType"/> must name that same space, resolved to the same depth.
     /// </summary>
     public class NestedColorSpaceComponentCountTests
@@ -81,12 +85,13 @@
         }
 
         [Fact]
-        public void Separation_OverIccBased_ResolvesToTheDeviceAlternate()
+        public void Separation_OverIccBasedWithoutAProfile_ResolvesToTheDeviceAlternate()
         {
-            // The ICCBased space is really converting through DeviceCMYK, which is what
+            // No profile, so the ICCBased space is really converting through DeviceCMYK - which is what
             // BaseNumberOfColorComponents has always said, and what BaseType now says too. Naming the
             // intermediate ICCBased here would describe a step the colours do not actually take.
-            var icc = new ICCBasedColorSpaceDetails(4, DeviceCmykColorSpaceDetails.Instance, null, null);
+            var icc = new ICCBasedColorSpaceDetails(4, DeviceCmykColorSpaceDetails.Instance,
+                null, null, null);
             var separation = new SeparationColorSpaceDetails(
                 NameToken.Create("Spot"),
                 icc,
@@ -97,25 +102,41 @@
         }
 
         [Fact]
-        public void IccBased_OverADeviceN_ReportsTheDeviceNsOwnBaseWidth()
+        public void Separation_OverIccBasedWithAProfile_StopsAtTheIccBasedSpace()
         {
-            // The alternate is what Transform delegates to, so a 3 component ICCBased over a DeviceN
-            // that expands to CMYK still writes 4 bytes per sample. Reporting NumberOfColorComponents
-            // here sized every downstream buffer to 3 and ran the write off the end.
-            //
-            // The alternate takes three components like the space itself, which is what lets it stand in
-            // for the profile at all; only the width it converts *into* differs.
-            var deviceN = new DeviceNColorSpaceDetails(
-                [NameToken.Create("A"), NameToken.Create("B"), NameToken.Create("C")],
-                DeviceCmykColorSpaceDetails.Instance,
+            // With a profile the colours are placed absolutely, so the chain stops: they are not device
+            // colours, and an output intent must not be applied on top of a profile that has already
+            // decided what they are.
+            var icc = new ICCBasedColorSpaceDetails(4, DeviceCmykColorSpaceDetails.Instance,
+                null, null, new WorkingProfile(4));
+            var separation = new SeparationColorSpaceDetails(
+                NameToken.Create("Spot"),
+                icc,
                 Tint([0, 0, 0, 0], [0, 0, 0, 1]));
 
-            var icc = new ICCBasedColorSpaceDetails(3, deviceN, null, null);
+            Assert.Equal(ColorSpace.ICCBased, separation.BaseType);
+            Assert.Equal(3, separation.BaseNumberOfColorComponents);
+        }
 
-            Assert.Same(deviceN, icc.AlternateColorSpace);
-            Assert.Equal(3, icc.NumberOfColorComponents);
-            Assert.Equal(4, icc.BaseNumberOfColorComponents);
-            Assert.Equal(ColorSpace.DeviceCMYK, icc.BaseType);
+        /// <summary>
+        /// A profile that converts, so <see cref="ICCBasedColorSpaceDetails"/> keeps it rather than falling
+        /// back to the alternate.
+        /// </summary>
+        private sealed class WorkingProfile(int components) : IIccProfile, IIccTransform
+        {
+            public int NumberOfComponents { get; } = components;
+
+            public IReadOnlyList<double> ComponentRanges { get; } = new double[components * 2];
+
+            public bool TryGetTransform(RenderingIntent intent, [NotNullWhen(true)] out IIccTransform? transform)
+            {
+                transform = this;
+                return true;
+            }
+
+            public (double r, double g, double b) ToRgb(ReadOnlySpan<double> values) => (0.0, 0.0, 0.0);
+
+            public void Transform(ReadOnlySpan<byte> src, Span<byte> dstRgb) => dstRgb.Clear();
         }
 
         [Fact]

@@ -4,8 +4,9 @@
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Linq;
-
+    
     using Colors;
+    using Colors.Icc;
     using Content;
     using Core;
     using Filters;
@@ -126,6 +127,19 @@
         /// <summary>
         /// Abstract stream processor constructor.
         /// </summary>
+        /// <param name="outputIntentProfile">
+        /// The profile device colours are colour-managed through for this content (14.11.5), or
+        /// <see langword="null"/> when they are not managed.
+        /// <para>
+        /// A processor for a <b>page</b> passes
+        /// <c>resourceStore.GetPageOutputIntentProfile(pageDictionary)</c>, which applies the page's own
+        /// <c>/OutputIntents</c> over the document catalog's. A processor for anything else - a form
+        /// XObject, a tiling pattern, a shading, a soft mask - passes the profile in force where it was
+        /// invoked: such content carries no <c>/OutputIntents</c> of its own, so
+        /// resolving any for itself would discard a page-level override, or reinstate one the invoking
+        /// context had deliberately suppressed.
+        /// </para>
+        /// </param>
         protected BaseStreamProcessor(
             int pageNumber,
             IResourceStore resourceStore,
@@ -136,6 +150,7 @@
             UserSpaceUnit userSpaceUnit,
             PageRotationDegrees rotation,
             in TransformationMatrix initialMatrix,
+            IIccProfile? outputIntentProfile,
             ParsingOptions parsingOptions)
         {
             this.PageNumber = pageNumber;
@@ -151,7 +166,8 @@
             {
                 CurrentTransformationMatrix = initialMatrix,
                 CurrentClippingPath = GetInitialClipping(cropBox, rotation),
-                ColorSpaceContext = new ColorSpaceContext(GetCurrentState, resourceStore)
+                ColorSpaceContext = new ColorSpaceContext(GetCurrentState, resourceStore),
+                OutputIntentProfile = outputIntentProfile
             });
         }
 
@@ -1022,7 +1038,8 @@
                 FilterProvider,
                 PdfScanner,
                 GetCurrentState().RenderingIntent,
-                ResourceStore);
+                ResourceStore,
+                ParsingOptions);
 
             RenderInlineImage(image);
 

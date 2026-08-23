@@ -1,7 +1,7 @@
-﻿namespace UglyToad.PdfPig.Tests.Graphics.Colors
+namespace UglyToad.PdfPig.Tests.Graphics.Colors
 {
     using PdfPig.Graphics.Colors;
-    using PdfPig.Graphics.Core;
+    using UglyToad.PdfPig.Graphics.Core;
 
     /// <summary>
     /// Indexed colour-table bytes must decode to the base colour space's native component

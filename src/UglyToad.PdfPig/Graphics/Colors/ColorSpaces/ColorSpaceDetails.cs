@@ -1,7 +1,6 @@
 ﻿namespace UglyToad.PdfPig.Graphics.Colors
 {
     using System;
-    using System.Runtime.CompilerServices;
     using Core;
 
     /// <summary>
@@ -23,10 +22,19 @@
         /// The device colour space this one's colours are ultimately expressed in, or this colour space
         /// itself when they are not device colours at all.
         /// <para>
-        /// Resolved all the way down: a Separation over an ICCBased that fell back to
+        /// Resolved all the way down, not one level: a Separation over an ICCBased that fell back to
         /// DeviceCMYK reports <see cref="ColorSpace.DeviceCMYK"/>, because that is what its colours end up
         /// being. It pairs with <see cref="BaseNumberOfColorComponents"/>, which counts the components of
         /// that same space, and the two are always resolved to the same depth.
+        /// </para>
+        /// <para>
+        /// The chain stops at any colour space that defines its colours absolutely rather than by what a
+        /// device would do with them - <see cref="ColorSpace.Lab"/>, <see cref="ColorSpace.CalRGB"/>,
+        /// <see cref="ColorSpace.CalGray"/>, and an <see cref="ColorSpace.ICCBased"/> space with a usable
+        /// profile - each of which reports itself. Those colours are already colorimetric, so the question
+        /// this property answers, "may these be treated as device colours?", is answered "no" for them.
+        /// That is what keeps an output intent from being applied on top of a profile that has already
+        /// placed the colour (14.11.5 and 8.6.5.7).
         /// </para>
         /// </summary>
         public ColorSpace BaseType { get; protected set; }
@@ -134,7 +142,7 @@
         /// <para>
         /// This default is <c>[0, 1]</c> per component, which is right for the device spaces and for most
         /// CIE ones. Spaces whose components are not measured in <c>[0, 1]</c> (Indexed, whose sample is an
-        /// index, and Lab, whose L* runs to 100) override it.
+        /// index, and Lab and an L*a*b* ICC profile, whose L* runs to 100) override it.
         /// </para>
         /// </summary>
         /// <param name="bitsPerComponent">Bits per component of the image the samples came from.</param>
@@ -167,10 +175,16 @@
         }
 
         /// <summary>
-        /// Convert a component in <c>[0, 1]</c> to the byte encoding it in <c>[0, 255]</c>, clipping anything outside that
+        /// Convert a component in <c>[0, 1]</c> to the byte encoding it, clipping anything outside that
         /// range to the nearest end.
+        /// <para>
+        /// The clipping is not belt and braces: converting a <see cref="double"/> that lies outside
+        /// <see cref="byte"/>'s range - or that is <see cref="double.NaN"/> - is undefined in C# and in
+        /// practice yields an arbitrary byte rather than a clipped one, so a colour space backed by a
+        /// third-party <see cref="Icc.IIccTransform"/> could turn a slightly out-of-gamut component into a
+        /// wildly wrong pixel.
+        /// </para>
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected static byte ConvertToByte(double componentValue)
         {
             // Written as a pair of positive tests so that NaN, which compares false against everything,
@@ -185,7 +199,9 @@
                 return 255;
             }
 
-            return (byte)Math.Round(componentValue * 255, MidpointRounding.AwayFromZero);
+            // Now that the value is known to be in (0, 1), adding a half and truncating rounds away from
+            // zero exactly as Math.Round(x, MidpointRounding.AwayFromZero) did, without the call.
+            return (byte)(componentValue * 255.0 + 0.5);
         }
     }
 }

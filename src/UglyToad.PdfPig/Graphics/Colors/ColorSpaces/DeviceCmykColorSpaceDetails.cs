@@ -1,7 +1,7 @@
 ﻿namespace UglyToad.PdfPig.Graphics.Colors
 {
-    using Core;
     using System;
+    using Core;
 
     /// <summary>
     /// Color values are defined by four components cyan, magenta, yellow and black.
@@ -45,7 +45,7 @@
             {
                 return CMYKColor.Black;
             }
-            
+
             if (c == 0 && m == 0 && y == 0 && k == 0)
             {
                 return CMYKColor.White;

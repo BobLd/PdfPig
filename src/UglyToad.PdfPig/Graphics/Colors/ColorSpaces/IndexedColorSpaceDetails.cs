@@ -172,8 +172,13 @@
                 }
             }
 
-            // Every base colour space lays its palette out the same way (NumberOfColorComponents bytes
-            // per entry, in the base's own component order) so the count is the only thing that varies.
+            // Every base colour space lays its palette out the same way - NumberOfColorComponents bytes
+            // per entry, in the base's own component order - so the count is the only thing that varies.
+            // This used to be a switch over BaseType with one arm per width, which meant BaseType had to
+            // name the space the table belongs to and could not also answer the question it answers now.
+            //
+            // UnsupportedColorSpaceDetails has no component count to give and presents itself as
+            // DeviceGray; a stencil built over one keeps the single-byte lookup that arm gave it.
             int components = BaseColorSpace is UnsupportedColorSpaceDetails
                 ? 1
                 : BaseColorSpace.NumberOfColorComponents;

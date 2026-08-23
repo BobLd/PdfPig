@@ -1,4 +1,4 @@
-﻿namespace UglyToad.PdfPig.Tests.Graphics.Colors
+namespace UglyToad.PdfPig.Tests.Graphics.Colors
 {
     using System;
     using System.Collections.Generic;

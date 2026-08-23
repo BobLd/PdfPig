@@ -2,7 +2,7 @@
 {
     using Core;
     using System;
-    using UglyToad.PdfPig.Functions;
+    using Functions;
 
     /// <summary>
     /// <see cref="ColorSpaceDetails"/> that have a tint function: <see cref="SeparationColorSpaceDetails"/> and <see cref="DeviceNColorSpaceDetails"/>.
@@ -20,7 +20,7 @@
         {
             int alternateComponents = alternate.NumberOfColorComponents;
             int written = tint.Eval(tintInput, buffer);
-
+            
             var destination = buffer.Slice(0, alternateComponents);
             ColorSpaceDetails.Normalise(buffer.Slice(0, written), destination);
             return destination;

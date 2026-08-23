@@ -3,7 +3,7 @@
     using Core;
     using System;
     using System.Collections.Generic;
-    using UglyToad.PdfPig.Util;
+    using Util;
 
     /// <summary>
     /// CIE (Commission Internationale de l'Éclairage) colorspace.

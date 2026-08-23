@@ -4,8 +4,8 @@
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
-    using UglyToad.PdfPig.Functions;
-    using UglyToad.PdfPig.Tokens;
+    using Functions;
+    using Tokens;
 
     /// <summary>
     /// DeviceN colour spaces may contain an arbitrary number of colour components. They provide greater flexibility than

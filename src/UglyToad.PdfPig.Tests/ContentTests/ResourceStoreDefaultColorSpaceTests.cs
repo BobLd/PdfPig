@@ -5,7 +5,7 @@
     using PdfPig.Graphics;
     using PdfPig.Graphics.Colors;
     using PdfPig.Tokens;
-    using UglyToad.PdfPig.Tests.Tokens;
+    using PdfPig.Tests.Tokens;
     using Xunit;
 
     public class ResourceStoreDefaultColorSpaceTests
@@ -16,6 +16,7 @@
                 new TestPdfTokenScanner(),
                 new NoOpFontFactory(),
                 new TestFilterProvider(),
+                null,
                 new ParsingOptions
                 {
                     UseLenientParsing = true,
