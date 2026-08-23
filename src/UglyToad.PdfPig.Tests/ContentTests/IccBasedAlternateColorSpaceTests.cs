@@ -185,6 +185,24 @@
         }
 
         [Fact]
+        public void AlternateOfTheWrongWidth_IsIgnored()
+        {
+            // /N 4 with a 3-component alternate. The alternate stands in for the profile and is handed the
+            // very same operands, so a mismatch is not a colour that renders badly but one that cannot be
+            // evaluated at all - GetColor on the alternate would throw on the operand count. Falling back
+            // to the device space implied by /N keeps the two widths in step.
+            var details = Parse(CalRgbArray(), n: 4);
+
+            Assert.Same(DeviceCmykColorSpaceDetails.Instance, details.AlternateColorSpace);
+
+            // The point of the guard: this must not throw.
+            var (r, g, b) = details.GetColor([0.1, 0.2, 0.3, 0.4]).ToRGBValues();
+            Assert.InRange(r, 0.0, 1.0);
+            Assert.InRange(g, 0.0, 1.0);
+            Assert.InRange(b, 0.0, 1.0);
+        }
+
+        [Fact]
         public void AlternateOfPattern_IsIgnored()
         {
             // Table 66: the alternate "shall not be a Pattern colour space".
