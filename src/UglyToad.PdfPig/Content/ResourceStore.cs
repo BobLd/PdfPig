@@ -8,6 +8,7 @@
     using Graphics.Colors;
     using Parser.Parts;
     using PdfFonts;
+    using Logging;
     using Tokenization.Scanner;
     using Tokens;
     using Filters;
@@ -47,6 +48,8 @@
         private bool isResolvingDefaultSubstitute;
 
         private (NameToken? name, IFont? font) lastLoadedFont;
+
+        public ILog Logger => parsingOptions.Logger;
 
         public ResourceStore(IPdfTokenScanner scanner,
             IFontFactory fontFactory,
@@ -560,17 +563,17 @@
                 // If substitute failed to parse, then we revert back to device cs (G/RGB/CMYK).
                 // Pattern is also substituted here because 8.6.5.6 forbids it as a default, and its
                 // NumberOfColorComponents throws.
-                parsingOptions.Logger.Warn($"The {substituteName} colour space in the current resources cannot be used as a default " +
-                                           $"colour space; using {requested} itself instead.");
+                Logger.Warn($"The {substituteName} colour space in the current resources cannot be used as a default " +
+                            $"colour space; using {requested} itself instead.");
 
                 return device;
             }
 
             if (substitute.NumberOfColorComponents != device.NumberOfColorComponents)
             {
-                parsingOptions.Logger.Warn($"The {substituteName} colour space in the current resources takes " +
-                                           $"{substitute.NumberOfColorComponents} components where {requested} has " +
-                                           $"{device.NumberOfColorComponents}; ignoring it and using {requested} itself instead.");
+                Logger.Warn($"The {substituteName} colour space in the current resources takes " +
+                            $"{substitute.NumberOfColorComponents} components where {requested} has " +
+                            $"{device.NumberOfColorComponents}; ignoring it and using {requested} itself instead.");
 
                 return device;
             }
@@ -636,7 +639,7 @@
                     return dictToken;
                 }
 
-                parsingOptions.Logger.Error($"The graphic state dictionary does not contain the key '{name}'.");
+                Logger.Error($"The graphic state dictionary does not contain the key '{name}'.");
                 return null;
             }
 
