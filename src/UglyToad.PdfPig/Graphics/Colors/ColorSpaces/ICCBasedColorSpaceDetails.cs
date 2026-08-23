@@ -1,5 +1,6 @@
 ﻿namespace UglyToad.PdfPig.Graphics.Colors
 {
+    using Core;
     using System;
     using System.Collections.Generic;
     using System.Linq;
@@ -28,6 +29,14 @@
 
         /// <inheritdoc/>
         public override int BaseNumberOfColorComponents => AlternateColorSpace.BaseNumberOfColorComponents;
+
+        /// <summary>
+        /// <inheritdoc/>
+        /// <para>
+        /// Every conversion falls through to <see cref="AlternateColorSpace"/>, so its answer applies.
+        /// </para>
+        /// </summary>
+        public override bool RenderingIntentAffectsOutput => AlternateColorSpace.RenderingIntentAffectsOutput;
 
         /// <summary>
         /// An alternate color space that can be used in case the one specified in the stream data is not
@@ -114,15 +123,15 @@
         private static bool IsValidComponentCount(int components) => components is 1 or 3 or 4;
 
         /// <inheritdoc/>
-        internal override double[] Process(params double[] values)
+        internal override double[] Process(double[] values, RenderingIntent intent)
         {
             // TODO - use ICC profile
 
-            return AlternateColorSpace.Process(values);
+            return AlternateColorSpace.Process(values, intent);
         }
 
         /// <inheritdoc/>
-        public override IColor GetColor(ReadOnlySpan<double> values)
+        public override IColor GetColor(ReadOnlySpan<double> values, RenderingIntent intent)
         {
             if (values.Length != NumberOfColorComponents)
             {
@@ -138,11 +147,11 @@
                 buffer[c] = PdfFunction.ClipToRange(values[c], Range[i], Range[i + 1]);
             }
 
-            return AlternateColorSpace.GetColor(buffer);
+            return AlternateColorSpace.GetColor(buffer, intent);
         }
 
         /// <inheritdoc/>
-        public override IColor GetInitializeColor()
+        public override IColor GetInitializeColor(RenderingIntent intent)
         {
             // Setting the current stroking or nonstroking colour space to any CIE-based colour space shall
             // initialize all components of the corresponding current colour to 0.0 (unless the range of valid
@@ -151,11 +160,12 @@
             double v = PdfFunction.ClipToRange(0.0, Range[0], Range[1]);
             Span<double> buffer = stackalloc double[NumberOfColorComponents]; // 1, 3 or 4
             buffer.Fill(v);
-            return GetColor(buffer);
+            return GetColor(buffer, intent);
         }
 
         /// <inheritdoc/>
-        public override void GetRgb(ReadOnlySpan<double> values, out double r, out double g, out double b)
+        public override void GetRgb(ReadOnlySpan<double> values, RenderingIntent intent,
+            out double r, out double g, out double b)
         {
             // TODO - use ICC profile
 
@@ -165,7 +175,7 @@
                 int i = 2 * c;
                 clipped[c] = PdfFunction.ClipToRange(values[c], Range[i], Range[i + 1]);
             }
-            AlternateColorSpace.GetRgb(clipped, out r, out g, out b);
+            AlternateColorSpace.GetRgb(clipped, intent, out r, out g, out b);
         }
 
         /// <summary>
@@ -189,11 +199,11 @@
             => AlternateColorSpace.DecodeRawComponents(raw, destination);
 
         /// <inheritdoc/>
-        internal override Span<byte> Transform(Span<byte> decoded)
+        internal override Span<byte> Transform(Span<byte> decoded, RenderingIntent intent)
         {
             // TODO - use ICC profile
 
-            return AlternateColorSpace.Transform(decoded);
+            return AlternateColorSpace.Transform(decoded, intent);
         }
     }
 }

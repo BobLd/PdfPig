@@ -4,6 +4,7 @@
     using PdfPig.Content;
     using PdfPig.Core;
     using PdfPig.Graphics.Colors;
+    using PdfPig.Graphics.Core;
     using PdfPig.Tokens;
     using PdfPig.Tests.Tokens;
     using Xunit;
@@ -137,7 +138,7 @@
             Assert.Equal(4, details.BaseNumberOfColorComponents);
 
             Span<byte> samples = stackalloc byte[2] { 0, 255 };
-            var transformed = details.Transform(samples);
+            var transformed = details.Transform(samples, RenderingIntent.RelativeColorimetric);
             Assert.Equal(2 * details.BaseNumberOfColorComponents, transformed.Length);
         }
 

@@ -1,10 +1,12 @@
 ﻿namespace UglyToad.PdfPig.Graphics
 {
     using Colors;
+    using Core;
     using Tokens;
 
     /// <summary>
-    /// A current colour, together with the Pattern it was selected through when it was selected that way.
+    /// A current colour, kept as the operands it was selected with so that it can be reconverted if the
+    /// rendering intent changes before anything is painted with it.
     /// <para>
     /// A Pattern colour is two things at once: the pattern itself, which is what the colour <i>is</i>, and
     /// (for an uncoloured tiling pattern) the colour its cell is painted in, which is selected by the same
@@ -13,6 +15,23 @@
     /// </summary>
     internal readonly struct PdfColorInfo
     {
+        /// <summary>
+        /// The colour space <see cref="operands"/> belong to, or <see langword="null"/> when
+        /// <see cref="color"/> was handed over ready-made and there is nothing to reconvert from.
+        /// <para>
+        /// For a Pattern colour this is the <i>underlying</i> colour space of an uncoloured tiling pattern
+        /// (8.7.3.3) rather than the Pattern space itself, which cannot convert anything.
+        /// </para>
+        /// </summary>
+        private readonly ColorSpaceDetails? colorSpace;
+
+        /// <summary>
+        /// The selected component values, or <see langword="null"/> for the colour space's initial colour,
+        /// which <see cref="ColorSpaceDetails.GetInitializeColor(RenderingIntent)"/> derives itself and no
+        /// operand array stands behind.
+        /// </summary>
+        private readonly double[]? operands;
+
         /// <summary>
         /// What the operands convert to. For a Pattern colour this is the <i>underlying</i> colour an
         /// uncoloured tiling pattern paints with, and <see cref="patternColor"/> is the colour itself.
@@ -25,26 +44,42 @@
         /// </summary>
         private readonly IColor? patternColor;
 
-        private PdfColorInfo(IColor? color, IColor? patternColor)
+        private readonly RenderingIntent intent;
+
+        private PdfColorInfo(ColorSpaceDetails? colorSpace, double[]? operands, IColor? color,
+            IColor? patternColor, RenderingIntent intent)
         {
+            this.colorSpace = colorSpace;
+            this.operands = operands;
             this.color = color;
             this.patternColor = patternColor;
+            this.intent = intent;
         }
 
         /// <summary>
         /// A colour with nothing behind it, which is what a consumer handing over an already-converted
         /// colour stores.
         /// </summary>
-        public static PdfColorInfo Fixed(IColor? color) => new(color, null);
+        public static PdfColorInfo Fixed(IColor? color)
+            => new(null, null, color, null, RenderingIntent.RelativeColorimetric);
 
         /// <summary>
         /// A colour selected in <paramref name="colorSpace"/>.
         /// </summary>
         /// <param name="colorSpace">The colour space the operands belong to.</param>
         /// <param name="operands">The selected component values, or <see langword="null"/> for the colour
-        /// space's initial colour.</param>
-        public static PdfColorInfo FromOperands(ColorSpaceDetails colorSpace, double[]? operands)
-            => new(Convert(colorSpace, operands), null);
+        /// space's initial colour. Stored by reference, the caller must not mutate it afterward.</param>
+        /// <param name="intent">The intent in force when the colour was selected.</param>
+        public static PdfColorInfo FromOperands(ColorSpaceDetails colorSpace, double[]? operands,
+            RenderingIntent intent)
+        {
+            var color = Convert(colorSpace, operands, intent);
+
+            // Nothing is worth retaining when the colour space cannot answer differently later.
+            return colorSpace.RenderingIntentAffectsOutput
+                ? new(colorSpace, operands, color, null, intent)
+                : Fixed(color);
+        }
 
         /// <summary>
         /// A Pattern colour selected by <c>SCN</c>/<c>scn</c>. The pattern itself comes from a name, but an
@@ -58,8 +93,9 @@
         /// <param name="operands">The component values accompanying the name, in the underlying colour space.
         /// Empty or <see langword="null"/> (the normal case for a coloured tiling pattern or a shading
         /// pattern) means there is no underlying colour to select.</param>
+        /// <param name="intent">The intent in force when the colour was selected.</param>
         public static PdfColorInfo ForPattern(PatternColorSpaceDetails patternColorSpace, NameToken patternName,
-            double[]? operands)
+            double[]? operands, RenderingIntent intent)
         {
             // Normalise "no operands" to null so that the underlying space derives its own initial colour
             // rather than being asked to convert an empty component list.
@@ -71,10 +107,12 @@
             var patternColor = patternColorSpace.GetColor(patternName);
             var underlyingColorSpace = GetUnderlyingColorSpace(patternColorSpace, patternColor, operands);
 
-            // No underlying colour at all - a coloured tiling pattern or a shading pattern.
+            // No underlying colour at all - a coloured tiling pattern or a shading pattern - so there is
+            // nothing to reconvert on a later intent either.
             return underlyingColorSpace is null
-                ? new PdfColorInfo(null, patternColor)
-                : new PdfColorInfo(Convert(underlyingColorSpace, operands), patternColor);
+                ? new PdfColorInfo(null, operands, null, patternColor, intent)
+                : new PdfColorInfo(underlyingColorSpace, operands,
+                    Convert(underlyingColorSpace, operands, intent), patternColor, intent);
         }
 
         /// <summary>
@@ -133,9 +171,27 @@
         /// </summary>
         public IColor? UnderlyingColor => patternColor is null ? null : color;
 
-        private static IColor? Convert(ColorSpaceDetails colorSpace, double[]? operands)
+        /// <summary>
+        /// This colour converted for <paramref name="currentIntent"/>, or itself when it already is.
+        /// <para>
+        /// The caller is expected to store the result back, so that a page painted entirely under a changed
+        /// intent converts once rather than once per letter.
+        /// </para>
+        /// </summary>
+        public PdfColorInfo Resolved(RenderingIntent currentIntent)
+        {
+            if (colorSpace is null || currentIntent == intent)
+            {
+                return this;
+            }
+
+            return new PdfColorInfo(colorSpace, operands, Convert(colorSpace, operands, currentIntent),
+                patternColor, currentIntent);
+        }
+
+        private static IColor? Convert(ColorSpaceDetails colorSpace, double[]? operands, RenderingIntent intent)
             => operands is null
-                ? colorSpace.GetInitializeColor()
-                : colorSpace.GetColor(operands);
+                ? colorSpace.GetInitializeColor(intent)
+                : colorSpace.GetColor(operands, intent);
     }
 }

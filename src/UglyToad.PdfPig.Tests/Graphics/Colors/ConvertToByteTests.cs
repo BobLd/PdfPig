@@ -2,6 +2,7 @@
 {
     using System;
     using PdfPig.Graphics.Colors;
+    using PdfPig.Graphics.Core;
     using Xunit;
 
     /// <summary>
@@ -26,16 +27,17 @@
 
             public override int BaseNumberOfColorComponents => 1;
 
-            public override IColor GetColor(ReadOnlySpan<double> values) => throw new NotSupportedException();
-
-            public override void GetRgb(ReadOnlySpan<double> values, out double r, out double g, out double b)
+            public override IColor GetColor(ReadOnlySpan<double> values, RenderingIntent intent)
                 => throw new NotSupportedException();
 
-            public override IColor? GetInitializeColor() => throw new NotSupportedException();
+            public override void GetRgb(ReadOnlySpan<double> values, RenderingIntent intent,
+                out double r, out double g, out double b) => throw new NotSupportedException();
 
-            internal override double[] Process(params double[] values) => throw new NotSupportedException();
+            public override IColor? GetInitializeColor(RenderingIntent intent) => throw new NotSupportedException();
 
-            internal override Span<byte> Transform(Span<byte> decoded) => throw new NotSupportedException();
+            internal override double[] Process(double[] values, RenderingIntent intent) => throw new NotSupportedException();
+
+            internal override Span<byte> Transform(Span<byte> decoded, RenderingIntent intent) => throw new NotSupportedException();
         }
 
         [Theory]

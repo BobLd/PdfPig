@@ -1,5 +1,6 @@
 ﻿namespace UglyToad.PdfPig.Graphics.Colors
 {
+    using Core;
     using System;
     using System.Collections.Generic;
     using UglyToad.PdfPig.Tokens;
@@ -29,6 +30,17 @@
         /// </para>
         /// </summary>
         public override int BaseNumberOfColorComponents => UnderlyingColourSpace!.NumberOfColorComponents;
+
+        /// <summary>
+        /// <inheritdoc/>
+        /// <para>
+        /// A pattern is selected by name and converts nothing itself. Only the operands an uncoloured tiling
+        /// pattern carries alongside the name are converted, through <see cref="UnderlyingColourSpace"/>;
+        /// a coloured tiling pattern or a shading pattern declares none.
+        /// </para>
+        /// </summary>
+        public override bool RenderingIntentAffectsOutput
+            => UnderlyingColourSpace?.RenderingIntentAffectsOutput ?? false;
 
         /// <summary>
         /// The underlying color space for Uncoloured Tiling Patterns.
@@ -62,7 +74,7 @@
         /// Cannot be called for <see cref="PatternColorSpaceDetails"/>, will throw a <see cref="InvalidOperationException"/>.
         /// </para>
         /// </summary>
-        internal override double[] Process(params double[] values)
+        internal override double[] Process(double[] values, RenderingIntent intent)
         {
             throw new InvalidOperationException("PatternColorSpaceDetails");
         }
@@ -74,13 +86,14 @@
         /// Use <see cref="GetColor(NameToken)"/> instead.
         /// </para>
         /// </summary>
-        public override IColor GetColor(ReadOnlySpan<double> values)
+        public override IColor GetColor(ReadOnlySpan<double> values, RenderingIntent intent)
         {
             throw new InvalidOperationException("PatternColorSpaceDetails");
         }
 
         /// <inheritdoc/>
-        public override void GetRgb(ReadOnlySpan<double> values, out double r, out double g, out double b)
+        public override void GetRgb(ReadOnlySpan<double> values, RenderingIntent intent,
+            out double r, out double g, out double b)
         {
             throw new InvalidOperationException("PatternColorSpaceDetails");
         }
@@ -89,7 +102,7 @@
         /// <inheritdoc/>
         /// </summary>
         /// <returns>Always returns <c>null</c>.</returns>
-        public override IColor? GetInitializeColor()
+        public override IColor? GetInitializeColor(RenderingIntent intent)
         {
             return null;
         }
@@ -100,7 +113,7 @@
         /// Cannot be called for <see cref="PatternColorSpaceDetails"/>, will throw a <see cref="InvalidOperationException"/>.
         /// </para>
         /// </summary>
-        internal override Span<byte> Transform(Span<byte> decoded)
+        internal override Span<byte> Transform(Span<byte> decoded, RenderingIntent intent)
         {
             throw new InvalidOperationException("PatternColorSpaceDetails");
         }

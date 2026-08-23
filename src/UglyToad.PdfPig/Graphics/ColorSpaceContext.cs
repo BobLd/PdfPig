@@ -128,16 +128,43 @@
             var colorSpace = resourceStore.GetDeviceColorSpaceDetails(deviceColorSpace);
             var state = currentStateFunc();
 
-            IColor color = colorSpace.GetColor(values);
-
             if (stroking)
             {
                 CurrentStrokingColorSpace = colorSpace;
-                state.SetStrokingColor(color);
             }
             else
             {
                 CurrentNonStrokingColorSpace = colorSpace;
+            }
+
+            if (colorSpace.RenderingIntentAffectsOutput)
+            {
+                // Paying the cost of allocating operands only here: this is the case where the graphics
+                // state keeps them, to reconvert from if the intent moves before the mark is made.
+                double[] operands = values.ToArray();
+
+                if (stroking)
+                {
+                    state.SetStrokingColor(colorSpace, operands);
+                }
+                else
+                {
+                    state.SetNonStrokingColor(colorSpace, operands);
+                }
+
+                return;
+            }
+
+            // The intent is still passed, even though it cannot affect the output; it is unconditionally
+            // the right value here.
+            var color = colorSpace.GetColor(values, state.RenderingIntent);
+
+            if (stroking)
+            {
+                state.SetStrokingColor(color);
+            }
+            else
+            {
                 state.SetNonStrokingColor(color);
             }
         }

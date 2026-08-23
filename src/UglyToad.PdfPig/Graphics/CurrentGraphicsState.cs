@@ -105,7 +105,11 @@ namespace UglyToad.PdfPig.Graphics
         /// </summary>
         public IColor? CurrentStrokingColor
         {
-            get => strokingColorInfo.Color;
+            get
+            {
+                strokingColorInfo = strokingColorInfo.Resolved(RenderingIntent);
+                return strokingColorInfo.Color;
+            }
 
             [Obsolete(ColorSetterRemoved, error: true)]
             set => throw new NotSupportedException(ColorSetterRemoved);
@@ -116,7 +120,11 @@ namespace UglyToad.PdfPig.Graphics
         /// </summary>
         public IColor? CurrentNonStrokingColor
         {
-            get => nonStrokingColorInfo.Color;
+            get
+            {
+                nonStrokingColorInfo = nonStrokingColorInfo.Resolved(RenderingIntent);
+                return nonStrokingColorInfo.Color;
+            }
 
             [Obsolete(ColorSetterRemoved, error: true)]
             set => throw new NotSupportedException(ColorSetterRemoved);
@@ -133,15 +141,30 @@ namespace UglyToad.PdfPig.Graphics
         /// any non-pattern colour.
         /// </para>
         /// </summary>
-        public IColor? CurrentStrokingUnderlyingColor => strokingColorInfo.UnderlyingColor;
+        public IColor? CurrentStrokingUnderlyingColor
+        {
+            get
+            {
+                strokingColorInfo = strokingColorInfo.Resolved(RenderingIntent);
+                return strokingColorInfo.UnderlyingColor;
+            }
+        }
 
         /// <summary>
         /// The non-stroking counterpart of <see cref="CurrentStrokingUnderlyingColor"/>, selected by <c>scn</c>.
         /// </summary>
-        public IColor? CurrentNonStrokingUnderlyingColor => nonStrokingColorInfo.UnderlyingColor;
+        public IColor? CurrentNonStrokingUnderlyingColor
+        {
+            get
+            {
+                nonStrokingColorInfo = nonStrokingColorInfo.Resolved(RenderingIntent);
+                return nonStrokingColorInfo.UnderlyingColor;
+            }
+        }
 
         /// <summary>
-        /// Select the stroking colour from the operands it was written with.
+        /// Select the stroking colour from the operands it was written with, keeping them so that the colour
+        /// can be reconverted if the rendering intent changes before anything is painted (8.6.5.8).
         /// </summary>
         /// <param name="colorSpace">The colour space the operands belong to.</param>
         /// <param name="operands">The selected component values, or <see langword="null"/> for the colour
@@ -149,7 +172,7 @@ namespace UglyToad.PdfPig.Graphics
         /// </param>
         public void SetStrokingColor(ColorSpaceDetails colorSpace, double[]? operands)
         {
-            strokingColorInfo = PdfColorInfo.FromOperands(colorSpace, operands);
+            strokingColorInfo = PdfColorInfo.FromOperands(colorSpace, operands, RenderingIntent);
         }
 
         /// <summary>
@@ -160,7 +183,7 @@ namespace UglyToad.PdfPig.Graphics
         /// space's own initial colour. Stored by reference, the caller must not mutate the array afterward.</param>
         public void SetNonStrokingColor(ColorSpaceDetails colorSpace, double[]? operands)
         {
-            nonStrokingColorInfo = PdfColorInfo.FromOperands(colorSpace, operands);
+            nonStrokingColorInfo = PdfColorInfo.FromOperands(colorSpace, operands, RenderingIntent);
         }
 
         /// <summary>
@@ -177,7 +200,7 @@ namespace UglyToad.PdfPig.Graphics
         public void SetStrokingPatternColor(PatternColorSpaceDetails patternColorSpace, NameToken patternName,
             double[]? operands)
         {
-            strokingColorInfo = PdfColorInfo.ForPattern(patternColorSpace, patternName, operands);
+            strokingColorInfo = PdfColorInfo.ForPattern(patternColorSpace, patternName, operands, RenderingIntent);
         }
 
         /// <summary>
@@ -190,11 +213,15 @@ namespace UglyToad.PdfPig.Graphics
         public void SetNonStrokingPatternColor(PatternColorSpaceDetails patternColorSpace, NameToken patternName,
             double[]? operands)
         {
-            nonStrokingColorInfo = PdfColorInfo.ForPattern(patternColorSpace, patternName, operands);
+            nonStrokingColorInfo = PdfColorInfo.ForPattern(patternColorSpace, patternName, operands, RenderingIntent);
         }
 
         /// <summary>
         /// Record an already-converted stroking colour, with no colour space or operands behind it.
+        /// <para>
+        /// <b>The colour is fixed: it stands exactly as given and will not follow a later intent change</b>,
+        /// because nothing is kept to reconvert it from.
+        /// </para>
         /// <para>
         /// Use it only for a colour a consumer has deliberately computed for itself. A colour selected from
         /// operands belongs on <see cref="SetStrokingColor(ColorSpaceDetails, double[])"/> and a Pattern
