@@ -106,8 +106,8 @@ namespace UglyToad.PdfPig.Graphics
         /// </summary>
         public IColorSpaceContext? ColorSpaceContext { get; set; }
 
-        private PdfColorInfo stroking;
-        private PdfColorInfo nonStroking;
+        private PdfColorInfo strokingColorInfo;
+        private PdfColorInfo nonStrokingColorInfo;
 
         /// <summary>
         /// The message on the <see cref="NotSupportedException"/> both colour setters now throw.
@@ -121,8 +121,8 @@ namespace UglyToad.PdfPig.Graphics
         {
             get
             {
-                stroking = stroking.Resolved(RenderingIntent);
-                return stroking.Color;
+                strokingColorInfo = strokingColorInfo.Resolved(RenderingIntent);
+                return strokingColorInfo.Color;
             }
 
             [Obsolete(ColorSetterRemoved, error: true)]
@@ -136,8 +136,8 @@ namespace UglyToad.PdfPig.Graphics
         {
             get
             {
-                nonStroking = nonStroking.Resolved(RenderingIntent);
-                return nonStroking.Color;
+                nonStrokingColorInfo = nonStrokingColorInfo.Resolved(RenderingIntent);
+                return nonStrokingColorInfo.Color;
             }
 
             [Obsolete(ColorSetterRemoved, error: true)]
@@ -160,8 +160,8 @@ namespace UglyToad.PdfPig.Graphics
         {
             get
             {
-                stroking = stroking.Resolved(RenderingIntent);
-                return stroking.UnderlyingColor;
+                strokingColorInfo = strokingColorInfo.Resolved(RenderingIntent);
+                return strokingColorInfo.UnderlyingColor;
             }
         }
 
@@ -172,8 +172,8 @@ namespace UglyToad.PdfPig.Graphics
         {
             get
             {
-                nonStroking = nonStroking.Resolved(RenderingIntent);
-                return nonStroking.UnderlyingColor;
+                nonStrokingColorInfo = nonStrokingColorInfo.Resolved(RenderingIntent);
+                return nonStrokingColorInfo.UnderlyingColor;
             }
         }
 
@@ -193,7 +193,7 @@ namespace UglyToad.PdfPig.Graphics
         public void SetStrokingColor(ColorSpaceDetails colorSpace, double[]? operands,
             IIccProfile? outputIntentProfile = null)
         {
-            stroking = PdfColorInfo.FromOperands(colorSpace, operands, RenderingIntent, outputIntentProfile);
+            strokingColorInfo = PdfColorInfo.FromOperands(colorSpace, operands, RenderingIntent, outputIntentProfile);
         }
 
         /// <summary>
@@ -216,7 +216,7 @@ namespace UglyToad.PdfPig.Graphics
         public void SetStrokingPatternColor(PatternColorSpaceDetails patternColorSpace, NameToken patternName,
             double[]? operands, IIccProfile? outputIntentProfile = null)
         {
-            stroking = PdfColorInfo.ForPattern(patternColorSpace, patternName, operands, RenderingIntent,
+            strokingColorInfo = PdfColorInfo.ForPattern(patternColorSpace, patternName, operands, RenderingIntent,
                 outputIntentProfile);
         }
 
@@ -233,7 +233,7 @@ namespace UglyToad.PdfPig.Graphics
         public void SetNonStrokingPatternColor(PatternColorSpaceDetails patternColorSpace, NameToken patternName,
             double[]? operands, IIccProfile? outputIntentProfile = null)
         {
-            nonStroking = PdfColorInfo.ForPattern(patternColorSpace, patternName, operands, RenderingIntent,
+            nonStrokingColorInfo = PdfColorInfo.ForPattern(patternColorSpace, patternName, operands, RenderingIntent,
                 outputIntentProfile);
         }
 
@@ -256,7 +256,7 @@ namespace UglyToad.PdfPig.Graphics
         /// </param>
         public void SetStrokingColor(IColor? color)
         {
-            stroking = PdfColorInfo.Fixed(color);
+            strokingColorInfo = PdfColorInfo.Fixed(color);
         }
 
         /// <summary>
@@ -271,7 +271,7 @@ namespace UglyToad.PdfPig.Graphics
         public void SetNonStrokingColor(ColorSpaceDetails colorSpace, double[]? operands,
             IIccProfile? outputIntentProfile = null)
         {
-            nonStroking = PdfColorInfo.FromOperands(colorSpace, operands, RenderingIntent, outputIntentProfile);
+            nonStrokingColorInfo = PdfColorInfo.FromOperands(colorSpace, operands, RenderingIntent, outputIntentProfile);
         }
 
         /// <summary>
@@ -284,7 +284,7 @@ namespace UglyToad.PdfPig.Graphics
         /// </param>
         public void SetNonStrokingColor(IColor? color)
         {
-            nonStroking = PdfColorInfo.Fixed(color);
+            nonStrokingColorInfo = PdfColorInfo.Fixed(color);
         }
 
         /// <summary>
@@ -344,8 +344,8 @@ namespace UglyToad.PdfPig.Graphics
                 OverprintMode = OverprintMode,
                 Smoothness = Smoothness,
                 StrokeAdjustment = StrokeAdjustment,
-                stroking = stroking,
-                nonStroking = nonStroking,
+                strokingColorInfo = strokingColorInfo,
+                nonStrokingColorInfo = nonStrokingColorInfo,
                 CurrentClippingPath = CurrentClippingPath,
                 ColorSpaceContext = ColorSpaceContext?.DeepClone(),
                 BlendMode = BlendMode,

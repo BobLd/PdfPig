@@ -1,6 +1,7 @@
 ﻿namespace UglyToad.PdfPig.Graphics.Colors
 {
     using System;
+    using System.Runtime.CompilerServices;
     using Core;
 
     /// <summary>
@@ -22,7 +23,7 @@
         /// The device colour space this one's colours are ultimately expressed in, or this colour space
         /// itself when they are not device colours at all.
         /// <para>
-        /// Resolved all the way down, not one level: a Separation over an ICCBased that fell back to
+        /// Resolved all the way down: a Separation over an ICCBased that fell back to
         /// DeviceCMYK reports <see cref="ColorSpace.DeviceCMYK"/>, because that is what its colours end up
         /// being. It pairs with <see cref="BaseNumberOfColorComponents"/>, which counts the components of
         /// that same space, and the two are always resolved to the same depth.
@@ -175,16 +176,10 @@
         }
 
         /// <summary>
-        /// Convert a component in <c>[0, 1]</c> to the byte encoding it, clipping anything outside that
+        /// Convert a component in <c>[0, 1]</c> to the byte encoding it in <c>[0, 255]</c>, clipping anything outside that
         /// range to the nearest end.
-        /// <para>
-        /// The clipping is not belt and braces: converting a <see cref="double"/> that lies outside
-        /// <see cref="byte"/>'s range - or that is <see cref="double.NaN"/> - is undefined in C# and in
-        /// practice yields an arbitrary byte rather than a clipped one, so a colour space backed by a
-        /// third-party <see cref="Icc.IIccTransform"/> could turn a slightly out-of-gamut component into a
-        /// wildly wrong pixel.
-        /// </para>
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected static byte ConvertToByte(double componentValue)
         {
             // Written as a pair of positive tests so that NaN, which compares false against everything,
@@ -199,9 +194,7 @@
                 return 255;
             }
 
-            // Now that the value is known to be in (0, 1), adding a half and truncating rounds away from
-            // zero exactly as Math.Round(x, MidpointRounding.AwayFromZero) did, without the call.
-            return (byte)(componentValue * 255.0 + 0.5);
+            return (byte)Math.Round(componentValue * 255, MidpointRounding.AwayFromZero);
         }
     }
 }

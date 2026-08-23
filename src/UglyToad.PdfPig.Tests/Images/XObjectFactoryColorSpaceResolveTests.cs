@@ -6,7 +6,6 @@
     using PdfPig.Graphics;
     using PdfPig.Graphics.Colors;
     using PdfPig.Graphics.Core;
-    using PdfPig.PdfFonts;
     using PdfPig.Tokens;
     using PdfPig.XObjects;
     using PdfPig.Tests.Tokens;
@@ -21,16 +20,15 @@
     /// </summary>
     public class XObjectFactoryColorSpaceResolveTests
     {
-        private sealed class NoOpFontFactory : IFontFactory
-        {
-            public IFont Get(DictionaryToken dictionary) => null!;
-        }
+        private static readonly ParsingOptions Options =
+            new ParsingOptions { UseLenientParsing = true, SkipMissingFonts = true };
 
         private static ResourceStore Store(TestPdfTokenScanner scanner)
             => new ResourceStore(scanner,
                 new NoOpFontFactory(),
                 new TestFilterProvider(),
-                new ParsingOptions { UseLenientParsing = true, SkipMissingFonts = true });
+                null,
+                Options);
 
         private static void Register(TestPdfTokenScanner scanner, int number, IToken token)
             => scanner.Objects[new IndirectReference(number, 0)] =
@@ -59,7 +57,7 @@
                 RenderingIntent.RelativeColorimetric,
                 null);
 
-            return XObjectFactory.ReadImage(record, scanner, new TestFilterProvider(), Store(scanner));
+            return XObjectFactory.ReadImage(record, scanner, new TestFilterProvider(), Store(scanner), Options);
         }
 
         [Fact]
