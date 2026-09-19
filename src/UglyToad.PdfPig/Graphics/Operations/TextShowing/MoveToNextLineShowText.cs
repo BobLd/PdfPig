@@ -34,8 +34,9 @@
         public MoveToNextLineShowText(string text)
         {
             Text = text;
+            showText = new ShowText(text);
         }
-        
+
         /// <summary>
         /// Create a new <see cref="MoveToNextLineShowText"/>.
         /// </summary>
@@ -43,16 +44,18 @@
         public MoveToNextLineShowText(ReadOnlyMemory<byte> hexBytes)
         {
             Bytes = hexBytes;
+            showText = new ShowText(hexBytes);
         }
+
+        /// <summary>
+        /// The show text operation this one ends with, built once rather than per run.
+        /// </summary>
+        private readonly ShowText showText;
 
         /// <inheritdoc />
         public void Run(IOperationContext operationContext)
         {
-            var move = MoveToNextLine.Value;
-
-            var showText = Text != null ? new ShowText(Text) : new ShowText(Bytes);
-
-            move.Run(operationContext);
+            MoveToNextLine.Value.Run(operationContext);
             showText.Run(operationContext);
         }
 

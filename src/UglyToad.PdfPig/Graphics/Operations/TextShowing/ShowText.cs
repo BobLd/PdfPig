@@ -37,9 +37,15 @@
         public string? Text { get; }
 
         /// <summary>
-        /// The bytes of the string to show.
+        /// The bytes of the string to show, when it was given as a hexadecimal string.
         /// </summary>
         public ReadOnlyMemory<byte> Bytes { get; }
+
+        /// <summary>
+        /// The character codes to show, whichever form the operand was given in. Held so that
+        /// running the operation does not have to encode <see cref="Text"/> back to bytes.
+        /// </summary>
+        private readonly ReadOnlyMemory<byte> characterCodes;
 
         /// <summary>
         /// Create a new <see cref="ShowText"/>.
@@ -47,6 +53,7 @@
         public ShowText(string text)
         {
             Text = text;
+            characterCodes = OtherEncodings.StringAsLatin1Bytes(text);
         }
 
         /// <summary>
@@ -55,13 +62,13 @@
         public ShowText(ReadOnlyMemory<byte> hexBytes)
         {
             Bytes = hexBytes;
+            characterCodes = hexBytes;
         }
 
         /// <inheritdoc />
         public void Run(IOperationContext operationContext)
         {
-            var input = new MemoryInputBytes(Text != null ? OtherEncodings.StringAsLatin1Bytes(Text) : Bytes);
-            operationContext.ShowText(input);
+            operationContext.ShowText(new MemoryInputBytes(characterCodes));
         }
 
         private static string? EscapeText(string? text)

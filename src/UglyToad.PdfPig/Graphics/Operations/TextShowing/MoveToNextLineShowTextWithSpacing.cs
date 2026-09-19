@@ -49,6 +49,7 @@
             WordSpacing = wordSpacing;
             CharacterSpacing = characterSpacing;
             Text = text;
+            showText = new ShowText(text);
         }
 
         /// <summary>
@@ -62,19 +63,20 @@
             WordSpacing = wordSpacing;
             CharacterSpacing = characterSpacing;
             Bytes = hexBytes;
+            showText = new ShowText(hexBytes);
         }
+
+        /// <summary>
+        /// The show text operation this one ends with, built once rather than per run.
+        /// </summary>
+        private readonly ShowText showText;
 
         /// <inheritdoc />
         public void Run(IOperationContext operationContext)
         {
-            var setWordSpacing = new SetWordSpacing(WordSpacing);
-            var setCharacterSpacing = new SetCharacterSpacing(CharacterSpacing);
-            var moveToNextLine = MoveToNextLine.Value;
-            var showText = Text != null ? new ShowText(Text) : new ShowText(Bytes!);
-
-            setWordSpacing.Run(operationContext);
-            setCharacterSpacing.Run(operationContext);
-            moveToNextLine.Run(operationContext);
+            new SetWordSpacing(WordSpacing).Run(operationContext);
+            new SetCharacterSpacing(CharacterSpacing).Run(operationContext);
+            MoveToNextLine.Value.Run(operationContext);
             showText.Run(operationContext);
         }
 

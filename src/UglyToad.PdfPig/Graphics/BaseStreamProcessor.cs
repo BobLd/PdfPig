@@ -472,15 +472,10 @@
                 }
                 else
                 {
-                    byte[] bytes;
-                    if (token is HexToken hex)
-                    {
-                        bytes = [.. hex.Bytes];
-                    }
-                    else
-                    {
-                        bytes = ((StringToken)token).GetBytes();
-                    }
+                    // Both hold the character codes as bytes already, so neither needs copying.
+                    var bytes = token is HexToken hex
+                        ? hex.Memory
+                        : ((StringToken)token).Memory;
 
                     ShowTextInternal(new MemoryInputBytes(bytes));
                 }
