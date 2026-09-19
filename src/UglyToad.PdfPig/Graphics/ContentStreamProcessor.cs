@@ -42,18 +42,18 @@ namespace UglyToad.PdfPig.Graphics
         private readonly MarkedContentStack markedContentStack = new MarkedContentStack();
 
         /// <summary>
-        /// The replacement text (/ActualText) of the marked-content sequence currently being
-        /// processed, or <see langword="null"/> when none is active. See the PDF specification,
-        /// 14.9.4 "Replacement text".
+        /// One entry for each marked-content sequence currently open, holding the replacement text
+        /// (/ActualText) that sequence brought, or <see langword="null"/> when it brought none.
+        /// Sequences nest, so beginning or ending an inner one must leave the replacement text of
+        /// the sequence around it as it was. See the PDF specification, 14.9.4 "Replacement text".
         /// </summary>
-        private string actualText;
+        private readonly Stack<ActualTextScope> actualTextScopes = new Stack<ActualTextScope>();
 
         /// <summary>
-        /// Whether the next glyph rendered is the first one within the active <see cref="actualText"/>
-        /// sequence. The replacement text applies to the whole sequence, so it is assigned to the first
-        /// glyph and the remaining glyphs in the sequence receive an empty value.
+        /// The innermost open sequence that brought replacement text, or <see langword="null"/> when
+        /// no replacement is in effect.
         /// </summary>
-        private bool isFirstActualTextGlyph;
+        private ActualTextScope activeActualText;
 
         public PdfSubpath CurrentSubpath { get; private set; }
 
@@ -115,13 +115,12 @@ namespace UglyToad.PdfPig.Graphics
             in TransformationMatrix transformationMatrix,
             CharacterBoundingBox characterBoundingBox)
         {
-            if (actualText is not null)
+            if (activeActualText is not null)
             {
                 // The active marked-content sequence specifies replacement text (/ActualText) for
                 // extraction. It applies to the whole sequence, so assign it to the first glyph and
                 // give the remaining glyphs an empty value to avoid duplicating the replaced text.
-                unicode = isFirstActualTextGlyph ? actualText : string.Empty;
-                isFirstActualTextGlyph = false;
+                unicode = activeActualText.Take();
             }
 
             var transformedGlyphBounds = PerformantRectangleTransformer
@@ -508,7 +507,7 @@ namespace UglyToad.PdfPig.Graphics
             NameToken propertyDictionaryName,
             DictionaryToken properties)
         {
-            if (propertyDictionaryName != null)
+            if (propertyDictionaryName is not null)
             {
                 var actual = ResourceStore.GetMarkedContentPropertiesDictionary(propertyDictionaryName);
 
@@ -520,6 +519,8 @@ namespace UglyToad.PdfPig.Graphics
             // A marked-content sequence may provide replacement text for extraction via /ActualText
             // (PDF spec, 14.9.4 "Replacement text"). When opted in via ParsingOptions.UseActualText,
             // honour it so that content with no usable mapping in the font.
+            string replacement = null;
+
             if (ParsingOptions.UseActualText
                 && properties is not null
                 && properties.TryGet(NameToken.ActualText, PdfScanner, out IDataToken<string> actualTextToken))
@@ -527,18 +528,37 @@ namespace UglyToad.PdfPig.Graphics
                 // Strip soft hyphens (U+00AD): in replacement text these are conditional hyphens
                 // marking potential line-break points and are meant to be invisible when not broken.
                 // Keeping them would inject invisible characters mid-word and corrupt extracted text.
-                actualText = actualTextToken.Data?.Replace("\u00ad", string.Empty);
-                isFirstActualTextGlyph = true;
+                replacement = TextStringDecoder.Decode(actualTextToken).Replace("\u00ad", string.Empty);
             }
-            else
+
+            // A sequence that brings no replacement text of its own carries on with the enclosing
+            // sequence's, so it takes no scope of its own and pushes nothing to restore.
+            var scope = replacement is null ? null : new ActualTextScope(replacement, activeActualText);
+
+            actualTextScopes.Push(scope);
+
+            if (scope is not null)
             {
-                actualText = null;
+                activeActualText = scope;
             }
         }
 
         public override void EndMarkedContent()
         {
-            actualText = null;
+            if (actualTextScopes.Count > 0)
+            {
+                var scope = actualTextScopes.Pop();
+
+                if (scope is not null)
+                {
+                    // This sequence brought its own replacement text, so the sequence it suspended
+                    // becomes the active one again, remembering whether it had already been emitted.
+                    activeActualText = scope.Enclosing;
+                }
+
+                // Otherwise the enclosing sequence's replacement text is still the active one, and
+                // any glyph this sequence held has already been counted against it.
+            }
 
             if (markedContentStack.CanPop)
             {
@@ -555,6 +575,44 @@ namespace UglyToad.PdfPig.Graphics
             // We do nothing for the moment
             // Do the following if you need to access the shading:
             // var shading = ResourceStore.GetShading(shadingName);
+        }
+
+        /// <summary>
+        /// A marked-content sequence that brought replacement text (/ActualText), for as long as
+        /// that sequence is open.
+        /// </summary>
+        private sealed class ActualTextScope
+        {
+            private readonly string replacement;
+
+            private bool isEmitted;
+
+            public ActualTextScope(string replacement, ActualTextScope enclosing)
+            {
+                this.replacement = replacement;
+                Enclosing = enclosing;
+            }
+
+            /// <summary>
+            /// The sequence whose replacement text this one suspended, which becomes the active one
+            /// again when this sequence ends. <see langword="null"/> when there was none.
+            /// </summary>
+            public ActualTextScope Enclosing { get; }
+
+            /// <summary>
+            /// The replacement text stands for the content of the whole sequence, nested sequences
+            /// included, so the first glyph receives it and every later one receives nothing.
+            /// </summary>
+            public string Take()
+            {
+                if (isEmitted)
+                {
+                    return string.Empty;
+                }
+
+                isEmitted = true;
+                return replacement;
+            }
         }
     }
 }

@@ -7,6 +7,7 @@
     using PdfPig.Core;
     using Tokenization.Scanner;
     using Tokens;
+    using Util;
     using XObjects;
 
     /// <summary>
@@ -122,10 +123,10 @@
                     mcid = mcidToken.Int;
                 }
 
-                var language = GetOptional(NameToken.Lang, pdfScanner);
-                var actualText = GetOptional(NameToken.ActualText, pdfScanner);
-                var alternateDescription = GetOptional(NameToken.Alternate, pdfScanner);
-                var expandedForm = GetOptional(NameToken.E, pdfScanner);
+                var language = GetOptionalTextString(NameToken.Lang, pdfScanner);
+                var actualText = GetOptionalTextString(NameToken.ActualText, pdfScanner);
+                var alternateDescription = GetOptionalTextString(NameToken.Alternate, pdfScanner);
+                var expandedForm = GetOptionalTextString(NameToken.E, pdfScanner);
                 
                 if (name != NameToken.Artifact)
                 {
@@ -216,6 +217,22 @@
                 if (properties.TryGet(optionName, pdfScanner, out IDataToken<string>? token))
                 {
                     result = token.Data;
+                }
+
+                return result;
+            }
+
+            /// <summary>
+            /// As <see cref="GetOptional"/>, for an entry the specification types as a text string.
+            /// An inline property dictionary is tokenized with the content stream's raw
+            /// character code rules, so such an entry can arrive undecoded.
+            /// </summary>
+            private string? GetOptionalTextString(NameToken optionName, IPdfTokenScanner pdfScanner)
+            {
+                var result = default(string);
+                if (properties.TryGet(optionName, pdfScanner, out IDataToken<string>? token))
+                {
+                    result = TextStringDecoder.Decode(token);
                 }
 
                 return result;
