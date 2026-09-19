@@ -26,7 +26,7 @@ namespace UglyToad.PdfPig.Tests.Writer
 
             var input = new MemoryInputBytes(written.AsMemory(1));
 
-            Assert.True(new StringTokenizer(true).TryTokenize((byte)'(', input, out var read));
+            Assert.True(new StringTokenizer().TryTokenize((byte)'(', input, out var read));
 
             return Assert.IsType<StringToken>(read);
         }
@@ -92,7 +92,6 @@ namespace UglyToad.PdfPig.Tests.Writer
         {
             var token = WriteAndReadBack(new StringToken("日本"));
 
-            Assert.Equal(StringToken.Encoding.Utf16BE, token.EncodedWith);
             Assert.Equal("日本", token.Data);
         }
     }

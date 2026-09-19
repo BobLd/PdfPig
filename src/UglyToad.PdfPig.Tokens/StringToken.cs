@@ -25,32 +25,6 @@ namespace UglyToad.PdfPig.Tokens
         public string Data => data ??= DecodeText();
 
         /// <summary>
-        /// The encoding <see cref="Data"/> is read with, which the bytes themselves determine.
-        /// </summary>
-        public Encoding EncodedWith
-        {
-            get
-            {
-                if (HasUtf8ByteOrderMark(rawBytes))
-                {
-                    return Encoding.Utf8;
-                }
-
-                if (HasUtf16BigEndianByteOrderMark(rawBytes))
-                {
-                    return Encoding.Utf16BE;
-                }
-
-                if (HasUtf16LittleEndianByteOrderMark(rawBytes))
-                {
-                    return Encoding.Utf16;
-                }
-
-                return Encoding.PdfDocEncoding;
-            }
-        }
-
-        /// <summary>
         /// The bytes of the string, which for a token read from a file are the bytes it was read
         /// from.
         /// </summary>
@@ -177,31 +151,5 @@ namespace UglyToad.PdfPig.Tokens
             return $"({Data})";
         }
 
-        /// <summary>
-        /// The encoding used to convert the underlying file bytes to the string.
-        /// </summary>
-        public enum Encoding : byte
-        {
-            /// <summary>
-            /// <see cref="OtherEncodings.Iso88591"/>.
-            /// </summary>
-            Iso88591 = 0,
-            /// <summary>
-            /// UTF-16.
-            /// </summary>
-            Utf16 = 1,
-            /// <summary>
-            /// UTF-16 Big Endian.
-            /// </summary>
-            Utf16BE = 2,
-            /// <summary>
-            /// The PdfDocEncoding for strings in the body of a PDF file.
-            /// </summary>
-            PdfDocEncoding = 3,
-            /// <summary>
-            /// UTF-8, which a text string may use from PDF 2.0 onwards.
-            /// </summary>
-            Utf8 = 4,
-        }
     }
 }

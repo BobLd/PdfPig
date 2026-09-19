@@ -6,7 +6,7 @@
 
     public class StringTokenizerTests
     {
-        private readonly StringTokenizer tokenizer = new StringTokenizer(true);
+        private readonly StringTokenizer tokenizer = new StringTokenizer();
 
         [Fact]
         public void NullInput_ReturnsFalse()

@@ -6,16 +6,9 @@ namespace UglyToad.PdfPig.Tokenization
 
     internal class StringTokenizer : ITokenizer
     {
-        private readonly bool usePdfDocEncoding;
-
         private readonly StringBuilder stringBuilder = new StringBuilder();
 
         public bool ReadsNextByte { get; } = false;
-
-        public StringTokenizer(bool usePdfDocEncoding)
-        {
-            this.usePdfDocEncoding = usePdfDocEncoding;
-        }
 
         public bool TryTokenize(byte currentByte, IInputBytes inputBytes, out IToken token)
         {

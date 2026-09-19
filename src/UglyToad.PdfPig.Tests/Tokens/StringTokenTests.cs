@@ -17,7 +17,7 @@ namespace UglyToad.PdfPig.Tests.Tokens
             // The tokenizer is handed the bytes between the brackets, having already read the '('.
             var input = new MemoryInputBytes(literalContents.Concat(new byte[] { (byte)')' }).ToArray());
 
-            Assert.True(new StringTokenizer(true).TryTokenize((byte)'(', input, out var token));
+            Assert.True(new StringTokenizer().TryTokenize((byte)'(', input, out var token));
 
             return Assert.IsType<StringToken>(token);
         }
@@ -94,7 +94,6 @@ namespace UglyToad.PdfPig.Tests.Tokens
             var token = new StringToken("Hi");
 
             Assert.Equal(new byte[] { 0x48, 0x69 }, token.GetBytes());
-            Assert.Equal(StringToken.Encoding.PdfDocEncoding, token.EncodedWith);
             Assert.Equal("Hi", token.Data);
         }
 
@@ -108,7 +107,6 @@ namespace UglyToad.PdfPig.Tests.Tokens
             var token = new StringToken("日本");
 
             Assert.Equal(new byte[] { 0xFE, 0xFF, 0x65, 0xE5, 0x67, 0x2C }, token.GetBytes());
-            Assert.Equal(StringToken.Encoding.Utf16BE, token.EncodedWith);
             Assert.Equal("日本", token.Data);
         }
 
