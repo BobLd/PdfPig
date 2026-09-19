@@ -491,24 +491,28 @@ namespace UglyToad.PdfPig.Encryption
 
         private static StringToken GetStringTokenFromDecryptedData(ReadOnlySpan<byte> data)
         {
+            // The decrypted bytes are what the string is, so they are kept on the token rather than
+            // left to be re-encoded from the decoded text.
+            var rawBytes = data.ToArray();
+
             if (data.Length >= 2)
             {
                 if (data[0] == 0xFE && data[1] == 0xFF)
                 {
                     var str = Encoding.BigEndianUnicode.GetString(data).Substring(1);
 
-                    return new StringToken(str, StringToken.Encoding.Utf16BE);
+                    return new StringToken(str, StringToken.Encoding.Utf16BE, rawBytes);
                 }
 
                 if (data[0] == 0xFF && data[1] == 0xFE)
                 {
                     var str = Encoding.Unicode.GetString(data).Substring(1);
 
-                    return new StringToken(str, StringToken.Encoding.Utf16);
+                    return new StringToken(str, StringToken.Encoding.Utf16, rawBytes);
                 }
             }
 
-            return new StringToken(OtherEncodings.BytesAsLatin1String(data), StringToken.Encoding.Iso88591);
+            return new StringToken(OtherEncodings.BytesAsLatin1String(data), StringToken.Encoding.Iso88591, rawBytes);
         }
 
         private byte[] DecryptData(byte[] data, IndirectReference reference)

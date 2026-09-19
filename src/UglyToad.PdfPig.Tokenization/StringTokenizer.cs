@@ -154,65 +154,56 @@ namespace UglyToad.PdfPig.Tokenization
 
             StringToken.Encoding encodedWith;
             string tokenStr;
-            byte[] originalRawBytes = null;
+
+            // The builder holds one character per byte read, so this recovers the bytes of the
+            // string as it stands in the file. Keeping them on the token means a decoding that
+            // cannot be reversed exactly does not lose them. The one gap is an octal escape above
+            // \377, which the builder has already widened past a byte - see the TODO above.
+            var builtStr = builder.ToString();
+            var rawBytes = OtherEncodings.StringAsLatin1Bytes(builtStr);
+
+            builder.Clear();
+
             // A byte order mark identifies the encoding of a text string. The operand of a text showing
             // operator is a sequence of character codes rather than a text string, so it is left as it
             // stands however it happens to start, which is the distinction usePdfDocEncoding draws.
             if (!usePdfDocEncoding)
             {
-                tokenStr = builder.ToString();
+                tokenStr = builtStr;
 
                 encodedWith = StringToken.Encoding.Iso88591;
             }
             // PDF 2.0 added UTF-8, marked by a byte order mark, as a text string encoding, see ISO 32000-2, 7.9.2.2.
-            else if (builder.Length >= 3 && builder[0] == 0xEF && builder[1] == 0xBB && builder[2] == 0xBF)
+            else if (rawBytes.Length >= 3 && rawBytes[0] == 0xEF && rawBytes[1] == 0xBB && rawBytes[2] == 0xBF)
             {
-                var rawBytes = OtherEncodings.StringAsLatin1Bytes(builder.ToString());
-                originalRawBytes = rawBytes;
-
                 tokenStr = Encoding.UTF8.GetString(rawBytes, 3, rawBytes.Length - 3);
 
                 encodedWith = StringToken.Encoding.Utf8;
             }
-            else if (builder.Length >= 2 && builder[0] == 0xFE && builder[1] == 0xFF)
+            else if (rawBytes.Length >= 2 && rawBytes[0] == 0xFE && rawBytes[1] == 0xFF)
             {
-                var rawBytes = OtherEncodings.StringAsLatin1Bytes(builder.ToString());
-                originalRawBytes = rawBytes;
-
-                tokenStr = Encoding.BigEndianUnicode.GetString(rawBytes).Substring(1);
+                tokenStr = Encoding.BigEndianUnicode.GetString(rawBytes, 2, rawBytes.Length - 2);
 
                 encodedWith = StringToken.Encoding.Utf16BE;
             }
-            else if (builder.Length >= 2 && builder[0] == 0xFF && builder[1] == 0xFE)
+            else if (rawBytes.Length >= 2 && rawBytes[0] == 0xFF && rawBytes[1] == 0xFE)
             {
-                var rawBytes = OtherEncodings.StringAsLatin1Bytes(builder.ToString());
-                originalRawBytes = rawBytes;
-
-                tokenStr = Encoding.Unicode.GetString(rawBytes).Substring(1);
+                tokenStr = Encoding.Unicode.GetString(rawBytes, 2, rawBytes.Length - 2);
 
                 encodedWith = StringToken.Encoding.Utf16;
             }
+            else if (PdfDocEncoding.TryConvertBytesToString(rawBytes, out var str))
+            {
+                tokenStr = str;
+                encodedWith = StringToken.Encoding.PdfDocEncoding;
+            }
             else
             {
-                var builtStr = builder.ToString();
-                var rawBytes = OtherEncodings.StringAsLatin1Bytes(builtStr);
-                if (PdfDocEncoding.TryConvertBytesToString(rawBytes, out var str))
-                {
-                    tokenStr = str;
-                    encodedWith = StringToken.Encoding.PdfDocEncoding;
-                }
-                else
-                {
-                    tokenStr = builtStr;
-                    encodedWith = StringToken.Encoding.Iso88591;
-                }
+                tokenStr = builtStr;
+                encodedWith = StringToken.Encoding.Iso88591;
             }
 
-            builder.Clear();
-
-            token = originalRawBytes != null
-                ? new StringToken(tokenStr, encodedWith, originalRawBytes)
-                : new StringToken(tokenStr, encodedWith);
+            token = new StringToken(tokenStr, encodedWith, rawBytes);
 
             return true;
         }

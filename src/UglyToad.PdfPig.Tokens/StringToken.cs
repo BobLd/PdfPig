@@ -8,7 +8,11 @@ namespace UglyToad.PdfPig.Tokens
     /// </summary>
     public class StringToken : IDataToken<string>
     {
-        private readonly byte[] rawBytes;
+        /// <summary>
+        /// The bytes this token was read from, or the bytes <see cref="Data"/> encodes to for a
+        /// token created from a string. Filled on first use in the latter case.
+        /// </summary>
+        private byte[] rawBytes;
 
         /// <summary>
         /// The string in the token.
@@ -46,15 +50,28 @@ namespace UglyToad.PdfPig.Tokens
         }
 
         /// <summary>
+        /// The bytes of the string. For a token read from a file these are the bytes as they
+        /// appeared in it, so they survive a decoding that cannot be reversed exactly - an unpaired
+        /// surrogate in a UTF-16 string, say. For a token created from a string they are what
+        /// <see cref="Data"/> encodes to under <see cref="EncodedWith"/>.
+        /// </summary>
+        public ReadOnlySpan<byte> Bytes => rawBytes ??= EncodeData();
+
+        /// <summary>
+        /// The bytes of the string as memory. See <see cref="Bytes"/>.
+        /// </summary>
+        public ReadOnlyMemory<byte> Memory => rawBytes ??= EncodeData();
+
+        /// <summary>
         /// Convert the <see langword="string"/> in <see cref="Data"/> back to bytes.
         /// </summary>
         public byte[] GetBytes()
         {
-            if (rawBytes is not null)
-            {
-                return rawBytes;
-            }
+            return rawBytes ??= EncodeData();
+        }
 
+        private byte[] EncodeData()
+        {
             switch (EncodedWith)
             {
                 case Encoding.Utf16BE:
