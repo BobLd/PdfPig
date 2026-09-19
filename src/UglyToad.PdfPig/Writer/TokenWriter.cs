@@ -538,62 +538,38 @@
         {
             outputStream.WriteByte(StringStart);
 
-            if (stringToken.EncodedWith == StringToken.Encoding.Iso88591
-                || stringToken.EncodedWith == StringToken.Encoding.PdfDocEncoding
-                || stringToken.EncodedWith == StringToken.Encoding.Utf8)
-            {
-                // iso 88591 (or really PdfDocEncoding in non-contentstream circumstances shouldn't
-                // have these chars but seems like internally this isn't obeyed (see:
-                // CanCreateDocumentInformationDictionaryWithNonAsciiCharacters test) and it may
-                // happen during parsing as well -> switch to unicode
+            ReadOnlySpan<byte> bytes =
+                stringToken.EncodedWith == StringToken.Encoding.Iso88591 && stringToken.Data.Any(c => c > 255)
+                    ? new StringToken(stringToken.Data, StringToken.Encoding.Utf16BE).Bytes
+                    : stringToken.Bytes;
 
-                // UTF-8 goes through the same escaping. Its bytes are written as they stand, and unlike
-                // UTF-16 they include unescaped parentheses and backslashes wherever the text has them.
-                var data = stringToken.EncodedWith == StringToken.Encoding.Utf8
-                    ? stringToken.GetBytes().Select(b => (char)b).ToArray()
-                    : stringToken.Data.ToCharArray();
-                if (data.Any(x => x > 255))
-                {
-                    data = new StringToken(stringToken.Data, StringToken.Encoding.Utf16BE)
-                        .GetBytes()
-                        .Select(b => (char)b)
-                        .ToArray();
-                }
-
-                int ei;
-                for (var i = 0; i < data.Length; i++)
-                {
-                    var c = (int)data[i];
-                    if (c == (int)'(' || c == (int)')') // wastes a little space if escaping not needed but better than forward searching
-                    {
-                        outputStream.WriteByte((byte)'\\');
-                        outputStream.WriteByte((byte)c);
-                    }
-                    else if ((ei = Array.IndexOf(EscapeNeeded, c)) > -1)
-                    {
-                        outputStream.WriteByte((byte)'\\');
-                        outputStream.WriteByte((byte)Escaped[ei]);
-                    }
-                    else if (c < 32 || c > 126) // non printable
-                    {
-                        var b3 = c / 64;
-                        var b2 = (c - b3 * 64) / 8;
-                        var b1 = c % 8;
-                        outputStream.WriteByte((byte)'\\');
-                        outputStream.WriteByte((byte)(b3 + '0'));
-                        outputStream.WriteByte((byte)(b2 + '0'));
-                        outputStream.WriteByte((byte)(b1 + '0'));
-                    }
-                    else
-                    {
-                        outputStream.WriteByte((byte)c);
-                    }
-                }
-            }
-            else
+            foreach (var b in bytes)
             {
-                var bytes = stringToken.GetBytes();
-                outputStream.Write(bytes);
+                int c = b;
+                if (c == '(' || c == ')') // wastes a little space if escaping not needed but better than forward searching
+                {
+                    outputStream.WriteByte((byte)'\\');
+                    outputStream.WriteByte((byte)c);
+                }
+                else if (Array.IndexOf(EscapeNeeded, c) is var ei && ei > -1)
+                {
+                    outputStream.WriteByte((byte)'\\');
+                    outputStream.WriteByte((byte)Escaped[ei]);
+                }
+                else if (c < 32 || c > 126) // non printable
+                {
+                    var b3 = c / 64;
+                    var b2 = (c - b3 * 64) / 8;
+                    var b1 = c % 8;
+                    outputStream.WriteByte((byte)'\\');
+                    outputStream.WriteByte((byte)(b3 + '0'));
+                    outputStream.WriteByte((byte)(b2 + '0'));
+                    outputStream.WriteByte((byte)(b1 + '0'));
+                }
+                else
+                {
+                    outputStream.WriteByte((byte)c);
+                }
             }
 
             outputStream.WriteByte(StringEnd);
