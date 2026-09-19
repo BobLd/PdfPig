@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using UglyToad.PdfPig.Core;
 using UglyToad.PdfPig.Tokenization;
@@ -41,7 +41,7 @@ namespace UglyToad.PdfPig.Tests.Writer
             // "A(" in UTF-16BE, whose second character is the byte 0x28.
             var bytes = new byte[] { 0xFE, 0xFF, 0x00, 0x41, 0x00, 0x28 };
 
-            var token = WriteAndReadBack(new StringToken("A(", StringToken.Encoding.Utf16BE, bytes));
+            var token = WriteAndReadBack(new StringToken(bytes));
 
             Assert.Equal(bytes, token.GetBytes());
             Assert.Equal("A(", token.Data);
@@ -53,7 +53,7 @@ namespace UglyToad.PdfPig.Tests.Writer
             // "A\" in UTF-16BE, whose second character is the byte 0x5C.
             var bytes = new byte[] { 0xFE, 0xFF, 0x00, 0x41, 0x00, 0x5C };
 
-            var token = WriteAndReadBack(new StringToken("A\\", StringToken.Encoding.Utf16BE, bytes));
+            var token = WriteAndReadBack(new StringToken(bytes));
 
             Assert.Equal(bytes, token.GetBytes());
             Assert.Equal("A\\", token.Data);
@@ -68,7 +68,7 @@ namespace UglyToad.PdfPig.Tests.Writer
         {
             var bytes = new byte[] { 0x48, 0x69, 0x18 }; // "Hi" then a breve, U+02D8
 
-            var token = WriteAndReadBack(new StringToken("Hi˘", StringToken.Encoding.PdfDocEncoding, bytes));
+            var token = WriteAndReadBack(new StringToken(bytes));
 
             Assert.Equal(bytes, token.GetBytes());
         }
@@ -78,8 +78,7 @@ namespace UglyToad.PdfPig.Tests.Writer
         {
             var bytes = new byte[] { 0x28, 0x5C, 0x29, 0x0A, 0x80, 0xFF };
 
-            var token = WriteAndReadBack(new StringToken(
-                OtherEncodings.BytesAsLatin1String(bytes), StringToken.Encoding.Iso88591, bytes));
+            var token = WriteAndReadBack(new StringToken(bytes));
 
             Assert.Equal(bytes, token.GetBytes());
         }

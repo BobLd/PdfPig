@@ -1,6 +1,7 @@
 ﻿namespace UglyToad.PdfPig.Graphics.Operations.TextShowing
 {
     using System.IO;
+    using PdfPig.Core;
     using TextPositioning;
     using TextState;
 
@@ -94,7 +95,7 @@
             }
             else
             {
-                stream.WriteText($"({Text})");
+                ShowText.WriteLiteral(OtherEncodings.StringAsLatin1Bytes(Text), stream);
             }
 
             stream.WriteNewLine();

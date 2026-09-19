@@ -528,7 +528,7 @@ namespace UglyToad.PdfPig.Graphics
                 // Strip soft hyphens (U+00AD): in replacement text these are conditional hyphens
                 // marking potential line-break points and are meant to be invisible when not broken.
                 // Keeping them would inject invisible characters mid-word and corrupt extracted text.
-                replacement = TextStringDecoder.Decode(actualTextToken).Replace("\u00ad", string.Empty);
+                replacement = actualTextToken.Data.Replace("\u00ad", string.Empty);
             }
 
             // A sequence that brings no replacement text of its own carries on with the enclosing

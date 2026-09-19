@@ -1,6 +1,7 @@
 ﻿namespace UglyToad.PdfPig.Graphics.Operations.TextShowing
 {
     using System.IO;
+    using PdfPig.Core;
     using TextPositioning;
 
     /// <inheritdoc />
@@ -64,16 +65,16 @@
         {
             if (Bytes.IsEmpty)
             {
-                stream.WriteText($"({Text}) {Symbol}");
-                stream.WriteNewLine();
+                ShowText.WriteLiteral(OtherEncodings.StringAsLatin1Bytes(Text), stream);
             }
             else
             {
                 stream.WriteHex(Bytes.Span);
-                stream.WriteWhiteSpace();
-                stream.WriteText(Symbol);
-                stream.WriteNewLine();
             }
+
+            stream.WriteWhiteSpace();
+            stream.WriteText(Symbol);
+            stream.WriteNewLine();
         }
 
         /// <inheritdoc />

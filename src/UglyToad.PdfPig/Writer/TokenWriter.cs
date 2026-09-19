@@ -538,12 +538,10 @@
         {
             outputStream.WriteByte(StringStart);
 
-            ReadOnlySpan<byte> bytes =
-                stringToken.EncodedWith == StringToken.Encoding.Iso88591 && stringToken.Data.Any(c => c > 255)
-                    ? new StringToken(stringToken.Data, StringToken.Encoding.Utf16BE).Bytes
-                    : stringToken.Bytes;
-
-            foreach (var b in bytes)
+            // A token holds the bytes of its string, which for one read from a file are the bytes it
+            // was read from. Text that PdfDocEncoding cannot hold was encoded as UTF-16 when the
+            // token was created, so there is nothing left to decide here.
+            foreach (var b in stringToken.Bytes)
             {
                 int c = b;
                 if (c == '(' || c == ')') // wastes a little space if escaping not needed but better than forward searching

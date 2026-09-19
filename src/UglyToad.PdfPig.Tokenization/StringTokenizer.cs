@@ -152,58 +152,16 @@ namespace UglyToad.PdfPig.Tokenization
                 }
             }
 
-            StringToken.Encoding encodedWith;
-            string tokenStr;
-
             // The builder holds one character per byte read, so this recovers the bytes of the
-            // string as it stands in the file. Keeping them on the token means a decoding that
-            // cannot be reversed exactly does not lose them. The one gap is an octal escape above
-            // \377, which the builder has already widened past a byte - see the TODO above.
-            var builtStr = builder.ToString();
-            var rawBytes = OtherEncodings.StringAsLatin1Bytes(builtStr);
+            // string as it stands in the file. The token keeps them and decodes its text only if
+            // something asks for it, since a text showing operand is never text. The one gap is an
+            // octal escape above \377, which the builder has already widened past a byte - see the
+            // TODO above.
+            var rawBytes = OtherEncodings.StringAsLatin1Bytes(builder.ToString());
 
             builder.Clear();
 
-            // A byte order mark identifies the encoding of a text string. The operand of a text showing
-            // operator is a sequence of character codes rather than a text string, so it is left as it
-            // stands however it happens to start, which is the distinction usePdfDocEncoding draws.
-            if (!usePdfDocEncoding)
-            {
-                tokenStr = builtStr;
-
-                encodedWith = StringToken.Encoding.Iso88591;
-            }
-            // PDF 2.0 added UTF-8, marked by a byte order mark, as a text string encoding, see ISO 32000-2, 7.9.2.2.
-            else if (rawBytes.Length >= 3 && rawBytes[0] == 0xEF && rawBytes[1] == 0xBB && rawBytes[2] == 0xBF)
-            {
-                tokenStr = Encoding.UTF8.GetString(rawBytes, 3, rawBytes.Length - 3);
-
-                encodedWith = StringToken.Encoding.Utf8;
-            }
-            else if (rawBytes.Length >= 2 && rawBytes[0] == 0xFE && rawBytes[1] == 0xFF)
-            {
-                tokenStr = Encoding.BigEndianUnicode.GetString(rawBytes, 2, rawBytes.Length - 2);
-
-                encodedWith = StringToken.Encoding.Utf16BE;
-            }
-            else if (rawBytes.Length >= 2 && rawBytes[0] == 0xFF && rawBytes[1] == 0xFE)
-            {
-                tokenStr = Encoding.Unicode.GetString(rawBytes, 2, rawBytes.Length - 2);
-
-                encodedWith = StringToken.Encoding.Utf16;
-            }
-            else if (PdfDocEncoding.TryConvertBytesToString(rawBytes, out var str))
-            {
-                tokenStr = str;
-                encodedWith = StringToken.Encoding.PdfDocEncoding;
-            }
-            else
-            {
-                tokenStr = builtStr;
-                encodedWith = StringToken.Encoding.Iso88591;
-            }
-
-            token = new StringToken(tokenStr, encodedWith, rawBytes);
+            token = new StringToken(rawBytes);
 
             return true;
         }

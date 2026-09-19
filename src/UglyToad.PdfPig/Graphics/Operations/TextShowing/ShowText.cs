@@ -71,26 +71,36 @@
             operationContext.ShowText(new MemoryInputBytes(characterCodes));
         }
 
-        private static string? EscapeText(string? text)
+        /// <summary>
+        /// Write the character codes as a literal string, which is what they were read as.
+        /// </summary>
+        /// <remarks>
+        /// Fix Issue 350 from PDF Spec 1.7 (page 408) on handling 'special characters' of '(', ')' and '\'.
+        /// <para>
+        /// The strings must conform to the syntax for string objects. When a string is written by
+        /// enclosing the data in parentheses, bytes whose values are the same as those of the ASCII
+        /// characters left parenthesis (40), right parenthesis (41), and backslash (92) must be
+        /// preceded by a backslash character. All other byte values between 0 and 255 may be used in
+        /// a string object. These rules apply to each individual byte in a string object, whether the
+        /// string is interpreted by the text-showing operators as single-byte or multiple-byte
+        /// character codes, so the bytes are escaped rather than the text they decode to.
+        /// </para>
+        /// </remarks>
+        internal static void WriteLiteral(ReadOnlySpan<byte> characterCodes, Stream stream)
         {
-            if (text is null) return null;
-            // Fix Issue 350 from PDF Spec 1.7 (page 408) on handling 'special characters' of '(', ')' and '\'.
+            stream.WriteByte((byte)'(');
 
-            // The strings must conform to the syntax for string objects.
-            // When a string is written by enclosing the data in parentheses,
-            // bytes whose values are the same as those 
-            // of the ASCII characters left parenthesis (40), right parenthesis (41), and backslash (92)
-            // must be preceded by a backslash character.
-            // All other byte values between 0 and 255 may be used in a string object.
-            // These rules apply to each individual byte in a string object, whether the string is interpreted by the text-showing operators
-            // as single-byte or multiple-byte character codes. 
+            foreach (var b in characterCodes)
+            {
+                if (b == '\\' || b == '(' || b == ')')
+                {
+                    stream.WriteByte((byte)'\\');
+                }
 
-            // Note: order of replacing is important. Replace slash first before brackets.
-            text = text.Replace(@"\", @"\\");  // Escape any slash          '\'  -> '\\'
-            text = text.Replace("(", @"\(");    // Escape any open  brackets '('  -> '\('
-            text = text.Replace(")", @"\)");    // Escape any close brackets ')'  -> '\)'
+                stream.WriteByte(b);
+            }
 
-            return text;
+            stream.WriteByte((byte)')');
         }
 
         /// <inheritdoc />
@@ -102,8 +112,7 @@
             }
             else
             {
-                var escapedText = EscapeText(Text);     // escape '(', ')' or '\'
-                stream.WriteText($"({escapedText})");
+                WriteLiteral(characterCodes.Span, stream);
             }
 
             stream.WriteWhiteSpace();

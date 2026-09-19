@@ -340,7 +340,7 @@ namespace UglyToad.PdfPig.Graphics
 
                     if (operands[0] is StringToken snl)
                     {
-                        return new MoveToNextLineShowText(snl.Data);
+                        return new MoveToNextLineShowText(OtherEncodings.BytesAsLatin1String(snl.Bytes));
                     }
 
                     if (operands[0] is HexToken hnl)
@@ -356,7 +356,8 @@ namespace UglyToad.PdfPig.Graphics
 
                     if (text is StringToken stringToken)
                     {
-                        return new MoveToNextLineShowTextWithSpacing(wordSpacing.Double, charSpacing.Double, stringToken.Data);
+                        return new MoveToNextLineShowTextWithSpacing(wordSpacing.Double, charSpacing.Double,
+                            OtherEncodings.BytesAsLatin1String(stringToken.Bytes));
                     }
 
                     if (text is HexToken hexToken)
@@ -443,7 +444,7 @@ namespace UglyToad.PdfPig.Graphics
 
                     if (operands[0] is StringToken s)
                     {
-                        return new ShowText(s.Data);
+                        return new ShowText(OtherEncodings.BytesAsLatin1String(s.Bytes));
                     }
                     
                     if (operands[0] is HexToken h)

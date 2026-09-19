@@ -292,6 +292,30 @@
         }
 
         /// <summary>
+        /// Try to map a string back to bytes, which succeeds only when every character has a
+        /// PdfDocEncoding byte, so unlike <see cref="StringToBytes"/> it does not quietly drop the
+        /// characters that do not.
+        /// </summary>
+        public static bool TryConvertStringToBytes(string s, out byte[]? result)
+        {
+            var bytes = new byte[s.Length];
+
+            for (int i = 0; i < s.Length; i++)
+            {
+                if (!UnicodeToCode.TryGetValue(s[i], out var b))
+                {
+                    result = null;
+                    return false;
+                }
+
+                bytes[i] = b;
+            }
+
+            result = bytes;
+            return true;
+        }
+
+        /// <summary>
         /// Map from string back to bytes. This is not a reversible operation for all inputs.
         /// </summary>
         public static byte[] StringToBytes(string s)

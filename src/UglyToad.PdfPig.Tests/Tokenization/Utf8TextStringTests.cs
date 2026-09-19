@@ -46,30 +46,27 @@
         }
 
         [Fact]
-        public void ContentStreamStringIsNotTreatedAsUtf8()
+        public void ContentStreamStringKeepsItsCharacterCodes()
         {
-            // The operand of a text showing operator is a sequence of character codes, not a text string,
-            // so the bytes have to reach the font untouched however they happen to start.
+            // The operand of a text showing operator is a sequence of character codes, not a text
+            // string, so the bytes have to reach the font untouched however they happen to start.
+            // Reading the same token as text is a separate question, answered by Data.
             var raw = Utf8WithBom(Text);
 
             var token = (StringToken)ScanOne(Literal(raw), usePdfDocEncoding: false);
 
-            Assert.NotEqual(StringToken.Encoding.Utf8, token.EncodedWith);
-            Assert.Equal(raw.Length, token.Data.Length);
             Assert.Equal(raw, token.GetBytes());
         }
 
         [Fact]
-        public void ContentStreamStringIsNotTreatedAsUtf16()
+        public void ContentStreamStringOpeningWithAMarkKeepsItsCharacterCodes()
         {
-            // Same reasoning as UTF-8. A simple font maps 0xFE and 0xFF to glyphs like any other code,
-            // and a string opening with them is not a text string carrying a mark.
+            // Same reasoning as UTF-8. A simple font maps 0xFE and 0xFF to glyphs like any other
+            // code, and those bytes still reach it as they stand.
             var raw = new byte[] { 0xFE, 0xFF }.Concat(Encoding.BigEndianUnicode.GetBytes(Text)).ToArray();
 
             var token = (StringToken)ScanOne(Literal(raw), usePdfDocEncoding: false);
 
-            Assert.Equal(StringToken.Encoding.Iso88591, token.EncodedWith);
-            Assert.Equal(raw.Length, token.Data.Length);
             Assert.Equal(raw, token.GetBytes());
         }
 
@@ -98,11 +95,15 @@
         }
 
         [Fact]
-        public void GetBytesAddsTheByteOrderMarkForAConstructedToken()
+        public void AUtf8TokenIsCreatedFromItsBytes()
         {
-            var token = new StringToken(Text, StringToken.Encoding.Utf8);
+            // Creating one from text encodes PdfDocEncoding or UTF-16, as PDFBox does, so UTF-8 is
+            // expressed by handing over the bytes.
+            var token = new StringToken(Utf8WithBom(Text));
 
             Assert.Equal(Utf8WithBom(Text), token.GetBytes());
+            Assert.Equal(StringToken.Encoding.Utf8, token.EncodedWith);
+            Assert.Equal(Text, token.Data);
         }
 
         [Fact]
@@ -113,7 +114,7 @@
             const string tricky = "a (b) c \\ d \\( e \u00e9";
 
             using var ms = new MemoryStream();
-            TokenWriter.Instance.WriteToken(new StringToken(tricky, StringToken.Encoding.Utf8), ms);
+            TokenWriter.Instance.WriteToken(new StringToken(Utf8WithBom(tricky)), ms);
 
             var token = (StringToken)ScanOne(ms.ToArray(), usePdfDocEncoding: true);
 

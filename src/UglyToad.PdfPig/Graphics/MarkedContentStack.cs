@@ -232,7 +232,7 @@
                 var result = default(string);
                 if (properties.TryGet(optionName, pdfScanner, out IDataToken<string>? token))
                 {
-                    result = TextStringDecoder.Decode(token);
+                    result = token.Data;
                 }
 
                 return result;
