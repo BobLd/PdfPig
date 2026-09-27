@@ -17,6 +17,23 @@
     public class GithubIssuesTests
     {
         [Fact]
+        public void Issues1043()
+        {
+            var path = IntegrationHelpers.GetSpecificTestDocumentPath("issues-1043.pdf");
+            using (var document = PdfDocument.Open(path, new ParsingOptions() { UseLenientParsing = true }))
+            {
+                var page = document.GetPage(1);
+                Assert.NotNull(page);
+                Assert.NotEmpty(page.Letters);
+
+                var words = NearestNeighbourWordExtractor.Instance.GetWords(page.Letters);
+                string actual = string.Concat(words.Select(x => x.Text));
+                Assert.Equal("Lamentablemente,no  pude comunicarme con usted por teléfono.", actual);
+            }
+        }
+
+
+        [Fact]
         public void Issues1445()
         {
             var path = IntegrationHelpers.GetSpecificTestDocumentPath("EE24LC01_EE24LC02#MIC.pdf");

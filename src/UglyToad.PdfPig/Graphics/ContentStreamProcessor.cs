@@ -206,11 +206,21 @@ namespace UglyToad.PdfPig.Graphics
             // If we did not create a letter for a combined diacritic, create one here.
             if (letter is null)
             {
+                // A negative character spacing moves the next glyph back, so the letter ends where the next one
+                // starts, e.g. when it compensates for wrong glyph widths in the font. A positive one is space
+                // after the letter, not part of it.
+                var width = characterBoundingBox.Width;
+                var characterSpacing = currentState.FontState.CharacterSpacing;
+                if (characterSpacing < 0 && !font.IsVertical && fontSize != 0)
+                {
+                    width = Math.Max(0, width + characterSpacing / fontSize);
+                }
+
                 var transformedPdfBounds = PerformantRectangleTransformer
                     .Transform(renderingMatrix,
                         textMatrix,
                         transformationMatrix,
-                        new PdfRectangle(0, 0, characterBoundingBox.Width, UserSpaceUnit.PointMultiples));
+                        new PdfRectangle(0, 0, width, UserSpaceUnit.PointMultiples));
 
                 var looseBox = PerformantRectangleTransformer
                     .Transform(renderingMatrix,
