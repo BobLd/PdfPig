@@ -105,6 +105,8 @@
                 "UglyToad.PdfPig.Content.Letter",
                 "UglyToad.PdfPig.Content.MarkedContentElement",
                 "UglyToad.PdfPig.Content.MediaBox",
+                "UglyToad.PdfPig.Content.OptionalContentGroup",
+                "UglyToad.PdfPig.Content.OptionalContentOrderNode",
                 "UglyToad.PdfPig.Content.OptionalContentGroupElement",
                 "UglyToad.PdfPig.Content.OptionalContentState",
                 "UglyToad.PdfPig.Content.Page",

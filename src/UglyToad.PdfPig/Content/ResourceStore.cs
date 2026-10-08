@@ -62,9 +62,20 @@
 
         private readonly Dictionary<IndirectReference, IReadOnlyList<OutputIntent>> pageOutputIntents = new();
 
-        private readonly Lazy<OptionalContentState?> optionalContent;
+        private readonly Lazy<OptionalContentState?> initialOptionalContent;
 
-        public OptionalContentState? OptionalContent => optionalContent.Value;
+        // Set by SetOptionalContent; read by every stream processor when it is created.
+        private volatile OptionalContentState? replacedOptionalContent;
+
+        public OptionalContentState? OptionalContent => replacedOptionalContent ?? initialOptionalContent.Value;
+
+        /// <summary>
+        /// Replaces the current optional content state. The caller checks it belongs to this document.
+        /// </summary>
+        internal void SetOptionalContent(OptionalContentState state)
+        {
+            replacedOptionalContent = state;
+        }
 
         public ResourceStore(IPdfTokenScanner scanner,
             IFontFactory fontFactory,
@@ -80,7 +91,7 @@
                 ? new Lazy<IReadOnlyList<OutputIntent>>(() => [])
                 : new Lazy<IReadOnlyList<OutputIntent>>(() => OutputIntentParser.CreateAll(catalogDictionary,
                     scanner, filterProvider, parsingOptions.IccProfileService, iccProfileCache, Logger));
-            this.optionalContent = new Lazy<OptionalContentState?>(() => OptionalContentState.Create(catalogDictionary, scanner));
+            this.initialOptionalContent = new Lazy<OptionalContentState?>(() => OptionalContentState.Create(catalogDictionary, scanner));
         }
 
         /// <inheritdoc/>

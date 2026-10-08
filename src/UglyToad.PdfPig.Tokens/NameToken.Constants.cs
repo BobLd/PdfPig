@@ -482,6 +482,7 @@
         // R
         public static readonly NameToken R = new NameToken("R");
         public static readonly NameToken Range = new NameToken("Range");
+        public static readonly NameToken RbGroups = new NameToken("RBGroups");
         public static readonly NameToken Rc = new NameToken("RC");
         public static readonly NameToken Rd = new NameToken("RD");
         public static readonly NameToken Reason = new NameToken("Reason");

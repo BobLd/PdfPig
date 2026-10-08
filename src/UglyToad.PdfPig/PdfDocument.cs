@@ -36,6 +36,8 @@
         private readonly ParsingOptions parsingOptions;
         private readonly Pages pages;
         private readonly NamedDestinations namedDestinations;
+
+        private readonly ResourceStore resourceStore;
         
         /// <summary>
         /// The metadata associated with this document.
@@ -84,7 +86,8 @@
             BookmarksProvider bookmarksProvider,
             ParsingOptions parsingOptions,
             CrossReferenceTable crossReferenceTable,
-            TrailerDictionary trailer)
+            TrailerDictionary trailer,
+            ResourceStore resourceStore)
         {
             this.inputBytes = inputBytes;
             this.version = version ?? throw new ArgumentNullException(nameof(version));
@@ -94,6 +97,7 @@
             this.filterProvider = filterProvider ?? throw new ArgumentNullException(nameof(filterProvider));
             this.bookmarksProvider = bookmarksProvider ?? throw new ArgumentNullException(nameof(bookmarksProvider));
             this.parsingOptions = parsingOptions;
+            this.resourceStore = resourceStore ?? throw new ArgumentNullException(nameof(resourceStore));
 
             Information = information ?? throw new ArgumentNullException(nameof(information));
             pages = catalog.Pages;
@@ -161,6 +165,48 @@
 #endif
         {
             pages.AddPageFactory<TPage, TPageFactory>(configureFactory);
+        }
+
+        /// <summary>
+        /// The current on/off state of the document's optional content groups (layers), or <see langword="null"/>
+        /// when the document has none. It starts as the document's default configuration (<c>/D</c>).
+        /// </summary>
+        public OptionalContentState? OptionalContent => resourceStore.OptionalContent;
+
+        /// <summary>
+        /// Replaces the current optional content state, e.g. with one returned by
+        /// <see cref="OptionalContentState.WithGroupState"/>. Pages processed afterwards use it; pages
+        /// already returned are unchanged. Hidden content is only left out when
+        /// <see cref="ParsingOptions.SkipHiddenOptionalContent"/> is set.
+        /// <para>Not thread-safe with page processing of the same document, like the rest of this class.</para>
+        /// </summary>
+        /// <exception cref="ArgumentException">
+        /// The document has no optional content, or the state was built for another document.
+        /// </exception>
+        public void SetOptionalContent(OptionalContentState state)
+        {
+            if (isDisposed)
+            {
+                throw new ObjectDisposedException("Cannot access the optional content after the document is disposed.");
+            }
+
+            if (state is null)
+            {
+                throw new ArgumentNullException(nameof(state));
+            }
+
+            var current = resourceStore.OptionalContent;
+            if (current is null)
+            {
+                throw new ArgumentException("The document has no optional content.", nameof(state));
+            }
+
+            if (!current.IsFromSameDocument(state))
+            {
+                throw new ArgumentException("The optional content state was built for another document.", nameof(state));
+            }
+
+            resourceStore.SetOptionalContent(state);
         }
 
         /// <summary>

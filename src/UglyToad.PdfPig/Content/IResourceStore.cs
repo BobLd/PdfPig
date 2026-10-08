@@ -119,8 +119,9 @@
         IIccProfile? GetPageOutputIntentProfile(DictionaryToken? pageDictionary);
 
         /// <summary>
-        /// The on/off state of the document's optional content groups under its default configuration,
-        /// or <see langword="null"/> when the document declares no optional content (8.11.4.1).
+        /// The current on/off state of the document's optional content groups: initially the default
+        /// configuration's, then whatever <see cref="PdfDocument.SetOptionalContent"/> set. <see langword="null"/>
+        /// when the document declares no optional content (8.11.4.1). Stream processors read it when created.
         /// </summary>
         OptionalContentState? OptionalContent { get; }
     }

@@ -1,6 +1,8 @@
 ﻿namespace UglyToad.PdfPig.Tests.ContentTests
 {
+    using System;
     using System.Collections.Generic;
+    using System.Linq;
     using PdfPig.Content;
     using PdfPig.Core;
     using PdfPig.Tokens;
@@ -240,6 +242,146 @@
             Assert.True(state.IsVisible(Membership(("VE", Array(or, off, on)))));
             Assert.False(state.IsVisible(Membership(("VE", Array(or, off, Array(not, on))))));
             Assert.True(state.IsVisible(Membership(("VE", Array(not, off)))));
+        }
+
+        [Fact]
+        public void GroupsAreListedInOcgsOrderWithNameAndIntents()
+        {
+            var design = AddGroup(3, "Design only", NameToken.Create("Design"));
+            var state = Create(Dictionary(("OFF", Array(off))), on, off, design, on);
+
+            // Listed once each, in /OCGs order, even when /OCGs repeats a group.
+            Assert.Equal(new[] { "On", "Off", "Design only" }, state.Groups.Select(g => g.Name));
+            Assert.Equal(new[] { "View" }, state.Groups[0].Intents);
+            Assert.Equal(new[] { "Design" }, state.Groups[2].Intents);
+        }
+
+        [Fact]
+        public void IsOnIsTheRawStateEvenForAGroupIgnoredByIntent()
+        {
+            var design = AddGroup(3, "Design only", NameToken.Create("Design"));
+            var state = Create(Dictionary(("OFF", Array(off, design))), on, off, design);
+
+            Assert.True(state.IsOn(state.Groups[0]));
+            Assert.False(state.IsOn(state.Groups[1]));
+
+            // OFF, but its intent does not match /D's: it has no effect on visibility.
+            Assert.False(state.IsOn(state.Groups[2]));
+            Assert.True(state.IsVisible(Resolve(design)));
+        }
+
+        [Fact]
+        public void IsOnRejectsAGroupOfAnotherDocument()
+        {
+            var first = Create(Dictionary(("OFF", Array(off))));
+            var second = Create(Dictionary(("OFF", Array(off))));
+
+            Assert.Throws<ArgumentException>(() => first.IsOn(second.Groups[0]));
+        }
+
+        [Fact]
+        public void WithGroupStateReturnsANewSnapshotAndLeavesTheOriginalUnchanged()
+        {
+            var state = Create(Dictionary(("OFF", Array(off))));
+            var offGroup = state.Groups[1];
+
+            var turnedOn = state.WithGroupState(offGroup, true);
+
+            Assert.True(turnedOn.IsOn(offGroup));
+            Assert.True(turnedOn.IsVisible(Resolve(off)));
+            Assert.False(state.IsOn(offGroup));
+            Assert.False(state.IsVisible(Resolve(off)));
+        }
+
+        [Fact]
+        public void TurningOnARadioGroupMemberTurnsTheOthersOff()
+        {
+            var third = AddGroup(3, "Third");
+            var config = Dictionary(("OFF", Array(off, third)), ("RBGroups", Array(Array(on, off, third))));
+            var state = Create(config, on, off, third);
+
+            var switched = state.WithGroupState(state.Groups[1], true);
+
+            Assert.False(switched.IsOn(state.Groups[0]));
+            Assert.True(switched.IsOn(state.Groups[1]));
+            Assert.False(switched.IsOn(state.Groups[2]));
+        }
+
+        [Fact]
+        public void TurningOffARadioGroupMemberForcesNothingOn()
+        {
+            var config = Dictionary(("OFF", Array(off)), ("RBGroups", Array(Array(on, off))));
+            var state = Create(config);
+
+            var allOff = state.WithGroupState(state.Groups[0], false);
+
+            Assert.False(allOff.IsOn(state.Groups[0]));
+            Assert.False(allOff.IsOn(state.Groups[1]));
+        }
+
+        [Fact]
+        public void WithGroupStateRejectsAGroupOfAnotherDocument()
+        {
+            var first = Create(Dictionary(("OFF", Array(off))));
+            var second = Create(Dictionary(("OFF", Array(off))));
+
+            Assert.Throws<ArgumentException>(() => first.WithGroupState(second.Groups[0], true));
+        }
+
+        [Fact]
+        public void OrderGivesGroupsTheirSublayersAndLabelledCollections()
+        {
+            var child = AddGroup(3, "Child");
+            var labelled = AddGroup(4, "Labelled");
+            var order = Array(on, Array(child), Array(new StringToken("Label"), labelled), off);
+            var state = Create(Dictionary(("Order", order)), on, off, child, labelled);
+
+            Assert.Equal(3, state.Order.Count);
+
+            Assert.Equal("On", state.Order[0].Group!.Name);
+            Assert.Equal("Child", Assert.Single(state.Order[0].Children).Group!.Name);
+
+            Assert.Null(state.Order[1].Group);
+            Assert.Equal("Label", state.Order[1].Label);
+            Assert.Equal("Labelled", Assert.Single(state.Order[1].Children).Group!.Name);
+
+            Assert.Equal("Off", state.Order[2].Group!.Name);
+            Assert.Empty(state.Order[2].Children);
+        }
+
+        [Fact]
+        public void GroupsMissingFromOrderAreNotPresented()
+        {
+            var state = Create(Dictionary(("Order", Array(off))));
+
+            Assert.Equal("Off", Assert.Single(state.Order).Group!.Name);
+        }
+
+        [Fact]
+        public void AbsentOrEmptyOrderFallsBackToAFlatListOfAllGroups()
+        {
+            var absent = Create(Dictionary(("OFF", Array(off))));
+            var empty = Create(Dictionary(("Order", Array())));
+
+            foreach (var state in new[] { absent, empty })
+            {
+                Assert.Equal(new[] { "On", "Off" }, state.Order.Select(n => n.Group!.Name));
+                Assert.All(state.Order, n => Assert.Empty(n.Children));
+            }
+        }
+
+        [Fact]
+        public void DeeplyNestedOrderIsCutOffRatherThanOverflowing()
+        {
+            IToken nested = Array(off);
+            for (int i = 0; i < 1000; i++)
+            {
+                nested = Array(nested);
+            }
+
+            var state = Create(Dictionary(("Order", Array(on, nested))));
+
+            Assert.Equal("On", state.Order[0].Group!.Name);
         }
 
         private OptionalContentState Create(DictionaryToken defaultConfiguration, params IToken[] ocgs)

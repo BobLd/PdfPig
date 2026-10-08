@@ -106,6 +106,61 @@
             return count;
         }
 
+        [Fact]
+        public void SetOptionalContentChangesWhatPagesProcessedAfterwardsContain()
+        {
+            // GWG 15.1: "Default", "GWG View 1" and "GWG View 2" form a radio-button group; Default is ON.
+            var path = IntegrationHelpers.GetDocumentPath("GWG151_OptionalContent-RBGroup_X4");
+
+            using var document = PdfDocument.Open(path, new ParsingOptions { SkipHiddenOptionalContent = true });
+
+            var state = document.OptionalContent;
+            Assert.NotNull(state);
+            Assert.Equal(new[] { "Default", "GWG View 1", "GWG View 2" }, state.Order.Select(n => n.Group!.Name));
+
+            var before = document.GetPage(1).Text;
+            int viewOneBefore = CountOccurrences(before, "GWG View 1");
+            Assert.Contains("Default View", before);
+
+            var viewOne = state.Groups.Single(g => g.Name == "GWG View 1");
+            document.SetOptionalContent(state.WithGroupState(viewOne, true));
+
+            Assert.False(document.OptionalContent!.IsOn(state.Groups.Single(g => g.Name == "Default")));
+
+            var after = document.GetPage(1).Text;
+            Assert.DoesNotContain("Default View", after);
+            Assert.Equal(viewOneBefore + 1, CountOccurrences(after, "GWG View 1"));
+        }
+
+        [Fact]
+        public void SetOptionalContentRejectsAStateOfAnotherDocument()
+        {
+            var path = IntegrationHelpers.GetDocumentPath("GWG151_OptionalContent-RBGroup_X4");
+
+            using var first = PdfDocument.Open(path);
+            using var second = PdfDocument.Open(path);
+
+            Assert.Throws<ArgumentException>(() => first.SetOptionalContent(second.OptionalContent!));
+        }
+
+        [Fact]
+        public void SetOptionalContentOnADocumentWithoutOptionalContentSaysSo()
+        {
+            using var withLayers = PdfDocument.Open(IntegrationHelpers.GetDocumentPath("GWG151_OptionalContent-RBGroup_X4"));
+            using var withoutLayers = PdfDocument.Open(IntegrationHelpers.GetDocumentPath("AcroFormsBasicFields.pdf"));
+
+            var e = Assert.Throws<ArgumentException>(() => withoutLayers.SetOptionalContent(withLayers.OptionalContent!));
+            Assert.StartsWith("The document has no optional content.", e.Message);
+        }
+
+        [Fact]
+        public void DocumentWithoutOptionalContentHasNoState()
+        {
+            using var document = PdfDocument.Open(IntegrationHelpers.GetDocumentPath("AcroFormsBasicFields.pdf"));
+
+            Assert.Null(document.OptionalContent);
+        }
+
         [Theory]
         [InlineData("odwriteex.pdf")]
         [InlineData("Layer pdf - 322_High_Holborn_building_Brochure.pdf")]
