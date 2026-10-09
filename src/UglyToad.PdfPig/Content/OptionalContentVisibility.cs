@@ -19,6 +19,23 @@
 
         public abstract bool IsVisible(OptionalContentState state);
 
+        /// <summary>
+        /// The number of nodes evaluation visits when it cannot short-circuit: the node counted once per path to
+        /// it, so a shared subexpression counts once per use. Saturates at <see cref="int.MaxValue"/>.
+        /// </summary>
+        public int Size { get; protected set; } = 1;
+
+        protected static int SizeOf(params OptionalContentVisibility[] operands)
+        {
+            long size = 1;
+            foreach (var operand in operands)
+            {
+                size += operand.Size;
+            }
+
+            return size > int.MaxValue ? int.MaxValue : (int)size;
+        }
+
         private sealed class Constant : OptionalContentVisibility
         {
             public override bool IsVisible(OptionalContentState state) => true;
@@ -140,6 +157,7 @@
             public Not(OptionalContentVisibility operand)
             {
                 this.operand = operand;
+                Size = SizeOf(operand);
             }
 
             public override bool IsVisible(OptionalContentState state) => !operand.IsVisible(state);
@@ -157,6 +175,7 @@
             {
                 this.isAnd = isAnd;
                 this.operands = operands;
+                Size = SizeOf(operands);
             }
 
             public override bool IsVisible(OptionalContentState state)

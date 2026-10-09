@@ -21,6 +21,13 @@
         private const int MaxVisibilityExpressionDepth = 32;
 
         /// <summary>
+        /// Evaluating a /VE visits its shared subexpressions once per use, which is exponential in the nesting for
+        /// a crafted expression however compact. An expression that would visit more nodes than this is treated
+        /// as malformed (visible), as at the depth limit.
+        /// </summary>
+        private const int MaxVisibilityExpressionSize = 1 << 16;
+
+        /// <summary>
         /// /Order nests arrays; bound the recursion against malicious nesting.
         /// </summary>
         private const int MaxOrderDepth = 32;
@@ -423,7 +430,8 @@
             if (ocmd.TryGet(NameToken.VE, _scanner, out ArrayToken? visibilityExpression))
             {
                 // Allocated only for an OCMD that has a /VE.
-                return ResolveVisibilityExpression(visibilityExpression, 0, new ExpressionMemo());
+                var resolved = ResolveVisibilityExpression(visibilityExpression, 0, new ExpressionMemo());
+                return resolved.Size > MaxVisibilityExpressionSize ? OptionalContentVisibility.Visible : resolved;
             }
 
             var groups = new List<OptionalContentVisibility.Group>();
@@ -483,7 +491,9 @@
                 return OptionalContentVisibility.Visible;
             }
 
-            // An expression reached again while it is being resolved is a cycle: it ends there, as at the depth limit.
+            // An expression reached again while it is being resolved is a cycle. The back-reference counts as
+            // visible, as at the depth limit, and the expression around it is evaluated normally: a self-cycle
+            // [/Not 5 0 R] resolves to Not(visible), hence hidden.
             if (memo.InProgress.Contains(expression))
             {
                 return OptionalContentVisibility.Visible;

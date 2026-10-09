@@ -264,7 +264,7 @@
         }
 
         [Fact]
-        public void SharedVisibilityExpressionSubtreesAreResolvedOnce()
+        public void SharedVisibilityExpressionSubtreesResolveAndEvaluateInTime()
         {
             // 30 levels (the nesting limit is 32), each [/And next next] with both operands the same indirect array: 2^30 paths if every
             // operand were expanded again.
@@ -286,6 +286,61 @@
             Assert.False(CompletesInTime(() => stateOff.IsVisible(ocmd)));
         }
 
+        [Fact]
+        public void DistinctButEquivalentSharedSubtreesEvaluateInTimeAsVisible()
+        {
+            // Two distinct indirect arrays per level, each referring to both arrays of the next level: identity
+            // de-duplication cannot collapse them, and walking the DAG as a tree visits 2^33 nodes.
+            const int levels = 33;
+            var and = NameToken.Create("And");
+            for (int i = 0; i < levels; i++)
+            {
+                for (int j = 1; j <= 2; j++)
+                {
+                    IToken first = i == levels - 1 ? on : new IndirectReferenceToken(new IndirectReference(200 + 2 * (i + 1), 0));
+                    IToken second = i == levels - 1 ? on : new IndirectReferenceToken(new IndirectReference(200 + 2 * (i + 1) + 1, 0));
+                    var reference = new IndirectReference(200 + 2 * i + (j - 1), 0);
+                    scanner.Objects[reference] = new ObjectToken(XrefLocation.File(0), reference, Array(and, first, second));
+                }
+            }
+
+            var ocmd = Membership(("VE", new IndirectReferenceToken(new IndirectReference(200, 0))));
+            var state = Create(Dictionary(("OFF", Array(off))));
+
+            Assert.True(CompletesInTime(() => state.IsVisible(ocmd)));
+        }
+
+        [Fact]
+        public void SharedExpressionReachedAtDifferentDepthsIsTruncatedAtEach()
+        {
+            // X = [/And M], M = [/Not on] is cut by the depth limit (32) when reached at depth 32 (M at 33, so
+            // X is visible) but not at 31 (Not(on), hidden). Both are reached from one /And: the shared X must
+            // not take the result of whichever depth was resolved first.
+            var and = NameToken.Create("And");
+            var xRef = new IndirectReference(300, 0);
+            var mRef = new IndirectReference(301, 0);
+            scanner.Objects[mRef] = new ObjectToken(XrefLocation.File(0), mRef, Array(NameToken.Create("Not"), on));
+            scanner.Objects[xRef] = new ObjectToken(XrefLocation.File(0), xRef, Array(and, new IndirectReferenceToken(mRef)));
+            IToken x = new IndirectReferenceToken(xRef);
+
+            // Wrappers [/And next] add one level each; the chain's last wrapper holds X.
+            static IToken Chain(IToken inner, int wrappers)
+            {
+                for (int i = 0; i < wrappers; i++)
+                {
+                    inner = Array(NameToken.Create("And"), inner);
+                }
+
+                return inner;
+            }
+
+            var state = Create(Dictionary(("OFF", Array(off))));
+            // Root at depth 0: the chain of w wrappers puts X at depth w + 1.
+            var ocmd = Membership(("VE", Array(and, Chain(x, 31), Chain(x, 30))));
+
+            Assert.False(state.IsVisible(ocmd));
+        }
+
         private ArrayToken AddSelfReferencingExpression(long number, string op)
         {
             var reference = new IndirectReference(number, 0);
@@ -297,6 +352,8 @@
 
         private static bool CompletesInTime(Func<bool> evaluate)
         {
+            // When the guard fires the background work keeps running (it cannot be cancelled), which is
+            // acceptable for a failing run only.
             var task = System.Threading.Tasks.Task.Run(evaluate);
             Assert.True(task.Wait(TimeSpan.FromSeconds(5)), "Resolving the visibility expression did not complete.");
             return task.Result;
