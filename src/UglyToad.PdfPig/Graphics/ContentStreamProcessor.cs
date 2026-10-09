@@ -101,12 +101,6 @@ namespace UglyToad.PdfPig.Graphics
             in TransformationMatrix transformationMatrix,
             CharacterBoundingBox characterBoundingBox)
         {
-            if (IsOptionalContentHidden)
-            {
-                // A hidden glyph in a clip rendering mode: it only matters for clipping, which letters ignore.
-                return;
-            }
-
             unicode = ApplyActualText(unicode);
 
             var transformedGlyphBounds = PerformantRectangleTransformer
@@ -393,11 +387,6 @@ namespace UglyToad.PdfPig.Graphics
 
         private void AddPath(PdfPath path)
         {
-            if (IsOptionalContentHidden)
-            {
-                return;
-            }
-
             paths.Add(path);
             markedContentStack.AddPath(path);
         }

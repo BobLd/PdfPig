@@ -190,11 +190,9 @@
             this.PageContentParser = pageContentParser ?? throw new ArgumentNullException(nameof(pageContentParser));
             this.FilterProvider = filterProvider ?? throw new ArgumentNullException(nameof(filterProvider));
             this.ParsingOptions = parsingOptions;
-            var visibility = optionalContentVisibility
-                ?? (parsingOptions.SkipHiddenOptionalContent ? resourceStore.OptionalContent : null);
             this._markedContent = new MarkedContentTracker(
                 resourceStore.OptionalContent,
-                visibility,
+                optionalContentVisibility,
                 parsingOptions.UseActualText,
                 pdfScanner);
 

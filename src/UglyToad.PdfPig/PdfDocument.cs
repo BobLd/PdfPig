@@ -168,46 +168,11 @@
         }
 
         /// <summary>
-        /// The current on/off state of the document's optional content groups (layers), or <see langword="null"/>
-        /// when the document has none. It starts as the document's default configuration (<c>/D</c>).
+        /// The default on/off state of the document's optional content groups (the <c>/D</c> configuration), or
+        /// <see langword="null"/> when the document has none. Read-only: pass states derived from it with
+        /// <see cref="OptionalContentState.WithGroupState"/> to stream processors and layered outputs.
         /// </summary>
         public OptionalContentState? OptionalContent => resourceStore.OptionalContent;
-
-        /// <summary>
-        /// Replaces the current optional content state, e.g. with one returned by
-        /// <see cref="OptionalContentState.WithGroupState"/>. Pages processed afterwards use it; pages
-        /// already returned are unchanged. Hidden content is only left out when
-        /// <see cref="ParsingOptions.SkipHiddenOptionalContent"/> is set.
-        /// <para>Not thread-safe with page processing of the same document, like the rest of this class.</para>
-        /// </summary>
-        /// <exception cref="ArgumentException">
-        /// The document has no optional content, or the state was built for another document.
-        /// </exception>
-        public void SetOptionalContent(OptionalContentState state)
-        {
-            if (isDisposed)
-            {
-                throw new ObjectDisposedException("Cannot access the optional content after the document is disposed.");
-            }
-
-            if (state is null)
-            {
-                throw new ArgumentNullException(nameof(state));
-            }
-
-            var current = resourceStore.OptionalContent;
-            if (current is null)
-            {
-                throw new ArgumentException("The document has no optional content.", nameof(state));
-            }
-
-            if (!current.IsFromSameDocument(state))
-            {
-                throw new ArgumentException("The optional content state was built for another document.", nameof(state));
-            }
-
-            resourceStore.SetOptionalContent(state);
-        }
 
         /// <summary>
         /// Get the page with the specified page number (1 indexed).

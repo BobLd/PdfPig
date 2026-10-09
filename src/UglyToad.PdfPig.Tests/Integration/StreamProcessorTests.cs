@@ -36,19 +36,28 @@
         [Fact]
         public void TextOnlySkipsHiddenOptionalContent()
         {
-            // The base processor does not render glyphs of hidden layers, so a custom processor
-            // that does not check for optional content itself gets the same text as the built-in one.
+            // The base processor does not render glyphs of layers hidden in the state it is given, while Page
+            // always contains everything.
             var file = IntegrationHelpers.GetDocumentPath("GWG150_OptionalContent-OCCD_X4");
 
-            using (var document = PdfDocument.Open(file, new ParsingOptions { SkipHiddenOptionalContent = true }))
+            using (var document = PdfDocument.Open(file))
             {
                 document.AddPageFactory<TextOnlyPage, TextOnlyPageInformationFactory>();
 
-                var page = document.GetPage(1);
-                var textOnlyPage = document.GetPage<TextOnlyPage>(1);
+                TextOnlyPageInformationFactory.Visibility = document.OptionalContent;
+                try
+                {
+                    var page = document.GetPage(1);
+                    var textOnlyPage = document.GetPage<TextOnlyPage>(1);
 
-                Assert.DoesNotContain("GWG View 1GWG View 2", textOnlyPage.Text);
-                Assert.Equal(string.Concat(page.Letters.Select(l => l.Value)), textOnlyPage.Text);
+                    Assert.EndsWith("GWG View 1GWG View 2", page.Text);
+                    Assert.DoesNotContain("GWG View 1GWG View 2", textOnlyPage.Text);
+                    Assert.True(textOnlyPage.Text.Length < page.Text.Length);
+                }
+                finally
+                {
+                    TextOnlyPageInformationFactory.Visibility = null;
+                }
             }
         }
 
@@ -57,21 +66,51 @@
         {
             // 8.11.3.1: a hidden glyph in a clip rendering mode still adds to the text clipping path, so the base
             // processor still renders it ('C'), unlike a hidden glyph in a paint-only mode ('F'). The built-in
-            // processor makes no letter of it, as it does not appear on the page.
+            // processor, which always processes everything, makes a letter of every glyph.
             var pdf = BuildPdfWithHiddenLayer(
                 "BT\n/F1 12 Tf\n10 50 Td\n/OC /oc1 BDC\n7 Tr (C) Tj\n0 Tr (F) Tj\nEMC\n(V) Tj\nET");
 
-            using (var document = PdfDocument.Open(pdf, new ParsingOptions { SkipHiddenOptionalContent = true }))
+            using (var document = PdfDocument.Open(pdf))
             {
                 document.AddPageFactory<TextOnlyPage, TextOnlyPageInformationFactory>();
 
-                Assert.Equal("CV", document.GetPage<TextOnlyPage>(1).Text);
-                Assert.Equal("V", document.GetPage(1).Text);
-            }
+                TextOnlyPageInformationFactory.Visibility = document.OptionalContent;
+                try
+                {
+                    Assert.Equal("CV", document.GetPage<TextOnlyPage>(1).Text);
+                }
+                finally
+                {
+                    TextOnlyPageInformationFactory.Visibility = null;
+                }
 
-            using (var document = PdfDocument.Open(pdf))
-            {
                 Assert.Equal("CFV", document.GetPage(1).Text);
+            }
+        }
+
+        [Fact]
+        public void TaggingProcessorRecordsTheConditionOfEachGlyph()
+        {
+            var file = IntegrationHelpers.GetDocumentPath("GWG151_OptionalContent-RBGroup_X4");
+
+            using (var document = PdfDocument.Open(file))
+            {
+                document.AddPageFactory<TextOnlyPage, TextOnlyPageInformationFactory>();
+
+                var state = document.OptionalContent;
+                Assert.NotNull(state);
+
+                var tags = document.GetPage<TextOnlyPage>(1).Tags;
+
+                // The "Default" layer carries the body text: visible by default.
+                var viewOne = state.Groups.Single(g => g.Name == "GWG View 1");
+                var viewOneOn = state.WithGroupState(viewOne, true);
+
+                Assert.Contains(tags, t => !t.Condition.IsAlways && t.Condition.IsVisible(state));
+
+                // Glyphs of the "GWG View 1" label: hidden by default, visible with the layer on.
+                var viewOneGlyphs = tags.Where(t => !t.Condition.IsVisible(state) && t.Condition.IsVisible(viewOneOn)).ToList();
+                Assert.Equal("GWG View 1", string.Concat(viewOneGlyphs.Select(t => t.Unicode)));
             }
         }
 
@@ -118,10 +157,13 @@
 
             public string Text { get; }
 
-            public TextOnlyPage(int number, string text)
+            public IReadOnlyList<(string Unicode, OptionalContentCondition Condition)> Tags { get; }
+
+            public TextOnlyPage(int number, string text, IReadOnlyList<(string Unicode, OptionalContentCondition Condition)>? tags = null)
             {
                 Number = number;
                 Text = text;
+                Tags = tags ?? [];
             }
         }
 
@@ -129,14 +171,23 @@
         {
             public IReadOnlyList<string> Letters { get; }
 
-            public TextOnlyPageContent(IReadOnlyList<string> letters)
+            public IReadOnlyList<(string Unicode, OptionalContentCondition Condition)> Tags { get; }
+
+            public TextOnlyPageContent(IReadOnlyList<string> letters, IReadOnlyList<(string Unicode, OptionalContentCondition Condition)> tags)
             {
                 Letters = letters;
+                Tags = tags;
             }
         }
 
         public class TextOnlyPageInformationFactory : BasePageFactory<TextOnlyPage>
         {
+            /// <summary>
+            /// The state the processors created by this factory evaluate hidden optional content against, or null for none.
+            /// </summary>
+            [ThreadStatic]
+            public static OptionalContentState? Visibility;
+
             public TextOnlyPageInformationFactory(
                 IPdfTokenScanner pdfScanner,
                 IResourceStore resourceStore,
@@ -173,17 +224,19 @@
                     rotation,
                     initialMatrix,
                     ResourceStore.GetPageOutputIntentProfile(dictionary),
-                    ParsingOptions);
+                    ParsingOptions,
+                    Visibility);
 
                 TextOnlyPageContent content = context.Process(pageNumber, operations);
 
-                return new TextOnlyPage(pageNumber, string.Concat(content.Letters));
+                return new TextOnlyPage(pageNumber, string.Concat(content.Letters), content.Tags);
             }
         }
 
         public sealed class TextOnlyStreamProcessor : BaseStreamProcessor<TextOnlyPageContent>
         {
             private readonly List<string> _letters = new List<string>();
+            private readonly List<(string Unicode, OptionalContentCondition Condition)> _tags = new List<(string Unicode, OptionalContentCondition Condition)>();
 
             public TextOnlyStreamProcessor(int pageNumber,
                 IResourceStore resourceStore,
@@ -195,7 +248,8 @@
                 PageRotationDegrees rotation,
                 TransformationMatrix initialMatrix,
                 IIccProfile? outputIntentProfile,
-                ParsingOptions parsingOptions)
+                ParsingOptions parsingOptions,
+                OptionalContentState? visibility)
                 : base(pageNumber,
                     resourceStore,
                     pdfScanner,
@@ -206,7 +260,8 @@
                     rotation,
                     initialMatrix,
                     outputIntentProfile,
-                    parsingOptions)
+                    parsingOptions,
+                    visibility)
             {
             }
 
@@ -217,7 +272,7 @@
 
                 ProcessOperations(operations);
 
-                return new TextOnlyPageContent(_letters);
+                return new TextOnlyPageContent(_letters, _tags);
             }
 
             public override void RenderGlyph(IFont font,
@@ -233,6 +288,7 @@
                 CharacterBoundingBox characterBoundingBox)
             {
                 _letters.Add(unicode);
+                _tags.Add((unicode, CurrentOptionalContent));
             }
 
             protected override void RenderXObjectImage(XObjectContentRecord xObjectContentRecord)
