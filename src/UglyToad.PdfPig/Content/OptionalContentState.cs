@@ -394,7 +394,7 @@
             // (8.11.3.2), and would need neither the comparer nor the content fallback in IsGroupVisible. It is
             // not done because a BDC /OC property list reaches the tracker already resolved by the resource
             // store, which loses the reference: the store would have to carry it through.
-            public Dictionary<DictionaryToken, int> IndexByDictionary { get; } = new(ReferenceComparer.Instance);
+            public Dictionary<DictionaryToken, int> IndexByDictionary { get; } = new(ReferenceComparer<DictionaryToken>.Instance);
 
             /// <summary>
             /// Per group: its intent does not match the configuration's, so it has no effect on visibility.
@@ -422,7 +422,8 @@
         {
             if (ocmd.TryGet(NameToken.VE, _scanner, out ArrayToken? visibilityExpression))
             {
-                return ResolveVisibilityExpression(visibilityExpression, 0);
+                // Allocated only for an OCMD that has a /VE.
+                return ResolveVisibilityExpression(visibilityExpression, 0, new ExpressionMemo());
             }
 
             var groups = new List<OptionalContentVisibility.Group>();
@@ -474,7 +475,7 @@
         /// A visibility expression: <c>[/And e1 e2 ...]</c>, <c>[/Or e1 e2 ...]</c> or <c>[/Not e]</c>, where each
         /// operand is an OCG or a nested expression. An invalid expression is visible.
         /// </summary>
-        private OptionalContentVisibility ResolveVisibilityExpression(ArrayToken expression, int depth)
+        private OptionalContentVisibility ResolveVisibilityExpression(ArrayToken expression, int depth, ExpressionMemo memo)
         {
             if (depth > MaxVisibilityExpressionDepth || expression.Data.Count < 2 ||
                 !DirectObjectFinder.TryGet(expression.Data[0], _scanner, out NameToken? op))
@@ -482,9 +483,37 @@
                 return OptionalContentVisibility.Visible;
             }
 
+            // An expression reached again while it is being resolved is a cycle: it ends there, as at the depth limit.
+            if (memo.InProgress.Contains(expression))
+            {
+                return OptionalContentVisibility.Visible;
+            }
+
+            // A shared subexpression is resolved once. The depth is part of the key because the depth limit
+            // truncates a subexpression differently at each depth.
+            if (memo.Resolved.TryGetValue((expression, depth), out var known))
+            {
+                return known;
+            }
+
+            memo.InProgress.Add(expression);
+            try
+            {
+                var resolved = ResolveVisibilityExpressionBody(expression, op, depth, memo);
+                memo.Resolved[(expression, depth)] = resolved;
+                return resolved;
+            }
+            finally
+            {
+                memo.InProgress.Remove(expression);
+            }
+        }
+
+        private OptionalContentVisibility ResolveVisibilityExpressionBody(ArrayToken expression, NameToken op, int depth, ExpressionMemo memo)
+        {
             if (op.Equals(NameToken.Not))
             {
-                return new OptionalContentVisibility.Not(ResolveOperand(expression.Data[1], depth));
+                return new OptionalContentVisibility.Not(ResolveOperand(expression.Data[1], depth, memo));
             }
 
             bool isAnd = op.Equals(NameToken.And);
@@ -493,20 +522,28 @@
                 return OptionalContentVisibility.Visible;
             }
 
-            var operands = new OptionalContentVisibility[expression.Data.Count - 1];
+            // And and Or are idempotent: an operand that is the same node as an earlier one adds nothing. Dropping
+            // it keeps evaluation linear when operands share a subexpression, which evaluation cannot
+            // short-circuit (e.g. [/And X X] repeated down many levels).
+            var operands = new List<OptionalContentVisibility>(expression.Data.Count - 1);
+            var seen = new HashSet<OptionalContentVisibility>(ReferenceComparer<OptionalContentVisibility>.Instance);
             for (int i = 1; i < expression.Data.Count; ++i)
             {
-                operands[i - 1] = ResolveOperand(expression.Data[i], depth);
+                var operand = ResolveOperand(expression.Data[i], depth, memo);
+                if (seen.Add(operand))
+                {
+                    operands.Add(operand);
+                }
             }
 
-            return new OptionalContentVisibility.Combination(isAnd, operands);
+            return new OptionalContentVisibility.Combination(isAnd, operands.ToArray());
         }
 
-        private OptionalContentVisibility ResolveOperand(IToken operand, int depth)
+        private OptionalContentVisibility ResolveOperand(IToken operand, int depth, ExpressionMemo memo)
         {
             if (DirectObjectFinder.TryGet(operand, _scanner, out ArrayToken? nested))
             {
-                return ResolveVisibilityExpression(nested, depth + 1);
+                return ResolveVisibilityExpression(nested, depth + 1, memo);
             }
 
             if (DirectObjectFinder.TryGet(operand, _scanner, out DictionaryToken? ocg))
@@ -607,13 +644,36 @@
         }
 
         // System.Collections.Generic.ReferenceEqualityComparer is not available on every target framework.
-        private sealed class ReferenceComparer : IEqualityComparer<DictionaryToken>
+        private sealed class ReferenceComparer<T> : IEqualityComparer<T> where T : class
         {
-            public static readonly ReferenceComparer Instance = new();
+            public static readonly ReferenceComparer<T> Instance = new();
 
-            public bool Equals(DictionaryToken? x, DictionaryToken? y) => ReferenceEquals(x, y);
+            public bool Equals(T? x, T? y) => ReferenceEquals(x, y);
 
-            public int GetHashCode(DictionaryToken obj) => RuntimeHelpers.GetHashCode(obj);
+            public int GetHashCode(T obj) => RuntimeHelpers.GetHashCode(obj);
+        }
+
+        /// <summary>
+        /// Bookkeeping for resolving one /VE: the scanner returns the same <see cref="ArrayToken"/> instance for
+        /// every reference to a shared subexpression, so identity finds them. Without it an expression whose
+        /// operands share a subexpression, or refer back to themselves, is expanded once per path through it.
+        /// </summary>
+        private sealed class ExpressionMemo
+        {
+            public HashSet<ArrayToken> InProgress { get; } = new(ReferenceComparer<ArrayToken>.Instance);
+
+            public Dictionary<(ArrayToken Expression, int Depth), OptionalContentVisibility> Resolved { get; } = new(ExpressionKeyComparer.Instance);
+        }
+
+        private sealed class ExpressionKeyComparer : IEqualityComparer<(ArrayToken Expression, int Depth)>
+        {
+            public static readonly ExpressionKeyComparer Instance = new();
+
+            public bool Equals((ArrayToken Expression, int Depth) x, (ArrayToken Expression, int Depth) y)
+                => ReferenceEquals(x.Expression, y.Expression) && x.Depth == y.Depth;
+
+            public int GetHashCode((ArrayToken Expression, int Depth) obj)
+                => (RuntimeHelpers.GetHashCode(obj.Expression) * 397) ^ obj.Depth;
         }
     }
 }

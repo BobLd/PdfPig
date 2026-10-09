@@ -246,6 +246,63 @@
         }
 
         [Fact]
+        public void SelfReferentialOrExpressionResolvesQuicklyAsVisible()
+        {
+            var state = Create(Dictionary(("OFF", Array(off))));
+            var ocmd = Membership(("VE", AddSelfReferencingExpression(5, "Or")));
+
+            Assert.True(CompletesInTime(() => state.IsVisible(ocmd)));
+        }
+
+        [Fact]
+        public void SelfReferentialAndExpressionResolvesQuicklyAsVisible()
+        {
+            var state = Create(Dictionary(("OFF", Array(off))));
+            var ocmd = Membership(("VE", AddSelfReferencingExpression(5, "And")));
+
+            Assert.True(CompletesInTime(() => state.IsVisible(ocmd)));
+        }
+
+        [Fact]
+        public void SharedVisibilityExpressionSubtreesAreResolvedOnce()
+        {
+            // 30 levels (the nesting limit is 32), each [/And next next] with both operands the same indirect array: 2^30 paths if every
+            // operand were expanded again.
+            const int levels = 30;
+            var and = NameToken.Create("And");
+            for (int i = 0; i < levels; i++)
+            {
+                IToken next = i == levels - 1 ? on : new IndirectReferenceToken(new IndirectReference(100 + i + 1, 0));
+                var reference = new IndirectReference(100 + i, 0);
+                scanner.Objects[reference] = new ObjectToken(XrefLocation.File(0), reference, Array(and, next, next));
+            }
+
+            var ocmd = Membership(("VE", new IndirectReferenceToken(new IndirectReference(100, 0))));
+
+            var stateOn = Create(Dictionary(("OFF", Array(off))));
+            Assert.True(CompletesInTime(() => stateOn.IsVisible(ocmd)));
+
+            var stateOff = Create(Dictionary(("OFF", Array(on))));
+            Assert.False(CompletesInTime(() => stateOff.IsVisible(ocmd)));
+        }
+
+        private ArrayToken AddSelfReferencingExpression(long number, string op)
+        {
+            var reference = new IndirectReference(number, 0);
+            var self = new IndirectReferenceToken(reference);
+            var expression = Array(NameToken.Create(op), self, self);
+            scanner.Objects[reference] = new ObjectToken(XrefLocation.File(0), reference, expression);
+            return expression;
+        }
+
+        private static bool CompletesInTime(Func<bool> evaluate)
+        {
+            var task = System.Threading.Tasks.Task.Run(evaluate);
+            Assert.True(task.Wait(TimeSpan.FromSeconds(5)), "Resolving the visibility expression did not complete.");
+            return task.Result;
+        }
+
+        [Fact]
         public void ConditionsEvaluateLikeIsVisibleWithoutTheScanner()
         {
             // A condition resolves its dictionary when it is created, then must agree with IsVisible in every
