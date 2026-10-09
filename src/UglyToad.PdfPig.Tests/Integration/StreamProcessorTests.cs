@@ -114,22 +114,98 @@
             }
         }
 
+        [Fact]
+        public void TaggingProcessorResolvesMembershipDictionaries()
+        {
+            // GWG152: the "GWG View 1" and "GWG View 2" labels are each under an OCMD whose /VE is
+            // [/And <Use OCMD> <GWG View n>]; all three groups are OFF by default and the views are a radio group.
+            var file = IntegrationHelpers.GetDocumentPath("GWG152_OptionalContent-OCMD_X4");
+
+            using (var document = PdfDocument.Open(file))
+            {
+                document.AddPageFactory<TextOnlyPage, TextOnlyPageInformationFactory>();
+
+                var state = document.OptionalContent;
+                Assert.NotNull(state);
+
+                var tags = document.GetPage<TextOnlyPage>(1).Tags;
+
+                OptionalContentState With(params string[] names)
+                {
+                    var result = state;
+                    foreach (var name in names)
+                    {
+                        result = result.WithGroupState(result.Groups.Single(g => g.Name == name), true);
+                    }
+
+                    return result;
+                }
+
+                string VisibleOnlyIn(OptionalContentState on)
+                    => string.Concat(tags.Where(t => !t.Condition.IsVisible(state) && t.Condition.IsVisible(on)).Select(t => t.Unicode));
+
+                Assert.Equal(string.Empty, VisibleOnlyIn(With("GWG View 1")));
+                Assert.Equal(string.Empty, VisibleOnlyIn(With("Use OCMD")));
+                Assert.Equal("GWG View 1", VisibleOnlyIn(With("Use OCMD", "GWG View 1")));
+                Assert.Equal("GWG View 2", VisibleOnlyIn(With("Use OCMD", "GWG View 2")));
+            }
+        }
+
+        [Fact]
+        public void XObjectOptionalContentContributesToTheCondition()
+        {
+            // 8.11.3.3: a form XObject's /OC governs everything it draws.
+            const string form = "BT\n/F1 12 Tf\n10 20 Td\n(B) Tj\nET";
+            const string content = "BT\n/F1 12 Tf\n10 50 Td\n(A) Tj\nET\n/Fm1 Do\nBT\n/F1 12 Tf\n10 80 Td\n(C) Tj\nET";
+            var pdf = BuildPdf(
+                "<< /Type /Catalog /Pages 2 0 R /OCProperties << /OCGs [5 0 R] /D << /OFF [5 0 R] >> >> >>",
+                "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+                "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /Font << /F1 6 0 R >> /XObject << /Fm1 7 0 R >> >> /Contents 4 0 R >>",
+                $"<< /Length {content.Length} >>\nstream\n{content}\nendstream",
+                "<< /Type /OCG /Name (Hidden) >>",
+                "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+                $"<< /Type /XObject /Subtype /Form /BBox [0 0 200 200] /OC 5 0 R /Resources << /Font << /F1 6 0 R >> >> /Length {form.Length} >>\nstream\n{form}\nendstream");
+
+            using (var document = PdfDocument.Open(pdf))
+            {
+                document.AddPageFactory<TextOnlyPage, TextOnlyPageInformationFactory>();
+
+                var state = document.OptionalContent;
+                Assert.NotNull(state);
+                var on = state.WithGroupState(state.Groups[0], true);
+
+                var page = document.GetPage<TextOnlyPage>(1);
+                Assert.Equal("ABC", page.Text);
+
+                var tags = page.Tags;
+                Assert.True(tags[0].Condition.IsAlways);
+                Assert.False(tags[1].Condition.IsAlways);
+                Assert.False(tags[1].Condition.IsVisible(state));
+                Assert.True(tags[1].Condition.IsVisible(on));
+                Assert.True(tags[2].Condition.IsAlways);
+            }
+        }
+
         /// <summary>
         /// A one-page PDF whose optional content group 'oc1' is OFF in the default configuration, with
         /// Helvetica as /F1.
         /// </summary>
         private static byte[] BuildPdfWithHiddenLayer(string content)
         {
-            string[] objects =
-            [
+            return BuildPdf(
                 "<< /Type /Catalog /Pages 2 0 R /OCProperties << /OCGs [5 0 R] /D << /OFF [5 0 R] >> >> >>",
                 "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
                 "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /Font << /F1 6 0 R >> /Properties << /oc1 5 0 R >> >> /Contents 4 0 R >>",
                 $"<< /Length {content.Length} >>\nstream\n{content}\nendstream",
                 "<< /Type /OCG /Name (Hidden) >>",
-                "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"
-            ];
+                "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+        }
 
+        /// <summary>
+        /// A PDF made of <paramref name="objects"/>, numbered from 1; the first is the catalog.
+        /// </summary>
+        private static byte[] BuildPdf(params string[] objects)
+        {
             var sb = new StringBuilder("%PDF-1.7\n");
             var offsets = new List<int>();
             for (int i = 0; i < objects.Length; i++)

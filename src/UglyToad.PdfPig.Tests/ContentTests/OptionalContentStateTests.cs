@@ -5,6 +5,7 @@
     using System.Linq;
     using PdfPig.Content;
     using PdfPig.Core;
+    using PdfPig.Graphics;
     using PdfPig.Tokens;
     using PdfPig.Tests.Tokens;
     using Xunit;
@@ -242,6 +243,78 @@
             Assert.True(state.IsVisible(Membership(("VE", Array(or, off, on)))));
             Assert.False(state.IsVisible(Membership(("VE", Array(or, off, Array(not, on))))));
             Assert.True(state.IsVisible(Membership(("VE", Array(not, off)))));
+        }
+
+        [Fact]
+        public void ConditionsEvaluateLikeIsVisibleWithoutTheScanner()
+        {
+            // A condition resolves its dictionary when it is created, then must agree with IsVisible in every
+            // state without reading the PDF again.
+            var design = AddGroup(3, "Design only", NameToken.Create("Design"));
+            var twin = AddGroup(4, "Off");
+            var state = Create(Dictionary(("OFF", Array(off))), on, off, design, twin);
+            var and = NameToken.Create("And");
+            var or = NameToken.Create("Or");
+            var not = NameToken.Create("Not");
+
+            var dictionaries = new List<DictionaryToken>
+            {
+                Resolve(on),
+                Resolve(off),
+                Resolve(design),
+                Copy(off),
+                Dictionary(("Type", NameToken.Font)),
+                Membership(),
+                Membership(("OCGs", Array(NullToken.Instance)), ("P", NameToken.Create("AllOn"))),
+                Membership(("OCGs", off)),
+                Membership(("OCGs", Copy(off))),
+                Membership(("OCGs", Array(on, off, design)), ("P", NameToken.Create("AllOn"))),
+                Membership(("VE", Array(not, on)), ("OCGs", Array(on)), ("P", NameToken.Create("AllOn"))),
+                Membership(("VE", Array(and, on, Array(or, off, Array(not, twin))))),
+                Membership(("VE", Array(or, Array(and, off, design), Array(not, Array(or, on, twin))))),
+                Membership(("VE", Array(and, on, NameToken.Create("Junk"), Array(and)))),
+                Membership(("VE", Array(NameToken.Create("Xor"), on, off))),
+                Membership(("VE", Array(not)))
+            };
+
+            foreach (string policy in new[] { "AnyOn", "AllOn", "AnyOff", "AllOff", "Unknown" })
+            {
+                dictionaries.Add(Membership(("OCGs", Array(on, off, twin)), ("P", NameToken.Create(policy))));
+                dictionaries.Add(Membership(("OCGs", Array(off, twin)), ("P", NameToken.Create(policy))));
+            }
+
+            // Every combination of group states.
+            var states = new List<OptionalContentState>();
+            for (int mask = 0; mask < 1 << state.Groups.Count; mask++)
+            {
+                var combination = state;
+                foreach (var group in state.Groups)
+                {
+                    combination = combination.WithGroupState(group, (mask & (1 << group.Index)) != 0);
+                }
+
+                states.Add(combination);
+            }
+
+            var tracker = new MarkedContentTracker(state, null, false, scanner);
+            var conditions = new List<OptionalContentCondition>();
+            var expected = new List<bool[]>();
+            foreach (var dictionary in dictionaries)
+            {
+                tracker.Begin(NameToken.Oc, dictionary);
+                conditions.Add(tracker.Current);
+                tracker.End();
+                expected.Add(states.Select(s => s.IsVisible(dictionary)).ToArray());
+            }
+
+            int reads = scanner.GetCallCount;
+
+            for (int i = 0; i < conditions.Count; i++)
+            {
+                Assert.Equal(expected[i], states.Select(s => conditions[i].IsVisible(s)).ToArray());
+            }
+
+            Assert.Equal(reads, scanner.GetCallCount);
         }
 
         [Fact]

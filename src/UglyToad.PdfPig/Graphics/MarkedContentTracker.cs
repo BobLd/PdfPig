@@ -217,7 +217,8 @@
 
             if (!interned.TryGetValue((parent, part), out var condition))
             {
-                condition = new OptionalContentCondition(parent, part, documentState);
+                // Resolved now, on the processing thread: the condition is then evaluated without the scanner.
+                condition = new OptionalContentCondition(parent, documentState.Resolve(part), documentState);
                 interned[(parent, part)] = condition;
             }
 

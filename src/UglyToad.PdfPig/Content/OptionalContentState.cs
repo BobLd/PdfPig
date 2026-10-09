@@ -16,7 +16,7 @@
     public sealed class OptionalContentState
     {
         /// <summary>
-        /// Visibility evaluation recurses through /VE expressions; bound it against malicious nesting.
+        /// Resolution recurses through /VE expressions; bound it against malicious nesting.
         /// </summary>
         private const int MaxVisibilityExpressionDepth = 32;
 
@@ -232,6 +232,12 @@
 
             definition.Order = ParseOrder(config, definition);
 
+            definition.GroupVisibilities = new OptionalContentVisibility.Group[definition.Groups.Count];
+            for (int i = 0; i < definition.GroupVisibilities.Length; i++)
+            {
+                definition.GroupVisibilities[i] = new OptionalContentVisibility.Group([i]);
+            }
+
             return new OptionalContentState(definition, states);
         }
 
@@ -308,56 +314,62 @@
         /// </summary>
         public bool IsVisible(DictionaryToken? optionalContent)
         {
+            return Resolve(optionalContent).IsVisible(this);
+        }
+
+        /// <summary>
+        /// Resolves an optional content group (OCG) or membership dictionary (OCMD) into a form that is evaluated
+        /// against any state of this document without reading the PDF (the token scanner is not thread-safe).
+        /// The result depends only on what all snapshots of the document share, not on this snapshot's states.
+        /// Anything that is neither an OCG nor an OCMD resolves to always visible.
+        /// </summary>
+        internal OptionalContentVisibility Resolve(DictionaryToken? optionalContent)
+        {
             if (optionalContent is null)
             {
-                return true;
+                return OptionalContentVisibility.Visible;
             }
 
             if (optionalContent.TryGet(NameToken.Type, _scanner, out NameToken? type) &&
                 type.Equals(NameToken.Ocmd))
             {
-                return IsMembershipVisible(optionalContent);
+                return ResolveMembership(optionalContent);
             }
 
-            return IsGroupVisible(optionalContent);
+            return ResolveGroup(optionalContent);
         }
 
         /// <summary>
-        /// Visibility of a single OCG. A group that is not listed in /OCGs is not under the
-        /// document's control and stays visible.
+        /// A single OCG. A group that is not listed in /OCGs is not under the document's control and stays
+        /// visible.
         /// </summary>
-        private bool IsGroupVisible(DictionaryToken ocg)
+        private OptionalContentVisibility.Group ResolveGroup(DictionaryToken ocg)
         {
             if (_definition.IndexByDictionary.TryGetValue(ocg, out int index))
             {
-                return IsEffectivelyOn(index);
+                return _definition.GroupVisibilities[index];
             }
 
             // Reached through another instance: the scanner does not cache an object it found at another
             // offset than the cross-reference table gives, so each read returns a new one. Match it by
             // content instead. It cannot be told which of several groups with the same content is meant, so
             // it is hidden only when every one of them is off. Rare, and there are few groups: a scan will do.
-            bool listed = false;
+            var candidates = new List<int>();
             foreach (var group in _definition.Groups)
             {
                 if (group.Dictionary.Equals(ocg))
                 {
-                    if (IsEffectivelyOn(group.Index))
-                    {
-                        return true;
-                    }
-
-                    listed = true;
+                    candidates.Add(group.Index);
                 }
             }
 
-            return !listed;
+            return new OptionalContentVisibility.Group(candidates.ToArray());
         }
 
         /// <summary>
         /// Whether the group lets its content show: ON, or ignored because of its intent.
         /// </summary>
-        private bool IsEffectivelyOn(int index) => _definition.IgnoredByIntent[index] || _states[index];
+        internal bool IsEffectivelyOn(int index) => _definition.IgnoredByIntent[index] || _states[index];
 
         /// <summary>
         /// What every state snapshot of a document shares: the groups and how to find them.
@@ -390,6 +402,11 @@
             public bool[] IgnoredByIntent { get; set; } = [];
 
             /// <summary>
+            /// Per group: the resolved form of the group itself, shared by every condition that refers to it.
+            /// </summary>
+            public OptionalContentVisibility.Group[] GroupVisibilities { get; set; } = [];
+
+            /// <summary>
             /// The /D /RBGroups arrays, as group indices; groups not in /OCGs are left out.
             /// </summary>
             public List<int[]> RadioGroups { get; } = new();
@@ -398,17 +415,17 @@
         }
 
         /// <summary>
-        /// Visibility of an optional content membership dictionary (§8.11.2.2, Table 99): the /VE
-        /// visibility expression when present, else the /P policy applied over /OCGs.
+        /// An optional content membership dictionary (§8.11.2.2, Table 99): the /VE visibility expression when
+        /// present, else the /P policy applied over /OCGs.
         /// </summary>
-        private bool IsMembershipVisible(DictionaryToken ocmd)
+        private OptionalContentVisibility ResolveMembership(DictionaryToken ocmd)
         {
             if (ocmd.TryGet(NameToken.VE, _scanner, out ArrayToken? visibilityExpression))
             {
-                return EvaluateVisibilityExpression(visibilityExpression, 0);
+                return ResolveVisibilityExpression(visibilityExpression, 0);
             }
 
-            var groups = new List<DictionaryToken>();
+            var groups = new List<OptionalContentVisibility.Group>();
             if (ocmd.TryGet(NameToken.Ocgs, _scanner, out IToken? ocgsToken))
             {
                 if (DirectObjectFinder.TryGet(ocgsToken, _scanner, out ArrayToken? ocgArray))
@@ -418,128 +435,86 @@
                         // Null and missing entries are ignored.
                         if (DirectObjectFinder.TryGet(item, _scanner, out DictionaryToken? ocg))
                         {
-                            groups.Add(ocg);
+                            groups.Add(ResolveGroup(ocg));
                         }
                     }
                 }
                 else if (DirectObjectFinder.TryGet(ocgsToken, _scanner, out DictionaryToken? singleOcg))
                 {
-                    groups.Add(singleOcg);
+                    groups.Add(ResolveGroup(singleOcg));
                 }
             }
 
             // An OCMD with no usable groups has no effect on visibility.
             if (groups.Count == 0)
             {
-                return true;
+                return OptionalContentVisibility.Visible;
             }
 
-            ocmd.TryGet(NameToken.P, _scanner, out NameToken? policy);
+            ocmd.TryGet(NameToken.P, _scanner, out NameToken? policyName);
 
-            if (policy is not null && policy.Equals(NameToken.AllOn))
+            var policy = OptionalContentVisibility.Policy.AnyOn; // The default.
+            if (policyName is not null && policyName.Equals(NameToken.AllOn))
             {
-                foreach (var ocg in groups)
-                {
-                    if (!IsGroupVisible(ocg))
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
+                policy = OptionalContentVisibility.Policy.AllOn;
             }
-
-            if (policy is not null && policy.Equals(NameToken.AnyOff))
+            else if (policyName is not null && policyName.Equals(NameToken.AnyOff))
             {
-                foreach (var ocg in groups)
-                {
-                    if (!IsGroupVisible(ocg))
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
+                policy = OptionalContentVisibility.Policy.AnyOff;
             }
-
-            if (policy is not null && policy.Equals(NameToken.AllOff))
+            else if (policyName is not null && policyName.Equals(NameToken.AllOff))
             {
-                foreach (var ocg in groups)
-                {
-                    if (IsGroupVisible(ocg))
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
+                policy = OptionalContentVisibility.Policy.AllOff;
             }
 
-            // AnyOn, the default.
-            foreach (var ocg in groups)
-            {
-                if (IsGroupVisible(ocg))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return new OptionalContentVisibility.Membership(policy, groups.ToArray());
         }
 
         /// <summary>
-        /// Evaluates a visibility expression: <c>[/And e1 e2 ...]</c>, <c>[/Or e1 e2 ...]</c> or
-        /// <c>[/Not e]</c>, where each operand is an OCG or a nested expression.
+        /// A visibility expression: <c>[/And e1 e2 ...]</c>, <c>[/Or e1 e2 ...]</c> or <c>[/Not e]</c>, where each
+        /// operand is an OCG or a nested expression. An invalid expression is visible.
         /// </summary>
-        private bool EvaluateVisibilityExpression(ArrayToken expression, int depth)
+        private OptionalContentVisibility ResolveVisibilityExpression(ArrayToken expression, int depth)
         {
             if (depth > MaxVisibilityExpressionDepth || expression.Data.Count < 2 ||
                 !DirectObjectFinder.TryGet(expression.Data[0], _scanner, out NameToken? op))
             {
-                return true;
+                return OptionalContentVisibility.Visible;
             }
 
             if (op.Equals(NameToken.Not))
             {
-                return !EvaluateOperand(expression.Data[1], depth);
+                return new OptionalContentVisibility.Not(ResolveOperand(expression.Data[1], depth));
             }
 
             bool isAnd = op.Equals(NameToken.And);
             if (!isAnd && !op.Equals(NameToken.Or))
             {
-                return true;
+                return OptionalContentVisibility.Visible;
             }
 
+            var operands = new OptionalContentVisibility[expression.Data.Count - 1];
             for (int i = 1; i < expression.Data.Count; ++i)
             {
-                bool operand = EvaluateOperand(expression.Data[i], depth);
-                if (isAnd && !operand)
-                {
-                    return false;
-                }
-
-                if (!isAnd && operand)
-                {
-                    return true;
-                }
+                operands[i - 1] = ResolveOperand(expression.Data[i], depth);
             }
 
-            return isAnd;
+            return new OptionalContentVisibility.Combination(isAnd, operands);
         }
 
-        private bool EvaluateOperand(IToken operand, int depth)
+        private OptionalContentVisibility ResolveOperand(IToken operand, int depth)
         {
             if (DirectObjectFinder.TryGet(operand, _scanner, out ArrayToken? nested))
             {
-                return EvaluateVisibilityExpression(nested, depth + 1);
+                return ResolveVisibilityExpression(nested, depth + 1);
             }
 
             if (DirectObjectFinder.TryGet(operand, _scanner, out DictionaryToken? ocg))
             {
-                return IsGroupVisible(ocg);
+                return ResolveGroup(ocg);
             }
 
-            return true;
+            return OptionalContentVisibility.Visible;
         }
 
         private static IReadOnlyList<OptionalContentOrderNode> ParseOrder(DictionaryToken? config, Definition definition)
