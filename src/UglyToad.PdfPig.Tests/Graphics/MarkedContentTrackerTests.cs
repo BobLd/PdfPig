@@ -21,7 +21,7 @@
         [Fact]
         public void UnbalancedEndIsIgnored()
         {
-            var tracker = new MarkedContentTracker(null, false, scanner);
+            var tracker = new MarkedContentTracker(null, null, false, scanner);
 
             Assert.False(tracker.CanEnd);
             Assert.False(tracker.End());
@@ -34,7 +34,7 @@
         [Fact]
         public void StreamCannotEndSequencesOpenedByEnclosingStream()
         {
-            var tracker = new MarkedContentTracker(null, false, scanner);
+            var tracker = new MarkedContentTracker(null, null, false, scanner);
 
             tracker.Begin(Span, null);
             int enclosingFloor = tracker.EnterStream();
@@ -82,7 +82,7 @@
         [Fact]
         public void HiddenGroupIsIgnoredWhenNotSkipping()
         {
-            var tracker = new MarkedContentTracker(null, false, scanner);
+            var tracker = new MarkedContentTracker(null, null, false, scanner);
 
             tracker.Begin(NameToken.Oc, Group("Off"));
             Assert.False(tracker.IsHidden);
@@ -91,7 +91,7 @@
         [Fact]
         public void ActualTextGoesToTheFirstGlyphOnly()
         {
-            var tracker = new MarkedContentTracker(null, true, scanner);
+            var tracker = new MarkedContentTracker(null, null, true, scanner);
 
             Assert.Equal("a", tracker.ApplyActualText("a"));
 
@@ -108,7 +108,7 @@
         [Fact]
         public void NestedActualTextDoesNotReplaceTheOuterOne()
         {
-            var tracker = new MarkedContentTracker(null, true, scanner);
+            var tracker = new MarkedContentTracker(null, null, true, scanner);
 
             tracker.Begin(Span, ActualText("outer"));
             tracker.Begin(Span, ActualText("inner"));
@@ -125,7 +125,7 @@
         [Fact]
         public void ActualTextIsIgnoredWhenNotUsed()
         {
-            var tracker = new MarkedContentTracker(null, false, scanner);
+            var tracker = new MarkedContentTracker(null, null, false, scanner);
 
             tracker.Begin(Span, ActualText("replacement"));
             Assert.Equal("a", tracker.ApplyActualText("a"));
@@ -144,7 +144,7 @@
 
             var state = OptionalContentState.Create(catalog, scanner);
             Assert.NotNull(state);
-            return (new MarkedContentTracker(state, false, scanner), off);
+            return (new MarkedContentTracker(state, state, false, scanner), off);
         }
 
         private static DictionaryToken Group(string name)

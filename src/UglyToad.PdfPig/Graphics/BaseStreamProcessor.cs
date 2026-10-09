@@ -127,9 +127,8 @@
         private readonly MarkedContentTracker _markedContent;
 
         /// <summary>
-        /// Whether the current content is inside optional content hidden by the document's default
-        /// configuration. Always <see langword="false"/> unless <see cref="ParsingOptions.SkipHiddenOptionalContent"/>
-        /// is set.
+        /// Whether the current content is hidden in the visibility state passed to the constructor; always
+        /// <see langword="false"/> without one.
         /// <para>
         /// While it is <see langword="true"/>, the base class does not call <see cref="RenderInlineImage"/> or
         /// <see cref="RenderXObjectImage"/>, does not process form XObjects, and calls <see cref="RenderGlyph"/>
@@ -143,11 +142,31 @@
         protected bool IsOptionalContentHidden => _markedContent.IsHidden;
 
         /// <summary>
+        /// The optional content in effect for what is being emitted now: enclosing <c>BDC /OC</c> sequences and the
+        /// <c>/OC</c> entries of enclosing form XObjects, image XObjects and annotations. Processors that produce
+        /// layered output tag what they emit with it.
+        /// </summary>
+        protected OptionalContentCondition CurrentOptionalContent => _markedContent.Current;
+
+        /// <summary>
+        /// Adds the <c>/OC</c> entry of <paramref name="dictionary"/> (an XObject or annotation dictionary, 8.11.3.3)
+        /// to <see cref="CurrentOptionalContent"/> until the returned scope is disposed. The base class does this for
+        /// every form and image XObject; use it around annotation drawing with the annotation dictionary.
+        /// </summary>
+        protected OptionalContentScope EnterOptionalContent(DictionaryToken dictionary)
+            => new OptionalContentScope(_markedContent, _markedContent.Enter(dictionary));
+
+        /// <summary>
         /// Abstract stream processor constructor.
         /// </summary>
         /// <param name="outputIntentProfile">
         /// The profile device colours are colour-managed through for this content (14.11.5), or
         /// <see langword="null"/> when they are not managed.
+        /// </param>
+        /// <param name="optionalContentVisibility">
+        /// The state hidden optional content is evaluated against: content hidden in it is skipped (glyphs other than
+        /// clip-mode ones, inline images, image and form XObjects); graphics state changes still apply.
+        /// Null: nothing is skipped.
         /// </param>
         protected BaseStreamProcessor(
             int pageNumber,
@@ -160,7 +179,8 @@
             PageRotationDegrees rotation,
             in TransformationMatrix initialMatrix,
             IIccProfile? outputIntentProfile,
-            ParsingOptions parsingOptions)
+            ParsingOptions parsingOptions,
+            OptionalContentState? optionalContentVisibility = null)
         {
             this.PageNumber = pageNumber;
             this.ResourceStore = resourceStore;
@@ -170,8 +190,11 @@
             this.PageContentParser = pageContentParser ?? throw new ArgumentNullException(nameof(pageContentParser));
             this.FilterProvider = filterProvider ?? throw new ArgumentNullException(nameof(filterProvider));
             this.ParsingOptions = parsingOptions;
+            var visibility = optionalContentVisibility
+                ?? (parsingOptions.SkipHiddenOptionalContent ? resourceStore.OptionalContent : null);
             this._markedContent = new MarkedContentTracker(
-                parsingOptions.SkipHiddenOptionalContent ? resourceStore.OptionalContent : null,
+                resourceStore.OptionalContent,
+                visibility,
                 parsingOptions.UseActualText,
                 pdfScanner);
 
@@ -540,7 +563,7 @@
         /// <remarks>
         /// Skips XObjects inside hidden optional content and XObjects hidden by their own <c>/OC</c> entry.
         /// An override that does not call the base implementation should check <see cref="IsOptionalContentHidden"/>
-        /// and <see cref="IsOptionalContentVisible"/> itself.
+        /// inside an <see cref="EnterOptionalContent"/> scope itself.
         /// </remarks>
         public virtual void ApplyXObject(NameToken xObjectName)
         {
@@ -553,9 +576,12 @@
 
             if (hasReference && _formXObjectCache.TryGetValue(xObjectReference, out var cachedForm))
             {
-                if (IsOptionalContentVisible(cachedForm.StreamDictionary))
+                using (EnterOptionalContent(cachedForm.StreamDictionary))
                 {
-                    ProcessFormXObject(cachedForm, xObjectName);
+                    if (!IsOptionalContentHidden)
+                    {
+                        ProcessFormXObject(cachedForm, xObjectName);
+                    }
                 }
 
                 return;
@@ -571,9 +597,10 @@
                 throw new PdfDocumentFormatException($"No XObject with name {xObjectName} found on page {PageNumber}.");
             }
 
-            if (!IsOptionalContentVisible(xObjectStream.StreamDictionary))
+            // The XObject's own /OC (8.11.3.3) applies to everything it draws.
+            using var optionalContentScope = EnterOptionalContent(xObjectStream.StreamDictionary);
+            if (IsOptionalContentHidden)
             {
-                // Hidden by its own /OC entry (8.11.3.3).
                 return;
             }
 
@@ -1188,17 +1215,6 @@
             return _markedContent.ApplyActualText(unicode);
         }
 
-        /// <summary>
-        /// Whether content carrying the given optional content entry (the <c>/OC</c> entry of an XObject or
-        /// annotation dictionary, 8.11.3.3) is shown. Always <see langword="true"/> unless
-        /// <see cref="ParsingOptions.SkipHiddenOptionalContent"/> is set.
-        /// </summary>
-        /// <param name="dictionary">The XObject or annotation dictionary that may hold an <c>/OC</c> entry.</param>
-        protected bool IsOptionalContentVisible(DictionaryToken dictionary)
-        {
-            return _markedContent.IsVisible(dictionary);
-        }
-
         private void AdjustTextMatrix(double tx, double ty)
         {
             var matrix = TransformationMatrix.GetTranslationMatrix(tx, ty);
@@ -1302,5 +1318,24 @@
         /// <inheritdoc/>
         /// <remarks>Also called inside hidden optional content: check <see cref="IsOptionalContentHidden"/>.</remarks>
         public abstract void PaintShading(NameToken shadingName);
+    }
+
+    /// <summary>
+    /// Ends an <see cref="BaseStreamProcessor{TPageContent}.EnterOptionalContent"/> scope when disposed.
+    /// </summary>
+    public readonly struct OptionalContentScope : IDisposable
+    {
+        private readonly MarkedContentTracker? tracker;
+
+        internal OptionalContentScope(MarkedContentTracker tracker, bool entered)
+        {
+            this.tracker = entered ? tracker : null;
+        }
+
+        /// <inheritdoc />
+        public void Dispose()
+        {
+            tracker?.Exit();
+        }
     }
 }

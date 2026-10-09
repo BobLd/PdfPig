@@ -1,5 +1,7 @@
 ﻿namespace UglyToad.PdfPig.Graphics
 {
+    using System.Collections.Generic;
+    using System.Runtime.CompilerServices;
     using Content;
     using Tokenization.Scanner;
     using Tokens;
@@ -12,9 +14,27 @@
     internal sealed class MarkedContentTracker
     {
         /// <summary>
-        /// Null when hidden optional content is not skipped: content is then never hidden.
+        /// The document's optional content, or null when it has none: optional content is then ignored (8.11.4.1)
+        /// and every condition is <see cref="OptionalContentCondition.Always"/>.
         /// </summary>
-        private readonly OptionalContentState? optionalContent;
+        private readonly OptionalContentState? documentState;
+
+        /// <summary>
+        /// The state hidden content is evaluated against, or null when nothing is hidden.
+        /// </summary>
+        private readonly OptionalContentState? visibility;
+
+        /// <summary>
+        /// The condition in effect before each open BMC/BDC sequence and each <see cref="Enter"/> scope,
+        /// restored when it ends.
+        /// </summary>
+        private readonly Stack<OptionalContentCondition> enclosing = new();
+
+        private readonly Dictionary<(OptionalContentCondition Parent, DictionaryToken Part), OptionalContentCondition> interned =
+            new(ChainComparer.Instance);
+
+        private readonly Dictionary<OptionalContentCondition, bool> hiddenCache = new();
+
         private readonly bool useActualText;
         private readonly IPdfTokenScanner scanner;
 
@@ -30,12 +50,6 @@
         private int floor;
 
         /// <summary>
-        /// Depth of the outermost open sequence that hides its content, 0 when content is visible.
-        /// Nested sequences are not evaluated once hidden: a visible group inside a hidden one stays hidden.
-        /// </summary>
-        private int hiddenFromDepth;
-
-        /// <summary>
         /// The replacement text the next glyph receives, null when none is in effect.
         /// It stands for the content of its whole sequence, nested sequences included,
         /// so the first glyph takes it and it becomes empty for the rest.
@@ -47,14 +61,41 @@
         /// </summary>
         private int actualTextDepth;
 
-        public MarkedContentTracker(OptionalContentState? optionalContent, bool useActualText, IPdfTokenScanner scanner)
+        public MarkedContentTracker(OptionalContentState? documentState, OptionalContentState? visibility,
+            bool useActualText, IPdfTokenScanner scanner)
         {
-            this.optionalContent = optionalContent;
+            this.documentState = documentState;
+            this.visibility = visibility;
             this.useActualText = useActualText;
             this.scanner = scanner;
         }
 
-        public bool IsHidden => hiddenFromDepth > 0;
+        /// <summary>
+        /// The optional content in effect for what is being emitted now.
+        /// </summary>
+        public OptionalContentCondition Current { get; private set; } = OptionalContentCondition.Always;
+
+        /// <summary>
+        /// Whether the current content is hidden in the visibility state; always false without one.
+        /// </summary>
+        public bool IsHidden
+        {
+            get
+            {
+                if (visibility is null || Current.IsAlways)
+                {
+                    return false;
+                }
+
+                if (!hiddenCache.TryGetValue(Current, out bool hidden))
+                {
+                    hidden = !Current.IsVisible(visibility);
+                    hiddenCache[Current] = hidden;
+                }
+
+                return hidden;
+            }
+        }
 
         /// <summary>
         /// Whether an EMC would end a sequence opened by the current content stream.
@@ -69,11 +110,11 @@
         public void Begin(NameToken tag, DictionaryToken? properties)
         {
             depth++;
+            enclosing.Push(Current);
 
-            if (!IsHidden && optionalContent is not null && tag.Equals(NameToken.Oc) &&
-                !optionalContent.IsVisible(properties))
+            if (properties is not null && tag.Equals(NameToken.Oc))
             {
-                hiddenFromDepth = depth;
+                Current = Extend(Current, properties);
             }
 
             if (actualTextDepth == 0 && useActualText && properties is not null &&
@@ -99,17 +140,13 @@
                 return false;
             }
 
-            if (depth == hiddenFromDepth)
-            {
-                hiddenFromDepth = 0;
-            }
-
             if (depth == actualTextDepth)
             {
                 actualText = null;
                 actualTextDepth = 0;
             }
 
+            Current = enclosing.Pop();
             depth--;
             return true;
         }
@@ -131,14 +168,25 @@
         }
 
         /// <summary>
-        /// Whether content carrying the <c>/OC</c> entry of the given XObject or annotation dictionary
-        /// (8.11.3.3) is shown.
+        /// Adds the <c>/OC</c> entry of an XObject or annotation dictionary (8.11.3.3) to the current condition,
+        /// until <see cref="Exit"/>. Returns false, and changes nothing, when the dictionary has no <c>/OC</c>
+        /// entry or the document has no optional content; <see cref="Exit"/> must then not be called.
         /// </summary>
-        public bool IsVisible(DictionaryToken dictionary)
+        public bool Enter(DictionaryToken dictionary)
         {
-            return optionalContent is null ||
-                   !dictionary.TryGet(NameToken.Oc, scanner, out DictionaryToken? oc) ||
-                   optionalContent.IsVisible(oc);
+            if (documentState is null || !dictionary.TryGet(NameToken.Oc, scanner, out DictionaryToken? oc))
+            {
+                return false;
+            }
+
+            enclosing.Push(Current);
+            Current = Extend(Current, oc);
+            return true;
+        }
+
+        public void Exit()
+        {
+            Current = enclosing.Pop();
         }
 
         /// <summary>
@@ -158,6 +206,35 @@
         public void ExitStream(int enclosingFloor)
         {
             floor = enclosingFloor;
+        }
+
+        private OptionalContentCondition Extend(OptionalContentCondition parent, DictionaryToken part)
+        {
+            if (documentState is null)
+            {
+                return parent;
+            }
+
+            if (!interned.TryGetValue((parent, part), out var condition))
+            {
+                condition = new OptionalContentCondition(parent, part, documentState);
+                interned[(parent, part)] = condition;
+            }
+
+            return condition;
+        }
+
+        // Reference identity for both halves: distinct groups can have identical dictionaries.
+        private sealed class ChainComparer : IEqualityComparer<(OptionalContentCondition Parent, DictionaryToken Part)>
+        {
+            public static readonly ChainComparer Instance = new();
+
+            public bool Equals((OptionalContentCondition Parent, DictionaryToken Part) x,
+                (OptionalContentCondition Parent, DictionaryToken Part) y)
+                => ReferenceEquals(x.Parent, y.Parent) && ReferenceEquals(x.Part, y.Part);
+
+            public int GetHashCode((OptionalContentCondition Parent, DictionaryToken Part) obj)
+                => (RuntimeHelpers.GetHashCode(obj.Parent) * 397) ^ RuntimeHelpers.GetHashCode(obj.Part);
         }
     }
 }
