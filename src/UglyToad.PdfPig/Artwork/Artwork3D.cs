@@ -229,6 +229,8 @@ namespace UglyToad.PdfPig.Artwork
             {
                 case AnnotationType.Artwork3D:
                     return TryCreateFromAnnotation3D(annotation.AnnotationDictionary, scanner, filterProvider, out artwork);
+                case AnnotationType.RichMedia:
+                    return TryCreateFromRichMedia(annotation.AnnotationDictionary, scanner, filterProvider, out artwork);
                 default:
                     artwork = null;
                     return false;
@@ -326,6 +328,271 @@ namespace UglyToad.PdfPig.Artwork
                 Artwork3DParser.Get(streamDictionary, Artwork3DNames.OnInstantiate, scanner) as StreamToken);
 
             return true;
+        }
+
+        /// <summary>
+        /// Rich media (ISO 32000-2, 13.7): the 3D data is an embedded file named by an instance of a
+        /// configuration; the views and the activation settings sit beside it.
+        /// </summary>
+        private static bool TryCreateFromRichMedia(
+            DictionaryToken annotationDictionary,
+            IPdfTokenScanner scanner,
+            ILookupFilterProvider filterProvider,
+            [NotNullWhen(true)] out Artwork3D? artwork)
+        {
+            artwork = null;
+
+            var content = Artwork3DParser.GetDictionary(annotationDictionary, Artwork3DNames.RichMediaContent, scanner);
+            var configurations = content is null ? null : Artwork3DParser.GetArray(content, Artwork3DNames.Configurations, scanner);
+            if (content is null || configurations is null)
+            {
+                return false;
+            }
+
+            // Configurations that say they are 3D come first; then those that say nothing, judged by their assets.
+            RichMediaAsset asset;
+            if (!TryFindRichMediaAsset(configurations, explicit3D: true, scanner, filterProvider, out asset)
+                && !TryFindRichMediaAsset(configurations, explicit3D: false, scanner, filterProvider, out asset))
+            {
+                return false;
+            }
+
+            var settings = Artwork3DParser.GetDictionary(annotationDictionary, Artwork3DNames.RichMediaSettings, scanner);
+            var activation = settings is null ? null : Artwork3DParser.GetDictionary(settings, Artwork3DNames.Activation, scanner);
+            var deactivation = settings is null ? null : Artwork3DParser.GetDictionary(settings, Artwork3DNames.Deactivation, scanner);
+
+            IToken? activationView = null;
+            activation?.TryGet(Artwork3DNames.View, out activationView);
+
+            var animationDictionary = activation is null ? null : Artwork3DParser.GetDictionary(activation, RichMediaAnimation, scanner);
+
+            artwork = new Artwork3D(
+                scanner,
+                filterProvider,
+                Artwork3DSource.RichMedia,
+                asset.Format,
+                asset.FileName,
+                asset.Stream,
+                instanceKey: null,
+                asset.StreamReference,
+                Artwork3DParser.GetArray(content, Artwork3DNames.Views, scanner),
+                activationView,
+                streamDefaultView: null,
+                ParseRichMediaActivation(activation, deactivation, scanner),
+                viewBox: null,
+                isInteractive: true,
+                animationDictionary is null ? Artwork3DAnimationStyle.None : ParseRichMediaAnimation(animationDictionary, scanner),
+                units: null,
+                colorSpace: null,
+                script: null);
+
+            return true;
+        }
+
+        private static readonly NameToken RichMediaAnimation = NameToken.Create("Animation");
+        private static readonly NameToken RichMediaPlayCount = NameToken.Create("PlayCount");
+        private static readonly NameToken RichMediaSpeed = NameToken.Create("Speed");
+
+        private readonly struct RichMediaAsset
+        {
+            public StreamToken Stream { get; }
+
+            public IndirectReference? StreamReference { get; }
+
+            public string? FileName { get; }
+
+            public Artwork3DFormat Format { get; }
+
+            public RichMediaAsset(StreamToken stream, IndirectReference? streamReference, string? fileName, Artwork3DFormat format)
+            {
+                Stream = stream;
+                StreamReference = streamReference;
+                FileName = fileName;
+                Format = format;
+            }
+        }
+
+        private static bool TryFindRichMediaAsset(
+            ArrayToken configurations,
+            bool explicit3D,
+            IPdfTokenScanner scanner,
+            ILookupFilterProvider filterProvider,
+            out RichMediaAsset asset)
+        {
+            asset = default;
+
+            var configurationCount = Math.Min(configurations.Length, Artwork3DParser.MaxViews);
+            for (var c = 0; c < configurationCount; c++)
+            {
+                if (!(Artwork3DParser.Resolve(configurations.Data[c], scanner) is DictionaryToken configuration))
+                {
+                    continue;
+                }
+
+                var subtype = Artwork3DParser.GetName(configuration, NameToken.Subtype, scanner);
+                if (explicit3D ? subtype != "3D" : subtype != null)
+                {
+                    continue;
+                }
+
+                var instances = Artwork3DParser.GetArray(configuration, Artwork3DNames.Instances, scanner);
+                if (instances is null)
+                {
+                    continue;
+                }
+
+                var instanceCount = Math.Min(instances.Length, Artwork3DParser.MaxViews);
+                for (var i = 0; i < instanceCount; i++)
+                {
+                    if (!(Artwork3DParser.Resolve(instances.Data[i], scanner) is DictionaryToken instance))
+                    {
+                        continue;
+                    }
+
+                    var fileSpecification = Artwork3DParser.GetDictionary(instance, Artwork3DNames.Asset, scanner);
+                    var embedded = fileSpecification is null ? null : Artwork3DParser.GetDictionary(fileSpecification, NameToken.Ef, scanner);
+                    if (fileSpecification is null || embedded is null)
+                    {
+                        continue;
+                    }
+
+                    if (!embedded.TryGet(NameToken.F, out IToken? rawStream) || !(Artwork3DParser.Resolve(rawStream, scanner) is StreamToken))
+                    {
+                        embedded.TryGet(NameToken.Uf, out rawStream);
+                    }
+
+                    if (!(Artwork3DParser.Resolve(rawStream, scanner) is StreamToken stream))
+                    {
+                        continue;
+                    }
+
+                    var fileName = Artwork3DParser.GetText(fileSpecification, NameToken.Uf, scanner)
+                                   ?? Artwork3DParser.GetText(fileSpecification, NameToken.F, scanner);
+
+                    var format = FormatFromFileName(fileName);
+                    if (format == Artwork3DFormat.Unknown)
+                    {
+                        format = FormatFromSignature(stream, scanner, filterProvider);
+                    }
+
+                    if (format == Artwork3DFormat.Unknown)
+                    {
+                        continue;
+                    }
+
+                    asset = new RichMediaAsset(stream, (rawStream as IndirectReferenceToken)?.Data, fileName, format);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static Artwork3DFormat FormatFromFileName(string? fileName)
+        {
+            if (fileName is null)
+            {
+                return Artwork3DFormat.Unknown;
+            }
+
+            if (fileName.EndsWith(".u3d", StringComparison.OrdinalIgnoreCase))
+            {
+                return Artwork3DFormat.U3D;
+            }
+
+            return fileName.EndsWith(".prc", StringComparison.OrdinalIgnoreCase) ? Artwork3DFormat.Prc : Artwork3DFormat.Unknown;
+        }
+
+        /// <summary>
+        /// A U3D file starts with the bytes <c>U3D\0</c>, a PRC file with <c>PRC</c>. This decodes the stream,
+        /// so it is used only when the file name says nothing.
+        /// </summary>
+        private static Artwork3DFormat FormatFromSignature(StreamToken stream, IPdfTokenScanner scanner, ILookupFilterProvider filterProvider)
+        {
+            try
+            {
+                var data = stream.Decode(filterProvider, scanner).Span;
+                if (data.Length >= 4 && data[0] == 'U' && data[1] == '3' && data[2] == 'D' && data[3] == 0)
+                {
+                    return Artwork3DFormat.U3D;
+                }
+
+                if (data.Length >= 3 && data[0] == 'P' && data[1] == 'R' && data[2] == 'C')
+                {
+                    return Artwork3DFormat.Prc;
+                }
+            }
+            catch
+            {
+                // An undecodable asset is not 3D artwork we can hand out.
+            }
+
+            return Artwork3DFormat.Unknown;
+        }
+
+        private static Artwork3DActivation ParseRichMediaActivation(DictionaryToken? activation, DictionaryToken? deactivation, IPdfTokenScanner scanner)
+        {
+            var mode = Artwork3DActivationMode.Explicit;
+            switch (activation is null ? null : Artwork3DParser.GetName(activation, Artwork3DNames.Condition, scanner))
+            {
+                case "PO":
+                    mode = Artwork3DActivationMode.PageOpen;
+                    break;
+                case "PV":
+                    mode = Artwork3DActivationMode.PageVisible;
+                    break;
+            }
+
+            // Rich media stays active until explicitly deactivated unless the document says otherwise.
+            var deactivationMode = Artwork3DDeactivationMode.Explicit;
+            switch (deactivation is null ? null : Artwork3DParser.GetName(deactivation, Artwork3DNames.Condition, scanner))
+            {
+                case "PC":
+                    deactivationMode = Artwork3DDeactivationMode.PageClose;
+                    break;
+                case "PI":
+                    deactivationMode = Artwork3DDeactivationMode.PageInvisible;
+                    break;
+            }
+
+            var presentation = activation is null ? null : Artwork3DParser.GetDictionary(activation, Artwork3DNames.Presentation, scanner);
+            var defaults = Artwork3DActivation.Default;
+
+            return new Artwork3DActivation(
+                mode,
+                defaults.ActivationState,
+                deactivationMode,
+                defaults.DeactivationState,
+                (presentation is null ? null : Artwork3DParser.GetBoolean(presentation, Artwork3DNames.Toolbar, scanner)) ?? true,
+                (presentation is null ? null : Artwork3DParser.GetBoolean(presentation, Artwork3DNames.NavigationPane, scanner)) ?? false,
+                ParseStyle(presentation is null ? null : Artwork3DParser.GetName(presentation, Artwork3DNames.Style, scanner)),
+                presentation is null ? null : Artwork3DParser.GetDictionary(presentation, Artwork3DNames.Window, scanner),
+                (presentation is null ? null : Artwork3DParser.GetBoolean(presentation, Artwork3DNames.Transparent, scanner)) ?? false);
+        }
+
+        private static Artwork3DAnimationStyle ParseRichMediaAnimation(DictionaryToken dictionary, IPdfTokenScanner scanner)
+        {
+            Artwork3DAnimationType type;
+            switch (Artwork3DParser.GetName(dictionary, NameToken.Subtype, scanner))
+            {
+                case "Linear":
+                    type = Artwork3DAnimationType.Linear;
+                    break;
+                case "Oscillating":
+                    type = Artwork3DAnimationType.Oscillating;
+                    break;
+                default:
+                    type = Artwork3DAnimationType.None;
+                    break;
+            }
+
+            var playCount = Artwork3DParser.GetNumber(dictionary, RichMediaPlayCount, scanner) ?? 0;
+            if (double.IsNaN(playCount) || playCount > int.MaxValue || playCount < int.MinValue)
+            {
+                playCount = 0;
+            }
+
+            return new Artwork3DAnimationStyle(type, (int)playCount, Artwork3DParser.GetNumber(dictionary, RichMediaSpeed, scanner) ?? 1);
         }
 
         private static Artwork3DFormat ParseFormat(string? subtype)
