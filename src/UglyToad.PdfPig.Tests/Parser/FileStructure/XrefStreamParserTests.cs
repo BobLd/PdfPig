@@ -3,6 +3,7 @@ namespace UglyToad.PdfPig.Tests.Parser.FileStructure;
 using PdfPig.Core;
 using PdfPig.Filters;
 using PdfPig.Parser.FileStructure;
+using PdfPig.Tokens;
 
 public class XrefStreamParserTests
 {
@@ -87,10 +88,57 @@ public class XrefStreamParserTests
         Assert.Null(Read(w, Data));
     }
 
-    private static XrefStream? Read(string w, string data)
+    /// <summary>
+    /// The PNG predictor rows of a cross reference stream are its entries, so a /Columns that cannot
+    /// be used is taken from /W rather than failing the decode and losing every entry.
+    /// </summary>
+    [Theory]
+    [InlineData("4444444444444444444444444444444")]
+    [InlineData("0")]
+    [InlineData("-4")]
+    public void ReadsPredictedStreamWithUnusableColumns(string columns)
+    {
+        var result = Read("1 2 1", FlateWithPngNone(Data, 4), $"/Filter /FlateDecode /DecodeParms << /Columns {columns} /Predictor 12 >>");
+
+        Assert.NotNull(result);
+        Assert.Equal(0x0110, Assert.Single(result.ObjectOffsets).Value.Value1);
+    }
+
+    [Fact]
+    public void ReadsPredictedStreamWithValidColumns()
+    {
+        var result = Read("1 2 1", FlateWithPngNone(Data, 4), "/Filter /FlateDecode /DecodeParms << /Columns 4 /Predictor 12 >>");
+
+        Assert.NotNull(result);
+        Assert.Equal(0x0110, Assert.Single(result.ObjectOffsets).Value.Value1);
+    }
+
+    /// <summary>
+    /// Flate encodes <paramref name="data"/> as rows of <paramref name="columns"/> bytes, each led by
+    /// the PNG filter type None.
+    /// </summary>
+    private static string FlateWithPngNone(string data, int columns)
+    {
+        var rows = new List<byte>();
+        var bytes = OtherEncodings.StringAsLatin1Bytes(data);
+
+        for (var i = 0; i < bytes.Length; i += columns)
+        {
+            rows.Add(0);
+            rows.AddRange(bytes.Skip(i).Take(columns));
+        }
+
+        using var stream = new MemoryStream(rows.ToArray());
+
+        var encoded = new FlateFilter().Encode(stream, new DictionaryToken(new Dictionary<NameToken, IToken>()));
+
+        return OtherEncodings.BytesAsLatin1String(encoded.ToArray());
+    }
+
+    private static XrefStream? Read(string w, string data, string extraEntries = "")
     {
         var content =
-            $"1 0 obj\n<< /Type /XRef /Size 2 /W [{w}] /Length {data.Length} >>\nstream\n{data}\nendstream\nendobj\n";
+            $"1 0 obj\n<< /Type /XRef /Size 2 /W [{w}] /Length {data.Length} {extraEntries} >>\nstream\n{data}\nendstream\nendobj\n";
 
         var input = StringBytesTestConverter.Scanner(content);
 

@@ -84,11 +84,11 @@ internal static class XrefStreamParser
                 return null;
             }
 
-            var stream = new StreamToken(dictToken, data);
+            var fieldSizes = new XrefFieldSize(dictArray);
+
+            var stream = new StreamToken(WithValidColumns(dictToken, fieldSizes.LineLength, log), data);
 
             var decoded = stream.Decode(filterProvider).Span;
-
-            var fieldSizes = new XrefFieldSize(dictArray);
 
             var lineCount = decoded.Length / fieldSizes.LineLength;
 
@@ -169,6 +169,30 @@ internal static class XrefStreamParser
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// The rows of a predicted cross reference stream are its entries, so where the /Columns decode
+    /// parameter cannot be used the entry length from /W is used instead. Otherwise the decode fails
+    /// and every entry in the stream is lost.
+    /// </summary>
+    private static DictionaryToken WithValidColumns(DictionaryToken dictionary, int lineLength, ILog log)
+    {
+        // TODO - Should be in Lenient parsing only
+        if (!dictionary.TryGet(NameToken.DecodeParms, out DictionaryToken decodeParms)
+            || !decodeParms.TryGet(NameToken.Columns, out var columnsToken))
+        {
+            return dictionary;
+        }
+
+        if (columnsToken is NumericToken columns && columns.Double >= 1 && columns.Double <= int.MaxValue)
+        {
+            return dictionary;
+        }
+
+        log.Warn($"Invalid /Columns {columnsToken} in the decode parameters of a cross reference stream, using the entry length {lineLength} from /W.");
+
+        return dictionary.With(NameToken.DecodeParms, decodeParms.With(NameToken.Columns, new NumericToken(lineLength)));
     }
 
     private static void ReadNextStreamObject(
