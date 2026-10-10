@@ -114,6 +114,33 @@ public class XrefStreamParserTests
     }
 
     /// <summary>
+    /// With a filter array the decode parameters are an array too, one entry per filter.
+    /// </summary>
+    [Theory]
+    [InlineData("4444444444444444444444444444444")]
+    [InlineData("4")]
+    public void ReadsPredictedStreamWithDecodeParmsArray(string columns)
+    {
+        var result = Read("1 2 1", FlateWithPngNone(Data, 4), $"/Filter [/FlateDecode] /DecodeParms [<< /Columns {columns} /Predictor 12 >>]");
+
+        Assert.NotNull(result);
+        Assert.Equal(0x0110, Assert.Single(result.ObjectOffsets).Value.Value1);
+    }
+
+    [Theory]
+    [InlineData("4444444444444444444444444444444")]
+    [InlineData("4")]
+    public void ReadsPredictedStreamWithDecodeParmsArrayAfterAnotherFilter(string columns)
+    {
+        var hex = string.Concat(OtherEncodings.StringAsLatin1Bytes(FlateWithPngNone(Data, 4)).Select(b => b.ToString("X2"))) + ">";
+
+        var result = Read("1 2 1", hex, $"/Filter [/ASCIIHexDecode /FlateDecode] /DecodeParms [null << /Columns {columns} /Predictor 12 >>]");
+
+        Assert.NotNull(result);
+        Assert.Equal(0x0110, Assert.Single(result.ObjectOffsets).Value.Value1);
+    }
+
+    /// <summary>
     /// Flate encodes <paramref name="data"/> as rows of <paramref name="columns"/> bytes, each led by
     /// the PNG filter type None.
     /// </summary>
