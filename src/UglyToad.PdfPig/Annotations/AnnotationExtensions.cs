@@ -131,6 +131,11 @@
                 return AnnotationType.Artwork3D;
             }
 
+            if (name.Data == "RichMedia")
+            {
+                return AnnotationType.RichMedia;
+            }
+
             return AnnotationType.Other;
         }
     }
