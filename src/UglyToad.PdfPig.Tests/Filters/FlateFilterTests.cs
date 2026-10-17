@@ -19,7 +19,7 @@
             {
                 inputStream.Seek(0, SeekOrigin.Begin);
                 var result = filter.Encode(inputStream, parameters);
-                var decoded = filter.Decode(result, parameters, TestFilterProvider.Instance, 0);
+                var decoded = filter.Decode(result, parameters, TestFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity);
                 Assert.Equal(input, decoded.ToArray());
             }
         }
@@ -34,7 +34,7 @@
 
             var parameters = new DictionaryToken(new Dictionary<NameToken, IToken>());
 
-            var result = filter.Decode(hex.Bytes.ToArray(), parameters, TestFilterProvider.Instance, 0);
+            var result = filter.Decode(hex.Bytes.ToArray(), parameters, TestFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity);
 
             var text = OtherEncodings.BytesAsLatin1String(result.ToArray());
 
@@ -47,7 +47,7 @@
             var parameters = new DictionaryToken(new Dictionary<NameToken, IToken>());
             var input = OtherEncodings.StringAsLatin1Bytes("This is not a deflate stream.");
 
-            var decoded = filter.Decode(input, parameters, TestFilterProvider.Instance, 0);
+            var decoded = filter.Decode(input, parameters, TestFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity);
 
             // The input used to be handed straight back, which a caller cannot tell apart
             // from content that happens to look like that.
@@ -79,7 +79,7 @@
             var half = new byte[compressed.Length / 2];
             Array.Copy(compressed, half, half.Length);
 
-            var decoded = filter.Decode(half, parameters, TestFilterProvider.Instance, 0).ToArray();
+            var decoded = filter.Decode(half, parameters, TestFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity).ToArray();
 
             Assert.NotEmpty(decoded);
             Assert.True(decoded.Length < original.Length, "a truncated stream cannot yield everything");
@@ -113,7 +113,7 @@
             compressed[damage] ^= 0xFF;
             compressed[damage + 1] ^= 0xFF;
 
-            var decoded = filter.Decode(compressed, parameters, TestFilterProvider.Instance, 0).ToArray();
+            var decoded = filter.Decode(compressed, parameters, TestFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity).ToArray();
             var half = original.Length / 2;
 
             Assert.True(decoded.Length < original.Length, "a damaged stream cannot yield everything");
@@ -144,7 +144,7 @@
                 compressed = filter.Encode(inputStream, new DictionaryToken(new Dictionary<NameToken, IToken>()));
             }
 
-            var decoded = filter.Decode(compressed, parameters, TestFilterProvider.Instance, 0);
+            var decoded = filter.Decode(compressed, parameters, TestFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity);
 
             Assert.Empty(decoded.ToArray());
         }
@@ -174,13 +174,13 @@
 
             var expected = FilterTestHelpers.DecodedAtOnce(original, 12, 1, 8, columns);
 
-            Assert.Equal(expected, filter.Decode(compressed, image, TestFilterProvider.Instance, 0).ToArray());
+            Assert.Equal(expected, filter.Decode(compressed, image, TestFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity).ToArray());
 
             // The low byte of the length complement in the header of the damaged block.
             compressed[2 + (damagedBlock * (5 + blockLength)) + 3] ^= 0xFF;
 
-            var decodedImage = filter.Decode(compressed, image, TestFilterProvider.Instance, 0).ToArray();
-            var decodedPlain = filter.Decode(compressed, plain, TestFilterProvider.Instance, 0).ToArray();
+            var decodedImage = filter.Decode(compressed, image, TestFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity).ToArray();
+            var decodedPlain = filter.Decode(compressed, plain, TestFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity).ToArray();
 
             Assert.Equal(decodedPlain, decodedImage);
 

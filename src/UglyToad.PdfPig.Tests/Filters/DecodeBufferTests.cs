@@ -14,14 +14,14 @@
         [Fact]
         public void WithoutAStatedLengthTheFactorDecides()
         {
-            Assert.Equal(Minimum, DecodeBuffer.Capacity(500, Dictionary(), Factor, Minimum, Deflate));
-            Assert.Equal(40_000, DecodeBuffer.Capacity(10_000, Dictionary(), Factor, Minimum, Deflate));
+            Assert.Equal(Minimum, DecodeBuffer.Capacity(500, Dictionary(), Factor, Minimum, Deflate, DecodeBuffer.MaximumCapacity));
+            Assert.Equal(40_000, DecodeBuffer.Capacity(10_000, Dictionary(), Factor, Minimum, Deflate, DecodeBuffer.MaximumCapacity));
         }
 
         [Fact]
         public void AStatedLengthIsHonouredWithRoomToFinish()
         {
-            var capacity = DecodeBuffer.Capacity(30_000, Dictionary((NameToken.Dl, 100_000)), Factor, Minimum, Deflate);
+            var capacity = DecodeBuffer.Capacity(30_000, Dictionary((NameToken.Dl, 100_000)), Factor, Minimum, Deflate, DecodeBuffer.MaximumCapacity);
 
             Assert.InRange(capacity, 100_001, 100_000 + 4096);
         }
@@ -29,7 +29,7 @@
         [Fact]
         public void TheFontProgramLengthsAddUp()
         {
-            var capacity = DecodeBuffer.Capacity(40_000, Dictionary((NameToken.Length1, 50_000), (NameToken.Length2, 20_000)), Factor, Minimum, Deflate);
+            var capacity = DecodeBuffer.Capacity(40_000, Dictionary((NameToken.Length1, 50_000), (NameToken.Length2, 20_000)), Factor, Minimum, Deflate, DecodeBuffer.MaximumCapacity);
 
             Assert.InRange(capacity, 70_001, 70_000 + 4096);
         }
@@ -37,7 +37,7 @@
         [Fact]
         public void TheDecodedLengthOutranksTheFontProgramLengths()
         {
-            var capacity = DecodeBuffer.Capacity(30_000, Dictionary((NameToken.Dl, 100_000), (NameToken.Length1, 5_000_000)), Factor, Minimum, Deflate);
+            var capacity = DecodeBuffer.Capacity(30_000, Dictionary((NameToken.Dl, 100_000), (NameToken.Length1, 5_000_000)), Factor, Minimum, Deflate, DecodeBuffer.MaximumCapacity);
 
             Assert.InRange(capacity, 100_001, 100_000 + 4096);
         }
@@ -46,7 +46,7 @@
         public void AStatedLengthBeyondWhatDeflateCanExpandToIsIgnored()
         {
             // 1,000 bytes cannot inflate to 5 MB; the dictionary is wrong, and the factor decides.
-            Assert.Equal(Minimum, DecodeBuffer.Capacity(1_000, Dictionary((NameToken.Dl, 5_000_000)), Factor, Minimum, Deflate));
+            Assert.Equal(Minimum, DecodeBuffer.Capacity(1_000, Dictionary((NameToken.Dl, 5_000_000)), Factor, Minimum, Deflate, DecodeBuffer.MaximumCapacity));
         }
 
         [Fact]
@@ -54,13 +54,13 @@
         {
             // A megabyte can inflate to two gigabytes, but a number in the file may not choose an
             // allocation of that size before a byte has been decoded.
-            Assert.Equal(4_000_000, DecodeBuffer.Capacity(1_000_000, Dictionary((NameToken.Dl, 2_000_000_000)), Factor, Minimum, Deflate));
+            Assert.Equal(DecodeBuffer.MaximumInitialCapacity, DecodeBuffer.Capacity(1_000_000, Dictionary((NameToken.Dl, 2_000_000_000)), Factor, Minimum, Deflate, DecodeBuffer.MaximumCapacity));
 
             var justAbove = (int)DecodeBuffer.MaximumStatedLength + 1;
-            Assert.Equal(4_000_000, DecodeBuffer.Capacity(1_000_000, Dictionary((NameToken.Dl, justAbove)), Factor, Minimum, Deflate));
+            Assert.Equal(DecodeBuffer.MaximumInitialCapacity, DecodeBuffer.Capacity(1_000_000, Dictionary((NameToken.Dl, justAbove)), Factor, Minimum, Deflate, DecodeBuffer.MaximumCapacity));
 
             var justBelow = (int)DecodeBuffer.MaximumStatedLength - 1;
-            Assert.InRange(DecodeBuffer.Capacity(1_000_000, Dictionary((NameToken.Dl, justBelow)), Factor, Minimum, Deflate), justBelow + 1, justBelow + 4096);
+            Assert.Equal(DecodeBuffer.MaximumInitialCapacity, DecodeBuffer.Capacity(1_000_000, Dictionary((NameToken.Dl, justBelow)), Factor, Minimum, Deflate, DecodeBuffer.MaximumCapacity));
         }
 
         [Fact]
@@ -69,27 +69,39 @@
             // 1,200 to one is beyond deflate but within LZW, and Brotli has no bound but the ceiling.
             var stated = 1_200_000;
 
-            Assert.Equal(Minimum, DecodeBuffer.Capacity(1_000, Dictionary((NameToken.Dl, stated)), Factor, Minimum, Deflate));
-            Assert.InRange(DecodeBuffer.Capacity(1_000, Dictionary((NameToken.Dl, stated)), Factor, Minimum, Lzw), stated + 1, stated + 4096);
-            Assert.InRange(DecodeBuffer.Capacity(100, Dictionary((NameToken.Dl, 20_000_000)), Factor, Minimum, DecodeBuffer.UnboundedExpansion), 20_000_001, 20_000_000 + 4096);
-            Assert.Equal(Minimum, DecodeBuffer.Capacity(100, Dictionary((NameToken.Dl, 2_000_000_000)), Factor, Minimum, DecodeBuffer.UnboundedExpansion));
+            Assert.Equal(Minimum, DecodeBuffer.Capacity(1_000, Dictionary((NameToken.Dl, stated)), Factor, Minimum, Deflate, DecodeBuffer.MaximumCapacity));
+            Assert.Equal(DecodeBuffer.MaximumInitialCapacity, DecodeBuffer.Capacity(1_000, Dictionary((NameToken.Dl, stated)), Factor, Minimum, Lzw, DecodeBuffer.MaximumCapacity));
+            Assert.Equal(DecodeBuffer.MaximumInitialCapacity, DecodeBuffer.Capacity(100, Dictionary((NameToken.Dl, 20_000_000)), Factor, Minimum, DecodeBuffer.UnboundedExpansion, DecodeBuffer.MaximumCapacity));
+            Assert.Equal(Minimum, DecodeBuffer.Capacity(100, Dictionary((NameToken.Dl, 2_000_000_000)), Factor, Minimum, DecodeBuffer.UnboundedExpansion, DecodeBuffer.MaximumCapacity));
         }
 
         [Fact]
         public void TheBoundAloneLeavesTinyStreamsTheirStatedLength()
         {
             // 20 bytes of deflate can inflate to 20,640; a statement within that is taken as it is.
-            Assert.InRange(DecodeBuffer.Capacity(20, Dictionary((NameToken.Dl, 15_000)), Factor, Minimum, Deflate), 15_001, 15_000 + 4096);
+            Assert.InRange(DecodeBuffer.Capacity(20, Dictionary((NameToken.Dl, 15_000)), Factor, Minimum, Deflate, DecodeBuffer.MaximumCapacity), 15_001, 15_000 + 4096);
 
             // Nothing inflates to something: a statement on empty input is ignored.
-            Assert.Equal(Minimum, DecodeBuffer.Capacity(0, Dictionary((NameToken.Dl, 100)), Factor, Minimum, Deflate));
+            Assert.Equal(Minimum, DecodeBuffer.Capacity(0, Dictionary((NameToken.Dl, 100)), Factor, Minimum, Deflate, DecodeBuffer.MaximumCapacity));
         }
 
         [Fact]
         public void ZeroAndNegativeStatedLengthsAreIgnored()
         {
-            Assert.Equal(Minimum, DecodeBuffer.Capacity(500, Dictionary((NameToken.Dl, 0)), Factor, Minimum, Deflate));
-            Assert.Equal(Minimum, DecodeBuffer.Capacity(500, Dictionary((NameToken.Length1, -7)), Factor, Minimum, Deflate));
+            Assert.Equal(Minimum, DecodeBuffer.Capacity(500, Dictionary((NameToken.Dl, 0)), Factor, Minimum, Deflate, DecodeBuffer.MaximumCapacity));
+            Assert.Equal(Minimum, DecodeBuffer.Capacity(500, Dictionary((NameToken.Length1, -7)), Factor, Minimum, Deflate, DecodeBuffer.MaximumCapacity));
         }
+
+        [Fact]
+        public void CapsInitialReservationsLikePdfBoxBeforeAnythingIsDecoded()
+        {
+            Assert.Equal(1 << 20, DecodeBuffer.Capacity(int.MaxValue, Dictionary(),
+                Factor, Minimum, Deflate, DecodeBuffer.MaximumCapacity));
+            Assert.Equal(1 << 20, DecodeBuffer.Capacity(100,
+                Dictionary((NameToken.Dl, 20_000_000)), Factor, Minimum, DecodeBuffer.UnboundedExpansion, DecodeBuffer.MaximumCapacity));
+            Assert.Equal(8192, DecodeBuffer.Capacity(int.MaxValue, Dictionary(),
+                Factor, Minimum, Deflate, 8192));
+        }
+
     }
 }

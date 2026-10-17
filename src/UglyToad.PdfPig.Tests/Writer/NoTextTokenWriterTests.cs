@@ -142,7 +142,8 @@ namespace UglyToad.PdfPig.Tests.Writer
                 data,
                 new DictionaryToken(new Dictionary<NameToken, IToken>()),
                 DefaultFilterProvider.Instance,
-                0);
+                0,
+                DecodeBuffer.MaximumCapacity);
 
             return OtherEncodings.BytesAsLatin1String(decoded.Span);
         }

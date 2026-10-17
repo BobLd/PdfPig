@@ -24,7 +24,8 @@
         public Memory<byte> Decode(Memory<byte> input,
             DictionaryToken streamDictionary,
             IFilterProvider filterProvider,
-            int filterIndex)
+            int filterIndex,
+            int maximumOutputLength)
         {
             var decodeParms = DecodeParameterResolver.GetFilterParameters(streamDictionary, filterIndex);
 
@@ -42,7 +43,7 @@
                 rows = Math.Max(rows, height);
             }
 
-            var arraySize = GetDecodedBufferSize(cols, rows);
+            var arraySize = GetDecodedBufferSize(cols, rows, maximumOutputLength);
 
             var k = decodeParms.GetIntOrDefault(NameToken.K, 0);
             var encodedByteAlign = decodeParms.GetBooleanOrDefault(NameToken.EncodedByteAlign, false);
@@ -64,7 +65,7 @@
             }
         }
 
-        internal static int GetDecodedBufferSize(int columns, int rows)
+        internal static int GetDecodedBufferSize(int columns, int rows, int maximumOutputLength)
         {
             if (columns <= 0 || rows <= 0)
             {
@@ -76,12 +77,12 @@
             // https://github.com/apache/pdfbox/blob/3.0/pdfbox/src/main/java/org/apache/pdfbox/filter/CCITTFaxFilter.java
             var bitmapBytes = ((long)columns + 7) / 8 * rows;
             var changesBytes = ((long)columns + 2) * sizeof(int) * 2;
-            const long maximumDecodeBufferBytes = 256L * 1024 * 1024;
-            if (bitmapBytes + changesBytes > maximumDecodeBufferBytes)
+
+            if (bitmapBytes + changesBytes > maximumOutputLength)
             {
                 throw new CorruptCompressedDataException(
                     $"CCITT decode buffers require {bitmapBytes + changesBytes} bytes for columns={columns}, rows={rows}; "
-                    + $"at most {maximumDecodeBufferBytes} bytes are allowed.");
+                    + $"at most {maximumOutputLength} bytes are allowed.");
             }
 
             return (int)bitmapBytes;

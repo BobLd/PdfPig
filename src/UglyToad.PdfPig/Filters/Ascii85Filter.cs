@@ -29,7 +29,7 @@
         public bool IsSupported { get; } = true;
 
         /// <inheritdoc />
-        public Memory<byte> Decode(Memory<byte> input, DictionaryToken streamDictionary, IFilterProvider filterProvider, int filterIndex)
+        public Memory<byte> Decode(Memory<byte> input, DictionaryToken streamDictionary, IFilterProvider filterProvider, int filterIndex, int maximumOutputLength)
         {
             Span<byte> asciiBuffer = stackalloc byte[5];
             Span<byte> inputSpan = input.Span;
@@ -53,7 +53,7 @@
                     {
                         if (index > 0)
                         {
-                            WriteData(asciiBuffer, index, writer, true);
+                            WriteData(asciiBuffer, index, writer, true, maximumOutputLength);
                         }
 
                         index = 0;
@@ -72,6 +72,7 @@
                         throw new InvalidOperationException("Encountered z within a 5 character block");
                     }
 
+                    DecodeBuffer.CheckLength((long)writer.WrittenCount + 4, maximumOutputLength);
                     for (int j = 0; j < 4; j++)
                     {
                         writer.Write(0);
@@ -89,14 +90,14 @@
 
                 if (index == 5)
                 {
-                    WriteData(asciiBuffer, index, writer, false);
+                    WriteData(asciiBuffer, index, writer, false, maximumOutputLength);
                     index = 0;
                 }
             }
 
             if (index > 0)
             {
-                WriteData(asciiBuffer, index, writer, true);
+                WriteData(asciiBuffer, index, writer, true, maximumOutputLength);
             }
 
             return writer.WrittenMemory.ToArray();
@@ -106,7 +107,7 @@
             Span<byte> ascii,
             int index,
             ArrayPoolBufferWriter<byte> writer,
-            bool isAtEnd)
+            bool isAtEnd, int outputLimit)
         {
             if (index < 2)
             {
@@ -120,6 +121,8 @@
                 throw new ArgumentOutOfRangeException(nameof(index),
                     $"Cannot convert a this block because we're not at the end of the stream. Chunk: '{bufferTxt}'. Content: '{soFar}'");
             }
+
+            DecodeBuffer.CheckLength((long)writer.WrittenCount + index - 1, outputLimit);
 
             // Write any empty padding if the block ended early.
             for (var i = index; i < 5; i++)

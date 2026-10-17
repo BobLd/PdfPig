@@ -32,7 +32,7 @@
 
             // Empty input would fail during compression sniffing if validation ran too late.
             Assert.Throws<CorruptCompressedDataException>(() =>
-                new CcittFaxDecodeFilter().Decode(Memory<byte>.Empty, dictionary, TestFilterProvider.Instance, 0));
+                new CcittFaxDecodeFilter().Decode(Memory<byte>.Empty, dictionary, TestFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity));
         }
 
         [Theory]
@@ -52,7 +52,7 @@
             });
 
             Assert.Throws<CorruptCompressedDataException>(() =>
-                new CcittFaxDecodeFilter().Decode(Memory<byte>.Empty, dictionary, TestFilterProvider.Instance, 0));
+                new CcittFaxDecodeFilter().Decode(Memory<byte>.Empty, dictionary, TestFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity));
         }
 
         [Fact]
@@ -60,9 +60,9 @@
         {
             // One byte per row plus two three-entry int arrays; equality is allowed.
             const int lastAllowedRowCount = 256 * 1024 * 1024 - 24;
-            Assert.Equal(lastAllowedRowCount, CcittFaxDecodeFilter.GetDecodedBufferSize(1, lastAllowedRowCount));
+            Assert.Equal(lastAllowedRowCount, CcittFaxDecodeFilter.GetDecodedBufferSize(1, lastAllowedRowCount, DecodeBuffer.MaximumCapacity));
             Assert.Throws<CorruptCompressedDataException>(() =>
-                CcittFaxDecodeFilter.GetDecodedBufferSize(1, lastAllowedRowCount + 1));
+                CcittFaxDecodeFilter.GetDecodedBufferSize(1, lastAllowedRowCount + 1, DecodeBuffer.MaximumCapacity));
         }
 
         [Theory]
@@ -72,7 +72,7 @@
         [InlineData(1800, 3113, 700425)]
         public void CalculatesRoundedBitmapSize(int columns, int rows, int expected)
         {
-            Assert.Equal(expected, CcittFaxDecodeFilter.GetDecodedBufferSize(columns, rows));
+            Assert.Equal(expected, CcittFaxDecodeFilter.GetDecodedBufferSize(columns, rows, DecodeBuffer.MaximumCapacity));
         }
 
         [Theory]
@@ -163,7 +163,7 @@
             };
 
             var expectedBytes = ImageHelpers.LoadFileBytes("ccittfax-decoded.bin");
-            var decodedBytes = filter.Decode(encodedBytes, new DictionaryToken(dictionary), TestFilterProvider.Instance, 0);
+            var decodedBytes = filter.Decode(encodedBytes, new DictionaryToken(dictionary), TestFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity);
             Assert.Equal(expectedBytes, decodedBytes.ToArray());
         }
     }

@@ -20,7 +20,8 @@
         /// <param name="streamDictionary">The dictionary of the <see cref="StreamToken"/> (or other dictionary types, e.g. inline images) containing these bytes.</param>
         /// <param name="filterProvider">The filter provider.</param>
         /// <param name="filterIndex">The position of this filter in the pipeline used to encode data.</param>
+        /// <param name="maximumOutputLength">The maximum length of the output bytes.</param>
         /// <returns>The decoded bytes.</returns>
-        Memory<byte> Decode(Memory<byte> input, DictionaryToken streamDictionary, IFilterProvider filterProvider, int filterIndex);
+        Memory<byte> Decode(Memory<byte> input, DictionaryToken streamDictionary, IFilterProvider filterProvider, int filterIndex, int maximumOutputLength);
     }
 }

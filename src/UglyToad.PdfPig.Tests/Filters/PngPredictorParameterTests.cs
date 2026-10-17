@@ -98,8 +98,8 @@
 
             // A believable height decodes straight into the result; two billion rows for fifteen
             // bytes of input may not size anything and decode the ordinary way, to the same bytes.
-            Assert.Equal(expected, filter.Decode(compressed, ImageDictionary(2), DefaultFilterProvider.Instance, 0).ToArray());
-            Assert.Equal(expected, filter.Decode(compressed, ImageDictionary(2_000_000_000), DefaultFilterProvider.Instance, 0).ToArray());
+            Assert.Equal(expected, filter.Decode(compressed, ImageDictionary(2), DefaultFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity).ToArray());
+            Assert.Equal(expected, filter.Decode(compressed, ImageDictionary(2_000_000_000), DefaultFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity).ToArray());
         }
 
         private static DictionaryToken ImageDictionary(int height) => StreamDictionary(NameToken.FlateDecode, [(NameToken.Predictor, 12), (NameToken.Columns, 1)], (NameToken.Height, height));
@@ -127,7 +127,7 @@
             // A valid zlib stream of a few bytes: header, one stored block "abc", checksum.
             byte[] compressed = [0x78, 0x9C, 0x01, 0x03, 0x00, 0xFC, 0xFF, 0x61, 0x62, 0x63, 0x02, 0x4D, 0x01, 0x27];
 
-            var decoded = filter.Decode(compressed, dictionary, DefaultFilterProvider.Instance, 0);
+            var decoded = filter.Decode(compressed, dictionary, DefaultFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity);
 
             Assert.True(decoded.IsEmpty);
         }

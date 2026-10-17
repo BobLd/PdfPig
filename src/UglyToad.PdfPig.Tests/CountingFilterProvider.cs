@@ -44,7 +44,7 @@ namespace UglyToad.PdfPig.Tests
             public bool IsSupported => true;
 
             public Memory<byte> Decode(Memory<byte> input, DictionaryToken streamDictionary,
-                IFilterProvider filterProvider, int filterIndex)
+                IFilterProvider filterProvider, int filterIndex, int maximumOutputLength)
             {
                 owner.DecodeCount++;
 

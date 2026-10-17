@@ -40,7 +40,7 @@
             var filter = new BrotliFilter();
             var parameters = new DictionaryToken(new Dictionary<NameToken, IToken>());
 
-            var decoded = filter.Decode(compressed, parameters, DefaultFilterProvider.Instance, 0);
+            var decoded = filter.Decode(compressed, parameters, DefaultFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity);
 
             Assert.Equal(expected, decoded.ToArray());
         }
@@ -88,7 +88,7 @@
             var parameters = new DictionaryToken(new Dictionary<NameToken, IToken>());
 
             var exception = Assert.Throws<CorruptCompressedDataException>(
-                () => new BrotliFilter().Decode(largeWindow, parameters, DefaultFilterProvider.Instance, 0));
+                () => new BrotliFilter().Decode(largeWindow, parameters, DefaultFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity));
 
             Assert.Contains("RFC 9841", exception.Message);
         }
@@ -148,7 +148,7 @@
             });
 
             var decoded = new BrotliFilter().Decode(CompressWithBrotli(predicted), streamDictionary,
-                DefaultFilterProvider.Instance, 0);
+                DefaultFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity);
 
             Assert.Equal(expected, decoded.ToArray());
         }
@@ -186,7 +186,7 @@
             });
 
             var decoded = new BrotliFilter().Decode(CompressWithBrotli(predicted), streamDictionary,
-                DefaultFilterProvider.Instance, 0);
+                DefaultFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity);
 
             Assert.Equal(expected, decoded.ToArray());
         }
@@ -234,7 +234,7 @@
             var data = (Memory<byte>)System.Text.Encoding.ASCII.GetBytes(hex);
             for (var i = 0; i < filters.Count; i++)
             {
-                data = filters[i].Decode(data, streamDictionary, DefaultFilterProvider.Instance, i);
+                data = filters[i].Decode(data, streamDictionary, DefaultFilterProvider.Instance, i, DecodeBuffer.MaximumCapacity);
             }
 
             Assert.Equal(expected, data.ToArray());
@@ -293,7 +293,8 @@
             return new BrotliFilter().Decode(input,
                 new DictionaryToken(new Dictionary<NameToken, IToken>()),
                 DefaultFilterProvider.Instance,
-                0);
+                0,
+                DecodeBuffer.MaximumCapacity);
         }
 #endif
 
@@ -421,7 +422,7 @@
         {
             public bool IsSupported => false;
 
-            public Memory<byte> Decode(Memory<byte> input, DictionaryToken streamDictionary, IFilterProvider filterProvider, int filterIndex)
+            public Memory<byte> Decode(Memory<byte> input, DictionaryToken streamDictionary, IFilterProvider filterProvider, int filterIndex, int maximumOutputLength)
             {
                 throw new NotImplementedException();
             }

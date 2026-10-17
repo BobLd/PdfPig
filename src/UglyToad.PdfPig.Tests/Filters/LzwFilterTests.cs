@@ -25,7 +25,7 @@
         [Fact]
         public void DecodesTheSpecificationExample()
         {
-            var decoded = filter.Decode(SpecificationExampleEncoded, NoParameters, TestFilterProvider.Instance, 0);
+            var decoded = filter.Decode(SpecificationExampleEncoded, NoParameters, TestFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity);
 
             Assert.Equal(SpecificationExampleDecoded, decoded.ToArray());
         }
@@ -37,7 +37,7 @@
             // EOD marker. Producers do drop the marker; the content still has to come out.
             var truncated = SpecificationExampleEncoded.Take(SpecificationExampleEncoded.Length - 1).ToArray();
 
-            var decoded = filter.Decode(truncated, NoParameters, TestFilterProvider.Instance, 0);
+            var decoded = filter.Decode(truncated, NoParameters, TestFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity);
 
             Assert.Equal(SpecificationExampleDecoded, decoded.ToArray());
         }
@@ -48,7 +48,7 @@
             // 256 (clear) then 300, which nothing before it could have defined.
             var input = new byte[] { 0x80, 0x4B, 0x00 };
 
-            Assert.Throws<InvalidOperationException>(() => filter.Decode(input, NoParameters, TestFilterProvider.Instance, 0));
+            Assert.Throws<InvalidOperationException>(() => filter.Decode(input, NoParameters, TestFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity));
         }
 
         [Theory]
@@ -60,7 +60,7 @@
 
             var encoded = LzwEncoder.Encode(data, earlyChange, out _);
 
-            var decoded = filter.Decode(encoded, WithEarlyChange(earlyChange), TestFilterProvider.Instance, 0);
+            var decoded = filter.Decode(encoded, WithEarlyChange(earlyChange), TestFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity);
 
             Assert.Equal(data, decoded.ToArray());
         }
@@ -78,7 +78,7 @@
 
             Assert.True(clearCount > 0, "The sample did not fill the code table, so the test does not cover a reset.");
 
-            var decoded = filter.Decode(encoded, WithEarlyChange(earlyChange), TestFilterProvider.Instance, 0);
+            var decoded = filter.Decode(encoded, WithEarlyChange(earlyChange), TestFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity);
 
             Assert.Equal(data, decoded.ToArray());
         }
@@ -120,7 +120,7 @@
                 }
             });
 
-            var decoded = filter.Decode(LzwEncoder.Encode(predicted, true, out _), streamDictionary, TestFilterProvider.Instance, 0);
+            var decoded = filter.Decode(LzwEncoder.Encode(predicted, true, out _), streamDictionary, TestFilterProvider.Instance, 0, DecodeBuffer.MaximumCapacity);
 
             Assert.Equal(expected, decoded.ToArray());
         }
@@ -179,7 +179,7 @@
         /// A plain LZW encoder for the tests. It tracks the size of the table the decoder will have built
         /// after each code, because that, not the encoder's own table, decides the width of the next code.
         /// </summary>
-        private static class LzwEncoder
+        internal static class LzwEncoder
         {
             private const int ClearTable = 256;
             private const int EodMarker = 257;
