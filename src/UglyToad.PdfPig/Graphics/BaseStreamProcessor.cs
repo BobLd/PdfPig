@@ -4,7 +4,7 @@
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Linq;
-    
+    using System.Threading;
     using Colors;
     using Colors.Icc;
     using Content;
@@ -90,6 +90,11 @@
         /// </summary>
         protected int TextSequence;
 
+        /// <summary>
+        /// The token checked while processing operations, including those of nested form XObjects.
+        /// </summary>
+        protected CancellationToken CancellationToken { get; }
+
         /// <inheritdoc/>
         public TextMatrices TextMatrices { get; } = new TextMatrices();
 
@@ -156,8 +161,10 @@
             PageRotationDegrees rotation,
             in TransformationMatrix initialMatrix,
             IIccProfile? outputIntentProfile,
-            ParsingOptions parsingOptions)
+            ParsingOptions parsingOptions,
+            CancellationToken token)
         {
+            CancellationToken = token;
             this.PageNumber = pageNumber;
             this.ResourceStore = resourceStore;
             this.UserSpaceUnit = userSpaceUnit;
@@ -197,8 +204,16 @@
         /// </summary>
         protected virtual void ProcessOperations(IReadOnlyList<IGraphicsStateOperation> operations)
         {
+            CancellationToken.ThrowIfCancellationRequested();
+
+            int i = 0;
             foreach (var stateOperation in operations)
             {
+                if (++i % 100 == 0)
+                {
+                    CancellationToken.ThrowIfCancellationRequested();
+                }
+
                 stateOperation.Run(this);
             }
         }
@@ -760,7 +775,6 @@
                 }
 
                 ProcessOperations(operations);
-
             }
             finally
             {
