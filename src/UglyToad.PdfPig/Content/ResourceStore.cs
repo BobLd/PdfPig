@@ -23,8 +23,8 @@
         private readonly ParsingOptions parsingOptions;
 
         private readonly Dictionary<IndirectReference, IFont> loadedFonts = new Dictionary<IndirectReference, IFont>();
-        private readonly Dictionary<NameToken, IFont> loadedDirectFonts = new Dictionary<NameToken, IFont>();
         private readonly StackDictionary<NameToken, IndirectReference> currentFontState = new StackDictionary<NameToken, IndirectReference>();
+        private readonly StackDictionary<NameToken, IFont> currentDirectFontState = new StackDictionary<NameToken, IFont>();
         private readonly StackDictionary<NameToken, IndirectReference> currentXObjectState = new StackDictionary<NameToken, IndirectReference>();
 
         private readonly StackDictionary<NameToken, DictionaryToken> extendedGraphicsStates = new StackDictionary<NameToken, DictionaryToken>();
@@ -132,20 +132,12 @@
 
             namedColorSpaces.Push(resolved.NamedColorSpaces);
             currentFontState.Push(resolved.Fonts);
+            currentDirectFontState.Push(resolved.DirectFonts);
             currentXObjectState.Push(resolved.XObjects);
             extendedGraphicsStates.Push(resolved.ExtendedGraphicsStates);
             markedContentProperties.Push(resolved.MarkedContentProperties);
             shadingsProperties.Push();
             patternsProperties.Push();
-
-            // Fonts given inline rather than by indirect reference are keyed by name in a store shared
-            // across resource dictionaries, so their binding is re-established on every load. The font
-            // itself was parsed when this dictionary was first resolved.
-            for (var i = 0; i < resolved.DirectFonts.Count; i++)
-            {
-                var directFont = resolved.DirectFonts[i];
-                loadedDirectFonts[directFont.Name] = directFont.Font;
-            }
 
             // Patterns and shadings resolve their colour spaces through the resource stack, so unlike the
             // categories above their result depends on the levels below this one and cannot be cached
@@ -166,7 +158,7 @@
         private ResolvedResources ResolveResources(DictionaryToken resourceDictionary)
         {
             var fonts = new Dictionary<NameToken, IndirectReference>();
-            var directFonts = new List<(NameToken Name, IFont Font)>();
+            var directFonts = new Dictionary<NameToken, IFont>();
             var xObjects = new Dictionary<NameToken, IndirectReference>();
             var extendedGraphicsStateDictionaries = new Dictionary<NameToken, DictionaryToken>();
             var colorSpaces = new Dictionary<NameToken, ResourceColorSpace>();
@@ -329,6 +321,7 @@
             loadedNamedColorSpaceDetails.Clear();
             loadedColorSpaceDetailsCache.Clear();
             currentFontState.Pop();
+            currentDirectFontState.Pop();
             currentXObjectState.Pop();
             namedColorSpaces.Pop();
             extendedGraphicsStates.Pop();
@@ -339,7 +332,7 @@
 
         private void LoadFontDictionary(DictionaryToken fontDictionary,
             Dictionary<NameToken, IndirectReference> fonts,
-            List<(NameToken Name, IFont Font)> directFonts)
+            Dictionary<NameToken, IFont> directFonts)
         {
             lastLoadedFont = (null, null);
 
@@ -389,8 +382,7 @@
                     {
                         var font = fontFactory.Get(fd);
 
-                        directFonts.Add((name, font));
-                        loadedDirectFonts[name] = font;
+                        directFonts[name] = font;
                     }
                     catch
                     {
@@ -415,11 +407,9 @@
             public Dictionary<NameToken, IndirectReference> Fonts { get; }
 
             /// <summary>
-            /// Fonts written inline in the resource dictionary rather than referenced indirectly. These are
-            /// held by name in a store shared across resource dictionaries so the binding, unlike the parsed
-            /// font, has to be re-applied on every load.
+            /// Fonts written inline in the resource dictionary rather than referenced indirectly, already parsed.
             /// </summary>
-            public IReadOnlyList<(NameToken Name, IFont Font)> DirectFonts { get; }
+            public Dictionary<NameToken, IFont> DirectFonts { get; }
 
             public Dictionary<NameToken, IndirectReference> XObjects { get; }
 
@@ -431,7 +421,7 @@
 
             public ResolvedResources(
                 Dictionary<NameToken, IndirectReference> fonts,
-                IReadOnlyList<(NameToken Name, IFont Font)> directFonts,
+                Dictionary<NameToken, IFont> directFonts,
                 Dictionary<NameToken, IndirectReference> xObjects,
                 Dictionary<NameToken, DictionaryToken> extendedGraphicsStates,
                 Dictionary<NameToken, ResourceColorSpace> namedColorSpaces,
@@ -458,7 +448,7 @@
             {
                 loadedFonts.TryGetValue(reference, out font);
             }
-            else if (!loadedDirectFonts.TryGetValue(name, out font))
+            else if (!currentDirectFontState.TryGetValue(name, out font))
             {
                 return null;
             }
