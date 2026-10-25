@@ -136,6 +136,74 @@
             Assert.Equal(1, processor.StackSize);
         }
 
+        [Fact]
+        public void FormXObject_WithResources_WhenCancelled_UnloadsFormResources()
+        {
+            var formName = NameToken.Create("Fm0");
+            var formOnlyName = NameToken.Create("FormOnly");
+            var formRef = new IndirectReference(10, 0);
+
+            var formResources = new DictionaryToken(new Dictionary<NameToken, IToken>
+            {
+                {
+                    NameToken.Xobject, new DictionaryToken(new Dictionary<NameToken, IToken>
+                    {
+                        { formOnlyName, new IndirectReferenceToken(new IndirectReference(11, 0)) }
+                    })
+                }
+            });
+
+            var scanner = new TestPdfTokenScanner();
+            var entries = new Dictionary<NameToken, IToken>
+            {
+                { NameToken.Type, NameToken.Xobject },
+                { NameToken.Subtype, NameToken.Form },
+                { NameToken.Resources, formResources }
+            };
+            var formStream = new StreamToken(new DictionaryToken(entries), OtherEncodings.StringAsLatin1Bytes("1 0 0 1 0 0 cm"));
+            scanner.Objects[formRef] = new ObjectToken(XrefLocation.File(0), formRef, formStream);
+
+            var resourceStore = new ResourceStore(
+                scanner,
+                new NoOpFontFactory(),
+                new TestFilterProvider(),
+                null,
+                new ParsingOptions { UseLenientParsing = true, Logger = new NoOpLog() });
+
+            var pageResources = new DictionaryToken(new Dictionary<NameToken, IToken>
+            {
+                {
+                    NameToken.Xobject, new DictionaryToken(new Dictionary<NameToken, IToken>
+                    {
+                        { formName, new IndirectReferenceToken(formRef) }
+                    })
+                }
+            });
+            resourceStore.LoadResourceDictionary(pageResources);
+
+            using var cts = new CancellationTokenSource();
+
+            var processor = new TestProcessor(resourceStore, scanner, cts.Token);
+
+            // The form loads its /Resources, then its own operation loop sees the cancelled token and throws.
+            var operations = new IGraphicsStateOperation[]
+            {
+                new CallbackOperation(cts.Cancel),
+                new InvokeNamedXObject(formName)
+            };
+
+            Assert.Throws<OperationCanceledException>(() => processor.Process(1, operations));
+            Assert.Equal(1, processor.StackSize);
+
+            // The form's level is gone, so its names no longer resolve while the page's still do.
+            Assert.False(resourceStore.TryGetXObjectReference(formOnlyName, out _));
+            Assert.True(resourceStore.TryGetXObjectReference(formName, out _));
+
+            // Only the page level is left.
+            resourceStore.UnloadResourceDictionary();
+            Assert.Throws<InvalidOperationException>(() => resourceStore.UnloadResourceDictionary());
+        }
+
         private static TestProcessor CreateTestProcessor(CancellationToken token)
         {
             var scanner = new TestPdfTokenScanner();

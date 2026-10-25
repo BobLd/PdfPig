@@ -1,11 +1,17 @@
 ﻿namespace UglyToad.PdfPig.Tests.Integration
 {
     using System;
+    using System.Collections.Generic;
+    using System.IO;
     using System.Linq;
     using System.Threading;
     using Content;
     using UglyToad.PdfPig;
+    using UglyToad.PdfPig.Core;
     using UglyToad.PdfPig.Filters;
+    using UglyToad.PdfPig.Geometry;
+    using UglyToad.PdfPig.Graphics;
+    using UglyToad.PdfPig.Graphics.Operations;
     using UglyToad.PdfPig.Outline.Destinations;
     using UglyToad.PdfPig.Parser;
     using UglyToad.PdfPig.Tokenization.Scanner;
@@ -164,6 +170,122 @@
             cts.Cancel();
 
             Assert.Throws<OperationCanceledException>(() => enumerator.MoveNext());
+        }
+
+        [Fact]
+        public void GetPage_CancelledMidPage_UnloadsPageResourcesSoLaterPagesAreUnaffected()
+        {
+            using var document = PdfDocument.Open(TestDocumentPath);
+            using var cts = new CancellationTokenSource();
+
+            CancelMidPageFactory? factory = null;
+            document.AddPageFactory<CancelledPage, CancelMidPageFactory>(f =>
+            {
+                f.Source = cts;
+                factory = f;
+            });
+
+            Assert.Throws<OperationCanceledException>(() => document.GetPage<CancelledPage>(1, cts.Token));
+
+            // The token is cancelled by the first operation and the loop throws at the 100th, so this
+            // makes sure the cancel happened mid-page with the page's resources loaded.
+            Assert.NotNull(factory);
+            Assert.True(factory.OperationCount > 100, $"Page 1 has only {factory.OperationCount} operations.");
+
+            // Every level the cancelled page loaded was unloaded, so the shared stack is empty again.
+            Assert.Throws<InvalidOperationException>(() => factory.ResourceStore.UnloadResourceDictionary());
+
+            using var freshDocument = PdfDocument.Open(TestDocumentPath);
+
+            for (var pageNumber = 1; pageNumber <= Math.Min(2, document.NumberOfPages); pageNumber++)
+            {
+                var expected = freshDocument.GetPage(pageNumber).Letters;
+                var actual = document.GetPage(pageNumber).Letters;
+
+                Assert.Equal(expected.Select(l => (l.Value, l.FontName)), actual.Select(l => (l.Value, l.FontName)));
+            }
+        }
+
+        private sealed class CancelledPage
+        {
+        }
+
+        /// <summary>
+        /// Runs the page through the default content stream processor, cancelling the caller's token
+        /// from the page's first operation.
+        /// </summary>
+        private sealed class CancelMidPageFactory : BasePageFactory<CancelledPage>
+        {
+            public CancellationTokenSource? Source { get; set; }
+
+            public int OperationCount { get; private set; }
+
+            public CancelMidPageFactory(
+                IPdfTokenScanner pdfScanner,
+                IResourceStore resourceStore,
+                ILookupFilterProvider filterProvider,
+                IPageContentParser pageContentParser,
+                ParsingOptions parsingOptions)
+                : base(pdfScanner, resourceStore, filterProvider, pageContentParser, parsingOptions)
+            {
+            }
+
+            protected override CancelledPage ProcessPage(
+                int pageNumber,
+                DictionaryToken dictionary,
+                NamedDestinations namedDestinations,
+                MediaBox mediaBox,
+                CropBox cropBox,
+                UserSpaceUnit userSpaceUnit,
+                PageRotationDegrees rotation,
+                TransformationMatrix initialMatrix,
+                IReadOnlyList<IGraphicsStateOperation> operations,
+                CancellationToken token)
+            {
+                OperationCount = operations.Count;
+
+                var processor = new ContentStreamProcessor(
+                    pageNumber,
+                    ResourceStore,
+                    PdfScanner,
+                    PageContentParser,
+                    FilterProvider,
+                    cropBox,
+                    userSpaceUnit,
+                    rotation,
+                    initialMatrix,
+                    ResourceStore.GetPageOutputIntentProfile(dictionary),
+                    ParsingOptions,
+                    token);
+
+                var withCancel = new List<IGraphicsStateOperation>(operations.Count + 1)
+                {
+                    new CallbackOperation(() => Source!.Cancel())
+                };
+                withCancel.AddRange(operations);
+
+                processor.Process(pageNumber, withCancel);
+
+                return new CancelledPage();
+            }
+        }
+
+        private sealed class CallbackOperation : IGraphicsStateOperation
+        {
+            private readonly Action action;
+
+            public string Operator => "callback";
+
+            public CallbackOperation(Action action)
+            {
+                this.action = action;
+            }
+
+            public void Run(IOperationContext operationContext) => action();
+
+            public void Write(Stream stream)
+            {
+            }
         }
 
         private sealed class CancellationCustomPage

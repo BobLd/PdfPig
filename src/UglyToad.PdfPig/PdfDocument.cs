@@ -168,9 +168,16 @@
         /// Get the page with the specified page number (1 indexed).
         /// </summary>
         /// <param name="pageNumber">The number of the page to return, this starts from 1.</param>
+        /// <returns>The page.</returns>
+        public Page GetPage(int pageNumber) => GetPage(pageNumber, CancellationToken.None);
+
+        /// <summary>
+        /// Get the page with the specified page number (1 indexed).
+        /// </summary>
+        /// <param name="pageNumber">The number of the page to return, this starts from 1.</param>
         /// <param name="token">The cancellation token.</param>
         /// <returns>The page.</returns>
-        public Page GetPage(int pageNumber, CancellationToken token = default)
+        public Page GetPage(int pageNumber, CancellationToken token)
         {
             if (isDisposed)
             {
@@ -199,9 +206,17 @@
         /// </summary>
         /// <typeparam name="TPage"></typeparam>
         /// <param name="pageNumber">The number of the page to return, this starts from 1.</param>
+        /// <returns>The page.</returns>
+        public TPage GetPage<TPage>(int pageNumber) => GetPage<TPage>(pageNumber, CancellationToken.None);
+
+        /// <summary>
+        /// Get the page with the specified page number (1 indexed), using the specified page factory.
+        /// </summary>
+        /// <typeparam name="TPage"></typeparam>
+        /// <param name="pageNumber">The number of the page to return, this starts from 1.</param>
         /// <param name="token">The cancellation token.</param>
         /// <returns>The page.</returns>
-        public TPage GetPage<TPage>(int pageNumber, CancellationToken token = default)
+        public TPage GetPage<TPage>(int pageNumber, CancellationToken token)
         {
             if (isDisposed)
             {
@@ -228,7 +243,13 @@
         /// <summary>
         /// Gets all pages in this document in order.
         /// </summary>
-        public IEnumerable<Page> GetPages(CancellationToken token = default)
+        public IEnumerable<Page> GetPages() => GetPages(CancellationToken.None);
+
+        /// <summary>
+        /// Gets all pages in this document in order.
+        /// </summary>
+        /// <param name="token">The cancellation token, checked as each page is read.</param>
+        public IEnumerable<Page> GetPages(CancellationToken token)
         {
             for (var i = 0; i < NumberOfPages; i++)
             {
@@ -239,7 +260,13 @@
         /// <summary>
         /// Gets all pages in this document in order, using the specified page factory.
         /// </summary>
-        public IEnumerable<TPage> GetPages<TPage>(CancellationToken token = default)
+        public IEnumerable<TPage> GetPages<TPage>() => GetPages<TPage>(CancellationToken.None);
+
+        /// <summary>
+        /// Gets all pages in this document in order, using the specified page factory.
+        /// </summary>
+        /// <param name="token">The cancellation token, checked as each page is read.</param>
+        public IEnumerable<TPage> GetPages<TPage>(CancellationToken token)
         {
             for (var i = 0; i < NumberOfPages; i++)
             {
