@@ -187,10 +187,9 @@
 
             Assert.Throws<OperationCanceledException>(() => document.GetPage<CancelledPage>(1, cts.Token));
 
-            // The token is cancelled by the first operation and the loop throws at the 100th, so this
-            // makes sure the cancel happened mid-page with the page's resources loaded.
+            // The token is cancelled half way through the page's operations, with its resources loaded.
             Assert.NotNull(factory);
-            Assert.True(factory.OperationCount > 100, $"Page 1 has only {factory.OperationCount} operations.");
+            Assert.True(factory.OperationCount > 2, $"Page 1 has only {factory.OperationCount} operations.");
 
             // Every level the cancelled page loaded was unloaded, so the shared stack is empty again.
             Assert.Throws<InvalidOperationException>(() => factory.ResourceStore.UnloadResourceDictionary());
@@ -212,7 +211,7 @@
 
         /// <summary>
         /// Runs the page through the default content stream processor, cancelling the caller's token
-        /// from the page's first operation.
+        /// half way through the page's operations.
         /// </summary>
         private sealed class CancelMidPageFactory : BasePageFactory<CancelledPage>
         {
@@ -258,11 +257,11 @@
                     ParsingOptions,
                     token);
 
-                var withCancel = new List<IGraphicsStateOperation>(operations.Count + 1)
-                {
-                    new CallbackOperation(() => Source!.Cancel())
-                };
-                withCancel.AddRange(operations);
+                var half = operations.Count / 2;
+                var withCancel = new List<IGraphicsStateOperation>(operations.Count + 1);
+                withCancel.AddRange(operations.Take(half));
+                withCancel.Add(new CallbackOperation(() => Source!.Cancel()));
+                withCancel.AddRange(operations.Skip(half));
 
                 processor.Process(pageNumber, withCancel);
 

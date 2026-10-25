@@ -48,7 +48,7 @@
         }
 
         [Fact]
-        public void ProcessOperations_ChecksCancellationEvery100Operations()
+        public void ProcessOperations_StopsBeforeTheOperationAfterTheCancel()
         {
             using var cts = new CancellationTokenSource();
             var processor = CreateTestProcessor(cts.Token);
@@ -71,8 +71,8 @@
 
             Assert.Throws<OperationCanceledException>(() => processor.Process(1, operations));
 
-            // The 100th operation triggered the cancellation check before running, so 99 operations ran.
-            Assert.Equal(99, executedCount);
+            // The operation at index 50 cancelled, so it and the 50 before it ran.
+            Assert.Equal(51, executedCount);
         }
 
         [Fact]
@@ -88,124 +88,7 @@
         }
 
         [Fact]
-        public void FormXObject_WhenCancelledBeforeInvocation_ThrowsOperationCanceledException()
-        {
-            var formName = NameToken.Create("Fm0");
-            var formRef = new IndirectReference(10, 0);
-
-            var scanner = new TestPdfTokenScanner();
-            var entries = new Dictionary<NameToken, IToken>
-            {
-                { NameToken.Type, NameToken.Xobject },
-                { NameToken.Subtype, NameToken.Form }
-            };
-            var formStream = new StreamToken(new DictionaryToken(entries), OtherEncodings.StringAsLatin1Bytes("1 0 0 1 0 0 cm"));
-            scanner.Objects[formRef] = new ObjectToken(XrefLocation.File(0), formRef, formStream);
-
-            var resourceStore = new ResourceStore(
-                scanner,
-                new NoOpFontFactory(),
-                new TestFilterProvider(),
-                null,
-                new ParsingOptions { UseLenientParsing = true, Logger = new NoOpLog() });
-
-            var resourcesDict = new DictionaryToken(new Dictionary<NameToken, IToken>
-            {
-                {
-                    NameToken.Xobject, new DictionaryToken(new Dictionary<NameToken, IToken>
-                    {
-                        { formName, new IndirectReferenceToken(formRef) }
-                    })
-                }
-            });
-            resourceStore.LoadResourceDictionary(resourcesDict);
-
-            using var cts = new CancellationTokenSource();
-
-            var processor = new TestProcessor(resourceStore, scanner, cts.Token);
-
-            // The page's own loop only polls every 100 operations, so the throw comes from the form's
-            // content processing, which reads the same token.
-            var operations = new IGraphicsStateOperation[]
-            {
-                new CallbackOperation(cts.Cancel),
-                new InvokeNamedXObject(formName)
-            };
-
-            Assert.Throws<OperationCanceledException>(() => processor.Process(1, operations));
-            Assert.Equal(1, processor.StackSize);
-        }
-
-        [Fact]
-        public void FormXObject_WithResources_WhenCancelled_UnloadsFormResources()
-        {
-            var formName = NameToken.Create("Fm0");
-            var formOnlyName = NameToken.Create("FormOnly");
-            var formRef = new IndirectReference(10, 0);
-
-            var formResources = new DictionaryToken(new Dictionary<NameToken, IToken>
-            {
-                {
-                    NameToken.Xobject, new DictionaryToken(new Dictionary<NameToken, IToken>
-                    {
-                        { formOnlyName, new IndirectReferenceToken(new IndirectReference(11, 0)) }
-                    })
-                }
-            });
-
-            var scanner = new TestPdfTokenScanner();
-            var entries = new Dictionary<NameToken, IToken>
-            {
-                { NameToken.Type, NameToken.Xobject },
-                { NameToken.Subtype, NameToken.Form },
-                { NameToken.Resources, formResources }
-            };
-            var formStream = new StreamToken(new DictionaryToken(entries), OtherEncodings.StringAsLatin1Bytes("1 0 0 1 0 0 cm"));
-            scanner.Objects[formRef] = new ObjectToken(XrefLocation.File(0), formRef, formStream);
-
-            var resourceStore = new ResourceStore(
-                scanner,
-                new NoOpFontFactory(),
-                new TestFilterProvider(),
-                null,
-                new ParsingOptions { UseLenientParsing = true, Logger = new NoOpLog() });
-
-            var pageResources = new DictionaryToken(new Dictionary<NameToken, IToken>
-            {
-                {
-                    NameToken.Xobject, new DictionaryToken(new Dictionary<NameToken, IToken>
-                    {
-                        { formName, new IndirectReferenceToken(formRef) }
-                    })
-                }
-            });
-            resourceStore.LoadResourceDictionary(pageResources);
-
-            using var cts = new CancellationTokenSource();
-
-            var processor = new TestProcessor(resourceStore, scanner, cts.Token);
-
-            // The form loads its /Resources, then its own operation loop sees the cancelled token and throws.
-            var operations = new IGraphicsStateOperation[]
-            {
-                new CallbackOperation(cts.Cancel),
-                new InvokeNamedXObject(formName)
-            };
-
-            Assert.Throws<OperationCanceledException>(() => processor.Process(1, operations));
-            Assert.Equal(1, processor.StackSize);
-
-            // The form's level is gone, so its names no longer resolve while the page's still do.
-            Assert.False(resourceStore.TryGetXObjectReference(formOnlyName, out _));
-            Assert.True(resourceStore.TryGetXObjectReference(formName, out _));
-
-            // Only the page level is left.
-            resourceStore.UnloadResourceDictionary();
-            Assert.Throws<InvalidOperationException>(() => resourceStore.UnloadResourceDictionary());
-        }
-
-        [Fact]
-        public void FormXObject_WhenCancelledBeforeInvocation_DoesNotDecodeTheForm()
+        public void FormXObject_WhenCancelledBeforeInvocation_DoesNotRunTheForm()
         {
             var formName = NameToken.Create("Fm0");
             var formRef = new IndirectReference(10, 0);
@@ -241,6 +124,7 @@
 
             var processor = new TestProcessor(resourceStore, scanner, cts.Token, filterProvider);
 
+            // The page's loop sees the cancel before the form operation runs.
             var operations = new IGraphicsStateOperation[]
             {
                 new CallbackOperation(cts.Cancel),
@@ -248,7 +132,135 @@
             };
 
             Assert.Throws<OperationCanceledException>(() => processor.Process(1, operations));
+            Assert.Equal(1, processor.StackSize);
             Assert.Equal(0, filterProvider.DecodeCount);
+        }
+
+        [Fact]
+        public void FormXObject_WithResources_WhenCancelled_UnloadsFormResources()
+        {
+            var formName = NameToken.Create("Fm0");
+            var formOnlyName = NameToken.Create("FormOnly");
+            var formRef = new IndirectReference(10, 0);
+
+            var formResources = new DictionaryToken(new Dictionary<NameToken, IToken>
+            {
+                {
+                    NameToken.Xobject, new DictionaryToken(new Dictionary<NameToken, IToken>
+                    {
+                        { formOnlyName, new IndirectReferenceToken(new IndirectReference(11, 0)) }
+                    })
+                }
+            });
+
+            var scanner = new TestPdfTokenScanner();
+            var entries = new Dictionary<NameToken, IToken>
+            {
+                { NameToken.Type, NameToken.Xobject },
+                { NameToken.Subtype, NameToken.Form },
+                { NameToken.Resources, formResources }
+            };
+            var formStream = new StreamToken(new DictionaryToken(entries), OtherEncodings.StringAsLatin1Bytes("1 0 0 1 0 0 cm"));
+            scanner.Objects[formRef] = new ObjectToken(XrefLocation.File(0), formRef, formStream);
+
+            using var cts = new CancellationTokenSource();
+
+            var filterProvider = new CountingFilterProvider { OnDecode = cts.Cancel };
+            var resourceStore = new ResourceStore(
+                scanner,
+                new NoOpFontFactory(),
+                filterProvider,
+                null,
+                new ParsingOptions { UseLenientParsing = true, Logger = new NoOpLog() });
+
+            var pageResources = new DictionaryToken(new Dictionary<NameToken, IToken>
+            {
+                {
+                    NameToken.Xobject, new DictionaryToken(new Dictionary<NameToken, IToken>
+                    {
+                        { formName, new IndirectReferenceToken(formRef) }
+                    })
+                }
+            });
+            resourceStore.LoadResourceDictionary(pageResources);
+
+            var processor = new TestProcessor(resourceStore, scanner, cts.Token, filterProvider);
+
+            // The form loads its /Resources, the cancel lands while its content is decoded, and the check
+            // before parsing throws.
+            var operations = new IGraphicsStateOperation[]
+            {
+                new InvokeNamedXObject(formName)
+            };
+
+            Assert.Throws<OperationCanceledException>(() => processor.Process(1, operations));
+            Assert.Equal(1, filterProvider.DecodeCount);
+            Assert.Equal(1, processor.StackSize);
+
+            // The form's level is gone, so its names no longer resolve while the page's still do.
+            Assert.False(resourceStore.TryGetXObjectReference(formOnlyName, out _));
+            Assert.True(resourceStore.TryGetXObjectReference(formName, out _));
+
+            // Only the page level is left.
+            resourceStore.UnloadResourceDictionary();
+            Assert.Throws<InvalidOperationException>(() => resourceStore.UnloadResourceDictionary());
+        }
+
+        [Fact]
+        public void FormXObject_CancelledWhileLoadingFormResources_DoesNotDecodeTheForm()
+        {
+            var formName = NameToken.Create("Fm0");
+            var formRef = new IndirectReference(10, 0);
+
+            // Loading the form's inline font is where the cancel lands.
+            var formResources = new DictionaryToken(new Dictionary<NameToken, IToken>
+            {
+                {
+                    NameToken.Font, new DictionaryToken(new Dictionary<NameToken, IToken>
+                    {
+                        { NameToken.Create("F1"), new DictionaryToken(new Dictionary<NameToken, IToken> { { NameToken.Type, NameToken.Font } }) }
+                    })
+                }
+            });
+
+            var scanner = new TestPdfTokenScanner();
+            var entries = new Dictionary<NameToken, IToken>
+            {
+                { NameToken.Type, NameToken.Xobject },
+                { NameToken.Subtype, NameToken.Form },
+                { NameToken.Resources, formResources }
+            };
+            var formStream = new StreamToken(new DictionaryToken(entries), OtherEncodings.StringAsLatin1Bytes("1 0 0 1 0 0 cm"));
+            scanner.Objects[formRef] = new ObjectToken(XrefLocation.File(0), formRef, formStream);
+
+            using var cts = new CancellationTokenSource();
+
+            var filterProvider = new CountingFilterProvider();
+            var resourceStore = new ResourceStore(
+                scanner,
+                new CancellingFontFactory(cts),
+                filterProvider,
+                null,
+                new ParsingOptions { UseLenientParsing = true, Logger = new NoOpLog() });
+
+            resourceStore.LoadResourceDictionary(new DictionaryToken(new Dictionary<NameToken, IToken>
+            {
+                {
+                    NameToken.Xobject, new DictionaryToken(new Dictionary<NameToken, IToken>
+                    {
+                        { formName, new IndirectReferenceToken(formRef) }
+                    })
+                }
+            }));
+
+            var processor = new TestProcessor(resourceStore, scanner, cts.Token, filterProvider);
+
+            Assert.Throws<OperationCanceledException>(() => processor.Process(1, new IGraphicsStateOperation[] { new InvokeNamedXObject(formName) }));
+            Assert.Equal(0, filterProvider.DecodeCount);
+
+            // The form's level was unloaded, so only the page level is left.
+            resourceStore.UnloadResourceDictionary();
+            Assert.Throws<InvalidOperationException>(() => resourceStore.UnloadResourceDictionary());
         }
 
         private static TestProcessor CreateTestProcessor(CancellationToken token)
@@ -288,6 +300,15 @@
         private sealed class NoOpFontFactory : IFontFactory
         {
             public IFont Get(DictionaryToken dictionary) => null!;
+        }
+
+        private sealed class CancellingFontFactory(CancellationTokenSource source) : IFontFactory
+        {
+            public IFont Get(DictionaryToken dictionary)
+            {
+                source.Cancel();
+                return null!;
+            }
         }
 
         private sealed class MockOperation : IGraphicsStateOperation

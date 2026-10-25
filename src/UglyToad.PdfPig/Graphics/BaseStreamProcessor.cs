@@ -206,17 +206,16 @@
         /// <summary>
         /// Process the <see cref="IGraphicsStateOperation"/>s.
         /// </summary>
+        /// <remarks>
+        /// Checks <see cref="CancellationToken"/> before each operation. An override that does not call
+        /// the base method must check it itself, or cancellation is ignored for this content and the
+        /// form XObjects it invokes.
+        /// </remarks>
         protected virtual void ProcessOperations(IReadOnlyList<IGraphicsStateOperation> operations)
         {
-            CancellationToken.ThrowIfCancellationRequested();
-
-            int i = 0;
             foreach (var stateOperation in operations)
             {
-                if (++i % 100 == 0)
-                {
-                    CancellationToken.ThrowIfCancellationRequested();
-                }
+                CancellationToken.ThrowIfCancellationRequested();
 
                 stateOperation.Run(this);
             }
