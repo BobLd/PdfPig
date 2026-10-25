@@ -52,7 +52,8 @@ namespace UglyToad.PdfPig.Tests.Integration
 
             public bool IsVertical => false;
 
-            public FontDetails Details => throw new System.NotSupportedException();
+            // Null rather than throwing: loading an indirect font stamps its reference through Details?.
+            public FontDetails Details => null!;
 
             public int ReadCharacterCode(IInputBytes bytes, out int codeLength) => throw new System.NotSupportedException();
 
@@ -249,6 +250,53 @@ namespace UglyToad.PdfPig.Tests.Integration
 
             store.UnloadResourceDictionary();
             Assert.Null(store.GetFont(F1));
+        }
+
+        /// <summary>
+        /// The innermost dictionary that defines a font name wins, whether the font is written inline or
+        /// referenced indirectly at either level.
+        /// </summary>
+        [Fact]
+        public void NestedInlineFontShadowsOuterIndirectFont()
+        {
+            var scanner = new TestPdfTokenScanner();
+            var pageFontReference = new IndirectReference(20, 0);
+            scanner.Objects[pageFontReference] = new ObjectToken(XrefLocation.File(0), pageFontReference, InlineFont("PageFont"));
+
+            var store = CreateStore(scanner, new InlineFontFactory());
+
+            store.LoadResourceDictionary(Dict((NameToken.Font, Dict((F1, new IndirectReferenceToken(pageFontReference))))));
+            var pageFont = store.GetFont(F1);
+            Assert.Equal("PageFont", pageFont?.Name?.Data);
+
+            store.LoadResourceDictionary(Dict((NameToken.Font, Dict((F1, InlineFont("FormFont"))))));
+            Assert.Equal("FormFont", store.GetFont(F1)?.Name?.Data);
+
+            store.UnloadResourceDictionary();
+            Assert.Same(pageFont, store.GetFont(F1));
+
+            store.UnloadResourceDictionary();
+        }
+
+        [Fact]
+        public void NestedIndirectFontShadowsOuterInlineFont()
+        {
+            var scanner = new TestPdfTokenScanner();
+            var formFontReference = new IndirectReference(21, 0);
+            scanner.Objects[formFontReference] = new ObjectToken(XrefLocation.File(0), formFontReference, InlineFont("FormFont"));
+
+            var store = CreateStore(scanner, new InlineFontFactory());
+
+            store.LoadResourceDictionary(Dict((NameToken.Font, Dict((F1, InlineFont("PageFont"))))));
+            var pageFont = store.GetFont(F1);
+
+            store.LoadResourceDictionary(Dict((NameToken.Font, Dict((F1, new IndirectReferenceToken(formFontReference))))));
+            Assert.Equal("FormFont", store.GetFont(F1)?.Name?.Data);
+
+            store.UnloadResourceDictionary();
+            Assert.Same(pageFont, store.GetFont(F1));
+
+            store.UnloadResourceDictionary();
         }
 
         /// <summary>

@@ -23,8 +23,7 @@
         private readonly ParsingOptions parsingOptions;
 
         private readonly Dictionary<IndirectReference, IFont> loadedFonts = new Dictionary<IndirectReference, IFont>();
-        private readonly StackDictionary<NameToken, IndirectReference> currentFontState = new StackDictionary<NameToken, IndirectReference>();
-        private readonly StackDictionary<NameToken, IFont> currentDirectFontState = new StackDictionary<NameToken, IFont>();
+        private readonly StackDictionary<NameToken, FontResource> currentFontState = new StackDictionary<NameToken, FontResource>();
         private readonly StackDictionary<NameToken, IndirectReference> currentXObjectState = new StackDictionary<NameToken, IndirectReference>();
 
         private readonly StackDictionary<NameToken, DictionaryToken> extendedGraphicsStates = new StackDictionary<NameToken, DictionaryToken>();
@@ -132,7 +131,6 @@
 
             namedColorSpaces.Push(resolved.NamedColorSpaces);
             currentFontState.Push(resolved.Fonts);
-            currentDirectFontState.Push(resolved.DirectFonts);
             currentXObjectState.Push(resolved.XObjects);
             extendedGraphicsStates.Push(resolved.ExtendedGraphicsStates);
             markedContentProperties.Push(resolved.MarkedContentProperties);
@@ -157,8 +155,7 @@
 
         private ResolvedResources ResolveResources(DictionaryToken resourceDictionary)
         {
-            var fonts = new Dictionary<NameToken, IndirectReference>();
-            var directFonts = new Dictionary<NameToken, IFont>();
+            var fonts = new Dictionary<NameToken, FontResource>();
             var xObjects = new Dictionary<NameToken, IndirectReference>();
             var extendedGraphicsStateDictionaries = new Dictionary<NameToken, DictionaryToken>();
             var colorSpaces = new Dictionary<NameToken, ResourceColorSpace>();
@@ -168,7 +165,7 @@
             {
                 var fontDictionary = DirectObjectFinder.Get<DictionaryToken>(fontBase, scanner);
 
-                LoadFontDictionary(fontDictionary, fonts, directFonts);
+                LoadFontDictionary(fontDictionary, fonts);
             }
 
             if (resourceDictionary.TryGet(NameToken.Xobject, out var xobjectBase))
@@ -257,7 +254,7 @@
                 }
             }
 
-            return new ResolvedResources(fonts, directFonts, xObjects, extendedGraphicsStateDictionaries, colorSpaces, properties);
+            return new ResolvedResources(fonts, xObjects, extendedGraphicsStateDictionaries, colorSpaces, properties);
         }
 
         private void LoadPatterns(DictionaryToken resourceDictionary)
@@ -321,7 +318,6 @@
             loadedNamedColorSpaceDetails.Clear();
             loadedColorSpaceDetailsCache.Clear();
             currentFontState.Pop();
-            currentDirectFontState.Pop();
             currentXObjectState.Pop();
             namedColorSpaces.Pop();
             extendedGraphicsStates.Pop();
@@ -331,8 +327,7 @@
         }
 
         private void LoadFontDictionary(DictionaryToken fontDictionary,
-            Dictionary<NameToken, IndirectReference> fonts,
-            Dictionary<NameToken, IFont> directFonts)
+            Dictionary<NameToken, FontResource> fonts)
         {
             lastLoadedFont = (null, null);
 
@@ -342,7 +337,7 @@
                 {
                     var reference = objectKey.Data;
 
-                    fonts[NameToken.Create(pair.Key)] = reference;
+                    fonts[NameToken.Create(pair.Key)] = new FontResource(reference);
 
                     if (loadedFonts.ContainsKey(reference))
                     {
@@ -380,9 +375,7 @@
 
                     try
                     {
-                        var font = fontFactory.Get(fd);
-
-                        directFonts[name] = font;
+                        fonts[name] = new FontResource(fontFactory.Get(fd));
                     }
                     catch
                     {
@@ -400,16 +393,34 @@
         }
 
         /// <summary>
+        /// A named font resource: an indirect reference, whose font is cached in <see cref="loadedFonts"/>
+        /// and may be missing if it failed to load, or a font written inline in the resource dictionary.
+        /// </summary>
+        private readonly struct FontResource
+        {
+            public IndirectReference Reference { get; }
+
+            public IFont? Inline { get; }
+
+            public FontResource(IndirectReference reference)
+            {
+                Reference = reference;
+                Inline = null;
+            }
+
+            public FontResource(IFont inline)
+            {
+                Reference = default;
+                Inline = inline;
+            }
+        }
+
+        /// <summary>
         /// The result of expanding a resource dictionary, used for caching.
         /// </summary>
         private sealed class ResolvedResources
         {
-            public Dictionary<NameToken, IndirectReference> Fonts { get; }
-
-            /// <summary>
-            /// Fonts written inline in the resource dictionary rather than referenced indirectly, already parsed.
-            /// </summary>
-            public Dictionary<NameToken, IFont> DirectFonts { get; }
+            public Dictionary<NameToken, FontResource> Fonts { get; }
 
             public Dictionary<NameToken, IndirectReference> XObjects { get; }
 
@@ -420,15 +431,13 @@
             public Dictionary<NameToken, DictionaryToken> MarkedContentProperties { get; }
 
             public ResolvedResources(
-                Dictionary<NameToken, IndirectReference> fonts,
-                Dictionary<NameToken, IFont> directFonts,
+                Dictionary<NameToken, FontResource> fonts,
                 Dictionary<NameToken, IndirectReference> xObjects,
                 Dictionary<NameToken, DictionaryToken> extendedGraphicsStates,
                 Dictionary<NameToken, ResourceColorSpace> namedColorSpaces,
                 Dictionary<NameToken, DictionaryToken> markedContentProperties)
             {
                 Fonts = fonts;
-                DirectFonts = directFonts;
                 XObjects = xObjects;
                 ExtendedGraphicsStates = extendedGraphicsStates;
                 NamedColorSpaces = namedColorSpaces;
@@ -443,14 +452,16 @@
                 return lastLoadedFont.font;
             }
 
-            IFont? font;
-            if (currentFontState.TryGetValue(name, out var reference))
-            {
-                loadedFonts.TryGetValue(reference, out font);
-            }
-            else if (!currentDirectFontState.TryGetValue(name, out font))
+            // The innermost resource dictionary that names the font wins, whether it is inline or indirect.
+            if (!currentFontState.TryGetValue(name, out var resource))
             {
                 return null;
+            }
+
+            var font = resource.Inline;
+            if (font is null)
+            {
+                loadedFonts.TryGetValue(resource.Reference, out font);
             }
 
             lastLoadedFont = (name, font);
