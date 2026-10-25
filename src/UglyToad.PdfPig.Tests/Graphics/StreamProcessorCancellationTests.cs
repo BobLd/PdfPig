@@ -204,6 +204,53 @@
             Assert.Throws<InvalidOperationException>(() => resourceStore.UnloadResourceDictionary());
         }
 
+        [Fact]
+        public void FormXObject_WhenCancelledBeforeInvocation_DoesNotDecodeTheForm()
+        {
+            var formName = NameToken.Create("Fm0");
+            var formRef = new IndirectReference(10, 0);
+
+            var scanner = new TestPdfTokenScanner();
+            var entries = new Dictionary<NameToken, IToken>
+            {
+                { NameToken.Type, NameToken.Xobject },
+                { NameToken.Subtype, NameToken.Form }
+            };
+            var formStream = new StreamToken(new DictionaryToken(entries), OtherEncodings.StringAsLatin1Bytes("1 0 0 1 0 0 cm"));
+            scanner.Objects[formRef] = new ObjectToken(XrefLocation.File(0), formRef, formStream);
+
+            var filterProvider = new CountingFilterProvider();
+            var resourceStore = new ResourceStore(
+                scanner,
+                new NoOpFontFactory(),
+                filterProvider,
+                null,
+                new ParsingOptions { UseLenientParsing = true, Logger = new NoOpLog() });
+
+            resourceStore.LoadResourceDictionary(new DictionaryToken(new Dictionary<NameToken, IToken>
+            {
+                {
+                    NameToken.Xobject, new DictionaryToken(new Dictionary<NameToken, IToken>
+                    {
+                        { formName, new IndirectReferenceToken(formRef) }
+                    })
+                }
+            }));
+
+            using var cts = new CancellationTokenSource();
+
+            var processor = new TestProcessor(resourceStore, scanner, cts.Token, filterProvider);
+
+            var operations = new IGraphicsStateOperation[]
+            {
+                new CallbackOperation(cts.Cancel),
+                new InvokeNamedXObject(formName)
+            };
+
+            Assert.Throws<OperationCanceledException>(() => processor.Process(1, operations));
+            Assert.Equal(0, filterProvider.DecodeCount);
+        }
+
         private static TestProcessor CreateTestProcessor(CancellationToken token)
         {
             var scanner = new TestPdfTokenScanner();
@@ -219,13 +266,14 @@
 
         private sealed class TestProcessor : ContentStreamProcessor
         {
-            public TestProcessor(IResourceStore resourceStore, IPdfTokenScanner scanner, CancellationToken token)
+            public TestProcessor(IResourceStore resourceStore, IPdfTokenScanner scanner, CancellationToken token,
+                ILookupFilterProvider? filterProvider = null)
                 : base(
                     1,
                     resourceStore,
                     scanner,
                     new PageContentParser(ReflectionGraphicsStateOperationFactory.Instance, new StackDepthGuard(256)),
-                    new TestFilterProvider(),
+                    filterProvider ?? new TestFilterProvider(),
                     new CropBox(new PdfRectangle(0, 0, 612, 792)),
                     UserSpaceUnit.Default,
                     new PageRotationDegrees(0),

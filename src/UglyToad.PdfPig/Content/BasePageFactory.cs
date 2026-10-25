@@ -67,12 +67,12 @@
         public TPage Create(int number, DictionaryToken dictionary, PageTreeMembers pageTreeMembers,
              NamedDestinations namedDestinations, CancellationToken token)
         {
-            token.ThrowIfCancellationRequested();
-
             if (dictionary is null)
             {
                 throw new ArgumentNullException(nameof(dictionary));
             }
+
+            token.ThrowIfCancellationRequested();
 
             var type = dictionary.GetNameOrDefault(NameToken.Type);
 
@@ -144,6 +144,8 @@
                             throw new InvalidOperationException($"Could not find the contents for object {obj}.");
                         }
 
+                        token.ThrowIfCancellationRequested();
+
                         bytes.Write(contentStream.Decode(FilterProvider, PdfScanner).Span);
 
                         if (i < array.Data.Count - 1)
@@ -163,7 +165,9 @@
                         throw new InvalidOperationException("Failed to parse the content for the page: " + number);
                     }
 
-                    var bytes = contentStream.Decode(FilterProvider, PdfScanner);
+                    token.ThrowIfCancellationRequested();
+
+                    var bytes =contentStream.Decode(FilterProvider, PdfScanner);
 
                     return ProcessPageInternal(number, dictionary, namedDestinations, mediaBox, cropBox, userSpaceUnit, rotation, initialMatrix, bytes, token);
                 }
@@ -229,7 +233,8 @@
         /// <param name="rotation">The page rotation.</param>
         /// <param name="initialMatrix"></param>
         /// <param name="operations">The page operations. Can be empty if the page has no content.</param>
-        /// <param name="token"></param>
+        /// <param name="token">The token passed to <see cref="Create"/>. Implementations should pass it on to their
+        /// stream processor, or check it themselves, so that a cancelled page stops processing.</param>
         protected abstract TPage ProcessPage(
             int pageNumber,
             DictionaryToken dictionary,

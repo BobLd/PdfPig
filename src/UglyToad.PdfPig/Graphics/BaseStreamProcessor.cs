@@ -150,6 +150,10 @@
         /// The profile device colours are colour-managed through for this content (14.11.5), or
         /// <see langword="null"/> when they are not managed.
         /// </param>
+        /// <param name="token">
+        /// Checked while operations are processed, including those of nested form XObjects, and before
+        /// form and Type 3 glyph content streams are decoded and parsed.
+        /// </param>
         protected BaseStreamProcessor(
             int pageNumber,
             IResourceStore resourceStore,
@@ -410,7 +414,12 @@
             PdfRectangle? result = null;
             if (type3Font.TryGetCharProc(code, out var charProcStream))
             {
+                CancellationToken.ThrowIfCancellationRequested();
+
                 var contentBytes = charProcStream.Decode(FilterProvider, PdfScanner);
+
+                CancellationToken.ThrowIfCancellationRequested();
+
                 var operations = PageContentParser.Parse(PageNumber,
                     new MemoryInputBytes(contentBytes),
                     ParsingOptions.Logger);
@@ -800,7 +809,11 @@
                 return cached;
             }
 
+            CancellationToken.ThrowIfCancellationRequested();
+
             var contentStream = formStream.Decode(FilterProvider, PdfScanner);
+
+            CancellationToken.ThrowIfCancellationRequested();
 
             var operations = PageContentParser.Parse(PageNumber,
                 new MemoryInputBytes(contentStream), ParsingOptions.Logger);
